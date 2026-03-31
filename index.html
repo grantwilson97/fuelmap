@@ -670,7 +670,7 @@ function planTrip(){
   document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Getting route from Google Maps…</div></div>';
 
   var origin=userLat+','+userLng;
-  var url='https://maps.googleapis.com/maps/api/directions/json?origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(dest)+'&key='+GOOGLE_API_KEY;
+  var url='https://fuelmap-api-sf.vercel.app/api/directions?origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(destination);
 
   fetch(url)
     .then(function(r){return r.json();})
