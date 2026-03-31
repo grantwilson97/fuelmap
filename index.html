@@ -642,7 +642,8 @@ function renderTripPlanner(){
   document.getElementById('trip-body').innerHTML=
     '<div class="trip-form-card">'+
       '<div class="trip-form-title">Where are you going?</div>'+
-      '<input class="trip-input" id="trip-destination" placeholder="Enter destination address…" type="text"/>'+
+      '<input class="trip-input" id="trip-destination" placeholder="Enter destination address…" type="text" autocomplete="off"/>
+<div id="autocomplete-dropdown" style="background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;overflow:hidden;margin-top:-6px;display:none;"></div>'+
       '<div class="trip-form-title" style="margin-top:4px;">Trip type</div>'+
       '<div class="trip-type-grid">'+typeOpts+'</div>'+
       '<button class="plan-btn" onclick="planTrip()" id="plan-btn">Plan my trip</button>'+
