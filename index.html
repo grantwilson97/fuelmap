@@ -17,7 +17,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .wordmark{font-size:26px;font-weight:800;color:#1667d9;letter-spacing:-0.5px;}
 .wordmark span{color:#f5a623;}
-.subtitle{font-size:11px;color:#888;}
+.subtitle{font-size:11px;color:#888;max-width:160px;text-align:right;line-height:1.3;}
 .pge-chip{background:#fff7e6;border:1px solid #fbbf24;border-radius:8px;padding:5px 10px;margin-bottom:8px;}
 .pge-chip-txt{font-size:11px;font-weight:700;color:#b45309;}
 .filter-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
@@ -30,7 +30,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .map-sub{font-size:12px;color:#888;}
 .live-badge{background:#dcfce7;border:1px solid #16a34a;border-radius:8px;padding:4px 10px;margin-top:4px;}
 .live-badge-txt{font-size:11px;color:#15803d;font-weight:700;}
-.loading-overlay{position:absolute;inset:0;background:rgba(240,244,255,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+.loading-overlay{position:absolute;inset:0;background:rgba(240,244,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
 .loading-spinner{width:32px;height:32px;border:3px solid #e0e7ff;border-top-color:#1667d9;border-radius:50%;animation:spin 0.8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-txt{font-size:13px;color:#1667d9;font-weight:600;}
@@ -94,7 +94,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .report-price-btn{flex:1;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:12px;padding:13px;font-size:13px;font-weight:700;color:#1a1a2e;cursor:pointer;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:100;}
 .modal-overlay.hidden{display:none;}
-.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:430px;}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:430px;max-height:85vh;overflow-y:auto;}
 .modal-title{font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:4px;}
 .modal-sub{font-size:13px;color:#888;margin-bottom:8px;}
 .modal-station{font-size:14px;font-weight:700;color:#1667d9;margin-bottom:16px;}
@@ -112,6 +112,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .modal-submit:disabled{background:#B5D4F4;cursor:not-allowed;}
 .hero-blue{background:#1667d9;padding:18px;}
 .hero-green{background:#065f46;padding:18px;}
+.hero-purple{background:linear-gradient(135deg,#4c1d95,#6d28d9);padding:18px;}
 .hero-title{font-size:24px;font-weight:800;color:#fff;margin-bottom:2px;}
 .hero-sub{font-size:13px;color:rgba(255,255,255,0.75);margin-bottom:12px;}
 .hero-stats{display:flex;gap:10px;}
@@ -160,15 +161,76 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .tip-impact{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
 .tab-bar{display:flex;border-top:0.5px solid #e5e5e5;background:#fff;padding-bottom:env(safe-area-inset-bottom);}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;cursor:pointer;border:none;background:none;}
-.tab-icon{font-size:22px;opacity:0.4;}
+.tab-icon{font-size:20px;opacity:0.4;}
 .tab.active .tab-icon{opacity:1;}
-.tab-label{font-size:10px;font-weight:600;color:#aaa;}
+.tab-label{font-size:9px;font-weight:600;color:#aaa;}
 .tab.active .tab-label{color:#1667d9;}
 .refresh-btn{position:absolute;top:10px;right:10px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:#1667d9;cursor:pointer;}
+
+/* ── PROFILE SCREEN ── */
+.profile-hero{background:linear-gradient(135deg,#4c1d95,#6d28d9);padding:20px 18px 24px;}
+.profile-avatar-row{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
+.avatar-circle{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:36px;cursor:pointer;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;}
+.profile-name-block{flex:1;}
+.profile-name{font-size:20px;font-weight:800;color:#fff;margin-bottom:2px;}
+.profile-email{font-size:12px;color:rgba(255,255,255,0.7);}
+.profile-edit-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;margin-top:6px;}
+.active-vehicle-chip{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;}
+.avc-label{font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;text-transform:uppercase;margin-bottom:2px;}
+.avc-name{font-size:14px;font-weight:700;color:#fff;}
+.avc-fuel{font-size:11px;color:rgba(255,255,255,0.75);}
+.avc-level{display:flex;align-items:center;gap:6px;}
+.fuel-level-bar{width:60px;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;}
+.fuel-level-fill{height:100%;border-radius:3px;background:#34d399;}
+.fuel-level-txt{font-size:11px;color:#fff;font-weight:700;}
+.profile-body{padding:14px;}
+.profile-section{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
+.profile-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
+.vehicle-card{background:#f7f7f9;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;border:2px solid transparent;}
+.vehicle-card.active-v{border-color:#1667d9;background:#eff6ff;}
+.vehicle-emoji{font-size:28px;width:44px;text-align:center;flex-shrink:0;}
+.vehicle-info{flex:1;}
+.vehicle-name{font-size:14px;font-weight:700;color:#1a1a2e;}
+.vehicle-detail{font-size:11px;color:#888;margin-top:2px;}
+.vehicle-fuel-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.vehicle-fuel-bar{flex:1;height:5px;background:#e0e0e0;border-radius:3px;}
+.vehicle-fuel-fill{height:100%;border-radius:3px;}
+.vehicle-fuel-txt{font-size:10px;font-weight:700;width:28px;text-align:right;}
+.vehicle-active-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:#dbeafe;color:#1d4ed8;flex-shrink:0;}
+.add-vehicle-btn{width:100%;padding:12px;border-radius:12px;border:2px dashed #d0d0d0;background:#fafafa;font-size:14px;font-weight:700;color:#888;cursor:pointer;text-align:center;}
+.add-vehicle-btn:hover{border-color:#1667d9;color:#1667d9;}
+.pref-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #f0f0f0;}
+.pref-row:last-child{border-bottom:none;}
+.pref-label{font-size:14px;color:#1a1a2e;}
+.pref-value{font-size:14px;color:#1667d9;font-weight:600;}
+.pref-select{border:1px solid #e0e0e0;border-radius:8px;padding:5px 10px;font-size:13px;color:#1a1a2e;background:#fff;}
+.weight-row{margin-bottom:10px;}
+.weight-label-row{display:flex;justify-content:space-between;margin-bottom:4px;}
+.weight-label{font-size:13px;color:#555;}
+.weight-val{font-size:13px;font-weight:700;color:#1667d9;}
+.weight-slider{width:100%;accent-color:#1667d9;}
+.signout-btn{width:100%;padding:13px;border-radius:12px;border:1.5px solid #fecaca;background:#fff;font-size:14px;font-weight:700;color:#dc2626;cursor:pointer;margin-top:4px;}
+
+/* Vehicle form modal */
+.vform-field{margin-bottom:14px;}
+.vform-label{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;display:block;}
+.vform-input{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;outline:none;}
+.vform-input:focus{border-color:#1667d9;}
+.vform-select{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;background:#fff;outline:none;}
+.vform-select:focus{border-color:#1667d9;}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.emoji-opt{width:44px;height:44px;border-radius:10px;border:2px solid #eee;background:#f7f7f9;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.emoji-opt.on{border-color:#1667d9;background:#eff6ff;}
+.fuel-type-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;}
+.ft-opt{padding:8px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:13px;font-weight:600;color:#555;cursor:pointer;}
+.ft-opt.on{background:#1667d9;border-color:#1667d9;color:#fff;}
+.level-display{font-size:24px;font-weight:800;color:#1667d9;text-align:center;margin-bottom:4px;}
+.level-sub{font-size:11px;color:#888;text-align:center;margin-bottom:8px;}
 </style>
 </head>
 <body>
 
+<!-- MAP SCREEN -->
 <div class="screen active" id="screen-map">
   <div class="topbar">
     <div class="title-row">
@@ -199,6 +261,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- DETAIL SCREEN -->
 <div class="screen" id="screen-detail" style="background:#f7f7f9;">
   <div id="hero-wrap"></div>
   <div class="scroll" id="detail-body"></div>
@@ -208,6 +271,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- ALERTS SCREEN -->
 <div class="screen" id="screen-alerts" style="background:#f7f7f9;">
   <div class="hero-blue">
     <div class="hero-title">Price alerts</div>
@@ -221,6 +285,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div class="alert-body" id="alerts-body"></div></div>
 </div>
 
+<!-- CARBON SCREEN -->
 <div class="screen" id="screen-carbon" style="background:#f7f7f9;">
   <div class="hero-green">
     <div class="hero-title">Carbon tracker</div>
@@ -241,6 +306,15 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div style="padding:14px;" id="carbon-body"></div></div>
 </div>
 
+<!-- PROFILE SCREEN -->
+<div class="screen" id="screen-profile" style="background:#f7f7f9;">
+  <div class="profile-hero" id="profile-hero"></div>
+  <div class="scroll">
+    <div class="profile-body" id="profile-body"></div>
+  </div>
+</div>
+
+<!-- REPORT PRICE MODAL -->
 <div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">Report a price</div>
@@ -260,21 +334,106 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- ADD/EDIT VEHICLE MODAL -->
+<div class="modal-overlay hidden" id="vehicle-modal" onclick="closeVehicleModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="vmodal-title">Add vehicle</div>
+    <div class="modal-sub" style="margin-bottom:16px;">Your vehicle info personalizes station recommendations</div>
+
+    <div class="vform-field">
+      <label class="vform-label">Vehicle icon</label>
+      <div class="emoji-grid" id="vehicle-emoji-grid"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <div class="vform-field" style="flex:1;">
+        <label class="vform-label">Year</label>
+        <input class="vform-input" type="number" id="v-year" placeholder="2024" min="1990" max="2030"/>
+      </div>
+      <div class="vform-field" style="flex:2;">
+        <label class="vform-label">Make</label>
+        <input class="vform-input" type="text" id="v-make" placeholder="Tesla, Toyota…"/>
+      </div>
+    </div>
+
+    <div class="vform-field">
+      <label class="vform-label">Model</label>
+      <input class="vform-input" type="text" id="v-model" placeholder="Model 3, Camry…"/>
+    </div>
+
+    <div class="vform-field">
+      <label class="vform-label">Fuel type</label>
+      <div class="fuel-type-grid" id="fuel-type-grid"></div>
+    </div>
+
+    <div class="vform-field" id="tank-field">
+      <label class="vform-label" id="tank-label">Tank size (gallons)</label>
+      <input class="vform-input" type="number" id="v-tank" placeholder="15" min="1" max="200"/>
+    </div>
+
+    <div class="vform-field">
+      <label class="vform-label">Current fuel level</label>
+      <div class="level-display" id="level-display">50%</div>
+      <div class="level-sub">Drag to set your current level</div>
+      <input type="range" min="0" max="100" value="50" id="v-level" style="width:100%;accent-color:#1667d9;" oninput="updateLevelDisplay()"/>
+    </div>
+
+    <div class="modal-btns" style="margin-top:8px;">
+      <button class="modal-cancel" onclick="closeVehicleModalDirect()">Cancel</button>
+      <button class="modal-submit" id="v-submit" onclick="saveVehicle()">Save vehicle</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE EDIT MODAL -->
+<div class="modal-overlay hidden" id="profile-edit-modal" onclick="closeProfileEditModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Edit profile</div>
+    <div class="modal-sub" style="margin-bottom:16px;">Your name shows across the app</div>
+    <div class="vform-field">
+      <label class="vform-label">Your name</label>
+      <input class="vform-input" type="text" id="edit-name" placeholder="Grant Wilson"/>
+    </div>
+    <div class="vform-field">
+      <label class="vform-label">Email</label>
+      <input class="vform-input" type="email" id="edit-email" placeholder="you@email.com"/>
+    </div>
+    <div class="vform-field">
+      <label class="vform-label">Profile emoji</label>
+      <div class="emoji-grid" id="profile-emoji-grid"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeProfileEditModal()">Cancel</button>
+      <button class="modal-submit" onclick="saveProfile()">Save profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB BAR -->
 <div class="tab-bar">
   <button class="tab active" onclick="showTab('map')" id="tab-map"><span class="tab-icon">📍</span><span class="tab-label">Map</span></button>
   <button class="tab" onclick="showTab('alerts')" id="tab-alerts"><span class="tab-icon">🔔</span><span class="tab-label">Alerts</span></button>
   <button class="tab" onclick="showTab('carbon')" id="tab-carbon"><span class="tab-icon">🌿</span><span class="tab-label">Carbon</span></button>
+  <button class="tab" onclick="showTab('profile')" id="tab-profile"><span class="tab-icon">👤</span><span class="tab-label">Profile</span></button>
 </div>
 
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
-var VERCEL_API = 'https://fuelmap-api-sf.vercel.app/api/stations';
-var EIA_GAS_AVG = 6.02;
-var EIA_EV_L2_AVG = 0.35;
-var EIA_EV_DC_AVG = 0.47;
+var VERCEL_API='https://fuelmap-api-sf.vercel.app/api/stations';
+var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35,EIA_EV_DC_AVG=0.47;
 
-// ── SF demo stations (shown alongside live AFDC data) ────────────────────────
-var DEMO_STATIONS = [
+var VEHICLE_EMOJIS=['🚗','🚙','🛻','🏎️','🚐','🚕','🚌','🏍️','🛵','⚡'];
+var PROFILE_EMOJIS=['😊','😎','🤠','👨','👩','🧑','👦','👧','🧔','👱'];
+var FUEL_TYPES=[
+  {key:'gas',label:'Gasoline',tankLabel:'Tank size (gallons)',defaultTank:15},
+  {key:'diesel',label:'Diesel',tankLabel:'Tank size (gallons)',defaultTank:20},
+  {key:'electric',label:'Electric',tankLabel:'Range (miles)',defaultTank:300},
+  {key:'hybrid',label:'Hybrid',tankLabel:'Tank size (gallons)',defaultTank:12},
+  {key:'phev',label:'Plug-in Hybrid',tankLabel:'Tank size (gallons)',defaultTank:10},
+];
+
+// ── Demo stations ─────────────────────────────────────────────────────────────
+var DEMO_STATIONS=[
   {id:'demo_1',name:'Volta · Metreon',address:'101 4th St, SoMa, San Francisco, CA',type:'ev',basePrice:0.34,latitude:37.7847,longitude:-122.4029,busy:25,isLive:false,network:'Volta',l2Connectors:4,dcConnectors:0,open24h:true,pricing:'Free'},
   {id:'demo_2',name:'Chevron · Van Ness',address:'1601 Van Ness Ave, San Francisco, CA',type:'gas',basePrice:5.89,latitude:37.7934,longitude:-122.4214,busy:55,isLive:false,network:'Chevron',open24h:true},
   {id:'demo_3',name:'Arco · Cesar Chavez',address:'3001 Cesar Chavez St, San Francisco, CA',type:'gas',basePrice:5.84,latitude:37.7484,longitude:-122.4186,busy:25,isLive:false,network:'Arco',open24h:false},
@@ -282,73 +441,93 @@ var DEMO_STATIONS = [
   {id:'demo_5',name:'Electrify America · SOMA',address:'1 SOMA Grand, San Francisco, CA',type:'ev',basePrice:0.47,latitude:37.7793,longitude:-122.4103,busy:45,isLive:false,network:'Electrify America',l2Connectors:0,dcConnectors:6,open24h:true,pricing:'$0.47/kWh'},
 ];
 
-var ALERTS_DATA = [
+var ALERTS_DATA=[
   {id:'1',name:'Regular gas · any SF station',threshold:5.70,current:6.02,unit:'/gal',status:'active',nearest:'Arco · Cesar Chavez · $5.84 · 19¢ from target'},
   {id:'2',name:'EV DC Fast · Electrify America',threshold:0.45,current:0.43,unit:'/kWh',status:'triggered',nearest:'Serramonte Center, Daly City · 4.1 mi away'},
   {id:'3',name:'Premium · Chevron Van Ness',threshold:6.30,current:6.49,unit:'/gal',status:'active',nearest:'19¢ above your target'},
 ];
 
-var TIPS = [
-  {title:'Charge before 3 PM — solar peaks at noon',body:'PG&E solar peaks midday, dropping grid carbon below 100 gCO₂/kWh. Open Supercharger stalls: SoMa Hub, Mission Bay, Stonestown.',impact:'−22 kg CO₂/mo',color:'#16a34a',bg:'#f0fdf4'},
-  {title:'Skip 4th & Bryant Shell — priciest in SF',body:'At $6.09/gal it\'s 7¢ above average. Arco on Cesar Chavez is $5.84 — $1.25 cheaper per fillup.',impact:'$1.25/fillup saved',color:'#dc2626',bg:'#fef2f2'},
+var TIPS=[
+  {title:'Charge before 3 PM — solar peaks at noon',body:'PG&E solar peaks midday, dropping grid carbon below 100 gCO₂/kWh.',impact:'−22 kg CO₂/mo',color:'#16a34a',bg:'#f0fdf4'},
+  {title:'Skip 4th & Bryant Shell — priciest in SF',body:'At $6.09/gal it\'s 7¢ above average. Arco on Cesar Chavez is $5.84.',impact:'$1.25/fillup saved',color:'#dc2626',bg:'#fef2f2'},
   {title:'Free Level 2 charging at SFO Terminal 3',body:'Included with parking. Arrive 30 min early and charge while you wait.',impact:'−8 kg CO₂/mo',color:'#1667d9',bg:'#eff6ff'},
-  {title:'Charge overnight 11 PM – 6 AM',body:'PG&E off-peak rate ($0.26/kWh) vs. peak ($0.57/kWh) is a 54% saving per session.',impact:'$12–18/mo saved',color:'#d97706',bg:'#fffbeb'},
+  {title:'Charge overnight 11 PM – 6 AM',body:'PG&E off-peak rate ($0.26/kWh) vs. peak ($0.57/kWh) — 54% saving per session.',impact:'$12–18/mo saved',color:'#d97706',bg:'#fffbeb'},
 ];
 
 // ── State ─────────────────────────────────────────────────────────────────────
-var allStations = [];
-var currentFilter = 'all';
-var currentSort = 'value';
-var currentStation = null;
-var alerts = ALERTS_DATA.slice();
-var userLat = null;
-var userLng = null;
-var modalFuelType = 'regular';
-var liveCount = 0;
+var allStations=[],currentFilter='all',currentSort='value',currentStation=null;
+var alerts=ALERTS_DATA.slice(),userLat=null,userLng=null,modalFuelType='regular';
+var editingVehicleId=null,selectedVehicleEmoji='🚗',selectedFuelType='gas';
+var selectedProfileEmoji='😊';
+
+// ── Profile storage ───────────────────────────────────────────────────────────
+function loadProfile(){
+  try{return JSON.parse(localStorage.getItem('fm_profile')||'null');}catch(e){return null;}
+}
+function saveProfileData(p){localStorage.setItem('fm_profile',JSON.stringify(p));}
+
+function loadVehicles(){
+  try{return JSON.parse(localStorage.getItem('fm_vehicles')||'[]');}catch(e){return[];}
+}
+function saveVehicles(v){localStorage.setItem('fm_vehicles',JSON.stringify(v));}
+
+function getActiveVehicle(){
+  var vehicles=loadVehicles();
+  return vehicles.find(function(v){return v.active;})||vehicles[0]||null;
+}
+
+function getDefaultProfile(){
+  return{name:'Driver',email:'',emoji:'😊'};
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function scoreColor(s){return s>=80?'#16a34a':s>=65?'#d97706':'#dc2626';}
 function crowdColor(b){return b<35?'#16a34a':b<65?'#d97706':'#dc2626';}
 function crowdLabel(b){return b<35?'Light':b<65?'Moderate':'Busy';}
 function waitMin(b){return Math.max(0,Math.round((b-20)/20));}
-
 function distMiles(lat1,lng1,lat2,lng2){
   var R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
   var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
+function fuelColor(pct){return pct>50?'#16a34a':pct>20?'#d97706':'#dc2626';}
 
 function calcScore(station){
-  var price = getLatestPrice(station).price;
-  var median = station.type==='ev' ? EIA_EV_L2_AVG : EIA_GAS_AVG;
-  var priceScore = Math.min(100,Math.max(0, 50+((median-price)/median)*300));
-  var waitScore = Math.min(100,Math.max(0, 100*Math.exp(-0.1733*waitMin(station.busy||30))));
-  var distScore = Math.min(100,Math.max(0, 100-(station.distanceMiles/5)*80));
-  var amenScore = 65;
-  if(station.open24h) amenScore+=10;
-  if((station.l2Connectors||0)+(station.dcConnectors||0)>2) amenScore+=10;
-  amenScore = Math.min(100,amenScore);
-  return Math.round(0.40*priceScore + 0.35*waitScore + 0.15*distScore + 0.10*amenScore);
+  var price=getLatestPrice(station).price;
+  var median=station.type==='ev'?EIA_EV_L2_AVG:EIA_GAS_AVG;
+  var priceScore=Math.min(100,Math.max(0,50+((median-price)/median)*300));
+  var waitScore=Math.min(100,Math.max(0,100*Math.exp(-0.1733*waitMin(station.busy||30))));
+  var distScore=Math.min(100,Math.max(0,100-(station.distanceMiles/5)*80));
+  var amenScore=65;
+  if(station.open24h)amenScore+=10;
+  if((station.l2Connectors||0)+(station.dcConnectors||0)>2)amenScore+=10;
+  amenScore=Math.min(100,amenScore);
+
+  // Adjust weights based on active vehicle
+  var av=getActiveVehicle();
+  var wp=0.40,ww=0.35,wd=0.15,wa=0.10;
+  if(av){
+    if(av.fuelType==='electric'){wp=0.35;ww=0.40;wd=0.15;wa=0.10;}
+    else if(av.fuelType==='diesel'){wp=0.45;ww=0.30;wd=0.15;wa=0.10;}
+  }
+  return Math.round(wp*priceScore+ww*waitScore+wd*distScore+wa*amenScore);
 }
 
-// ── Community price storage ───────────────────────────────────────────────────
+// ── Community prices ──────────────────────────────────────────────────────────
 function getReports(id){try{return JSON.parse(localStorage.getItem('reports_'+id)||'[]');}catch(e){return[];}}
 function saveReport(id,fuelType,price){
-  var r=getReports(id);
-  r.unshift({fuelType:fuelType,price:price,ts:Date.now()});
-  if(r.length>5)r.pop();
-  localStorage.setItem('reports_'+id,JSON.stringify(r));
+  var r=getReports(id);r.unshift({fuelType:fuelType,price:price,ts:Date.now()});
+  if(r.length>5)r.pop();localStorage.setItem('reports_'+id,JSON.stringify(r));
 }
 function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
-
 function getLatestPrice(station){
   var reports=getReports(station.id);
-  var fuelReport=reports.find(function(r){return r.fuelType==='regular'||r.fuelType==='ev_l2';});
-  if(fuelReport){return{price:fuelReport.price,source:'community',ago:timeAgo(fuelReport.ts)};}
+  var rep=reports.find(function(r){return r.fuelType==='regular'||r.fuelType==='ev_l2';});
+  if(rep)return{price:rep.price,source:'community',ago:timeAgo(rep.ts)};
   return{price:station.basePrice||station.price||EIA_GAS_AVG,source:station.isLive?'live':'eia'};
 }
 
-// ── Load stations ─────────────────────────────────────────────────────────────
+// ── Station loading ───────────────────────────────────────────────────────────
 function setLoading(msg){
   document.getElementById('loading-overlay').style.display='flex';
   document.getElementById('loading-txt').textContent=msg;
@@ -361,90 +540,78 @@ function clearLoading(){
 
 function loadStations(){
   setLoading('Getting your location…');
-  if(!navigator.geolocation){
-    useFallbackLocation();
-    return;
-  }
+  if(!navigator.geolocation){useFallbackLocation();return;}
   navigator.geolocation.getCurrentPosition(
     function(pos){
-      userLat=pos.coords.latitude;
-      userLng=pos.coords.longitude;
-      document.getElementById('location-txt').textContent=userLat.toFixed(3)+', '+userLng.toFixed(3);
-      document.getElementById('map-title').textContent='Near you · SF Bay Area';
+      userLat=pos.coords.latitude;userLng=pos.coords.longitude;
+      updateLocationDisplay();
       fetchAFDC(userLat,userLng);
     },
-    function(){
-      useFallbackLocation();
-    },
+    function(){useFallbackLocation();},
     {timeout:8000,enableHighAccuracy:false}
   );
 }
 
+function updateLocationDisplay(){
+  var av=getActiveVehicle();
+  var profile=loadProfile()||getDefaultProfile();
+  if(av){
+    document.getElementById('location-txt').textContent=av.year+' '+av.make+' '+av.model;
+  } else {
+    document.getElementById('location-txt').textContent='SF Bay Area';
+  }
+  document.getElementById('map-title').textContent='Hi '+profile.name+'! Near you';
+}
+
 function useFallbackLocation(){
-  userLat=37.7749;
-  userLng=-122.4194;
-  document.getElementById('location-txt').textContent='SoMa, San Francisco';
+  userLat=37.7749;userLng=-122.4194;
   document.getElementById('map-title').textContent='SoMa, San Francisco';
+  document.getElementById('location-txt').textContent='SF Bay Area';
   fetchAFDC(userLat,userLng);
 }
 
 function fetchAFDC(lat,lng){
   setLoading('Finding live EV chargers…');
+
+  // Set default filter based on active vehicle
+  var av=getActiveVehicle();
+  if(av&&av.fuelType==='electric'){currentFilter='ev';}
+  else if(av&&(av.fuelType==='gas'||av.fuelType==='diesel')){currentFilter='gas';}
+
   fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius=5')
     .then(function(r){return r.json();})
     .then(function(data){
-      var liveStations=(data.stations||[]).map(function(s){
-        return{
-          id:'afdc_'+s.id,
-          name:s.name,
-          address:s.address,
-          type:'ev',
+      var live=(data.stations||[]).map(function(s){
+        return{id:'afdc_'+s.id,name:s.name,address:s.address,type:'ev',
           basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,
-          latitude:s.latitude,
-          longitude:s.longitude,
+          latitude:s.latitude,longitude:s.longitude,
           distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),
-          busy:30,
-          isLive:true,
-          network:s.network,
-          l2Connectors:s.l2Connectors||0,
-          dcConnectors:s.dcConnectors||0,
-          connectorTypes:s.connectorTypes||[],
-          open24h:s.open24h||false,
-          pricing:s.pricing||null,
-          isOpen:s.isOpen,
-        };
+          busy:30,isLive:true,network:s.network,l2Connectors:s.l2Connectors||0,
+          dcConnectors:s.dcConnectors||0,connectorTypes:s.connectorTypes||[],
+          open24h:s.open24h||false,pricing:s.pricing||null,isOpen:s.isOpen};
       });
-      liveCount=liveStations.length;
-      buildStationList(lat,lng,liveStations);
+      buildStationList(lat,lng,live);
     })
-    .catch(function(){
-      liveCount=0;
-      buildStationList(lat,lng,[]);
-    });
+    .catch(function(){buildStationList(lat,lng,[]);});
 }
 
 function buildStationList(lat,lng,liveStations){
   var demoWithDist=DEMO_STATIONS.map(function(s){
     return Object.assign({},s,{distanceMiles:Math.round(distMiles(lat,lng,s.latitude,s.longitude)*10)/10});
   });
-
-  // Deduplicate — remove demo stations too close to a live station
   var filtered=demoWithDist.filter(function(d){
     return!liveStations.some(function(l){return distMiles(d.latitude,d.longitude,l.latitude,l.longitude)<0.15;});
   });
-
-  allStations=liveStations.concat(filtered);
-  allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});
+  allStations=liveStations.concat(filtered).map(function(s){return Object.assign({},s,{score:calcScore(s)});});
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
-
-  var total=allStations.length;
-  document.getElementById('station-count').textContent=total+' stations found';
-  document.getElementById('data-source-txt').textContent='🔌 '+liveCount+' live AFDC + '+(total-liveCount)+' SF stations';
+  var liveCount=liveStations.length;
+  document.getElementById('station-count').textContent=allStations.length+' stations found';
+  document.getElementById('data-source-txt').textContent='🔌 '+liveCount+' live AFDC + '+(allStations.length-liveCount)+' SF stations';
   clearLoading();
   renderAll();
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+// ── Map render ────────────────────────────────────────────────────────────────
 function getFiltered(){
   return allStations.filter(function(s){
     if(currentFilter==='gas')return s.type==='gas';
@@ -485,13 +652,12 @@ function renderCards(){
     var sc=scoreColor(st.score);
     var cc=crowdColor(st.busy||30);
     var wm=waitMin(st.busy||30);
-    var priceInfo=getLatestPrice(st);
-    var priceDisplay=st.type==='ev'?'$'+priceInfo.price.toFixed(2)+'/kWh':'$'+priceInfo.price.toFixed(2)+'/gal';
-    var srcLabel=priceInfo.source==='community'?'👤 Community':priceInfo.source==='live'?'🔌 Live':'📊 EIA avg';
-    var srcCls=priceInfo.source==='community'?'src-community':priceInfo.source==='live'?'src-live':'src-eia';
-    var card=document.createElement('div');
-    card.className='card'+(st.isLive?' live':'');
-    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div><div class="card-price">'+priceDisplay+'</div><div class="card-price-source '+srcCls+'">'+srcLabel+'</div><div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
+    var pi=getLatestPrice(st);
+    var pd=st.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
+    var sl=pi.source==='community'?'👤 Community':pi.source==='live'?'🔌 Live':'📊 EIA avg';
+    var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
+    var card=document.createElement('div');card.className='card'+(st.isLive?' live':'');
+    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div><div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div><div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
     card.onclick=function(){showDetail(st);};el.appendChild(card);
   });
 }
@@ -504,39 +670,35 @@ function showDetail(station){
   var sc=scoreColor(station.score);
   var heroBg=station.type==='ev'?'#064e35':'#0d3d8a';
   var wm=waitMin(station.busy||30);
-  var priceInfo=getLatestPrice(station);
-  var priceDisplay=station.type==='ev'?'$'+priceInfo.price.toFixed(2)+'/kWh':'$'+priceInfo.price.toFixed(2)+'/gal';
+  var pi=getLatestPrice(station);
+  var pd=station.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
   var vsAvg=station.type==='ev'?'vs. SF avg $'+EIA_EV_L2_AVG+'/kWh':'vs. SF avg $'+EIA_GAS_AVG+'/gal';
-  var srcLabel=priceInfo.source==='community'?'👤 Community reported':priceInfo.source==='live'?'🔌 Live AFDC data':'📊 EIA weekly average';
-  var srcCls=priceInfo.source==='community'?'src-community':priceInfo.source==='live'?'src-live':'src-eia';
-  var pgeMsg=station.type==='ev'?'Off-peak charging (9 PM–3 PM): $0.26/kWh vs. peak $0.57/kWh — a 54% saving per session.':priceInfo.price<EIA_GAS_AVG?(EIA_GAS_AVG-priceInfo.price).toFixed(2)+' below SF average — good value right now.':(priceInfo.price-EIA_GAS_AVG).toFixed(2)+' above SF average. Consider Arco on Cesar Chavez at $5.84.';
-
-  var connHTML='';
-  if(station.connectorTypes&&station.connectorTypes.length>0){
-    connHTML='<div class="connector-row">'+station.connectorTypes.map(function(c){return'<span class="connector-pill">'+c+'</span>';}).join('')+'</div>';
-  }
-
+  var sl=pi.source==='community'?'👤 Community reported':pi.source==='live'?'🔌 Live AFDC data':'📊 EIA weekly average';
+  var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
+  var pgeMsg=station.type==='ev'?'Off-peak charging (9 PM–3 PM): $0.26/kWh vs. peak $0.57/kWh — a 54% saving per session.':pi.price<EIA_GAS_AVG?(EIA_GAS_AVG-pi.price).toFixed(2)+' below SF average — good value.':(pi.price-EIA_GAS_AVG).toFixed(2)+' above SF average. Consider Arco on Cesar Chavez at $5.84.';
+  var connHTML=station.connectorTypes&&station.connectorTypes.length>0?'<div class="connector-row">'+station.connectorTypes.map(function(c){return'<span class="connector-pill">'+c+'</span>';}).join('')+'</div>':'';
   var stallsHTML='';
-  if(station.type==='ev'){
-    var parts=[];
-    if(station.l2Connectors>0)parts.push(station.l2Connectors+' Level 2');
-    if(station.dcConnectors>0)parts.push(station.dcConnectors+' DC Fast');
-    if(parts.length>0)stallsHTML='<div class="body-txt" style="margin-top:4px;">'+parts.join(' · ')+'</div>';
-  }
-
+  if(station.type==='ev'){var parts=[];if(station.l2Connectors>0)parts.push(station.l2Connectors+' Level 2');if(station.dcConnectors>0)parts.push(station.dcConnectors+' DC Fast');if(parts.length>0)stallsHTML='<div class="body-txt" style="margin-top:4px;">'+parts.join(' · ')+'</div>';}
   var reports=getReports(station.id);
-  var reportsHTML=reports.length===0?'<div class="no-reports">No community reports yet — be the first!</div>':reports.map(function(r){return'<div class="report-item"><div><div class="report-fuel">'+r.fuelType.charAt(0).toUpperCase()+r.fuelType.slice(1)+'</div><div class="report-meta">'+timeAgo(r.ts)+'</div></div><div class="report-price">$'+Number(r.price).toFixed(2)+'</div></div>';}).join('');
+  var rHTML=reports.length===0?'<div class="no-reports">No community reports yet — be the first!</div>':reports.map(function(r){return'<div class="report-item"><div><div class="report-fuel">'+r.fuelType.charAt(0).toUpperCase()+r.fuelType.slice(1)+'</div><div class="report-meta">'+timeAgo(r.ts)+'</div></div><div class="report-price">$'+Number(r.price).toFixed(2)+'</div></div>';}).join('');
+
+  // Vehicle-specific tip
+  var av=getActiveVehicle();
+  var vehicleTip='';
+  if(av){
+    var levelPct=av.level||50;
+    var remaining=av.fuelType==='electric'?Math.round(levelPct/100*(av.tankSize||300))+' miles range left':Math.round(levelPct/100*(av.tankSize||15)*10)/10+' gal remaining';
+    vehicleTip='<div class="section" style="border-left:3px solid #7c3aed;background:#faf5ff;"><div class="sec-title" style="color:#6d28d9;">'+av.emoji+' Your '+av.year+' '+av.make+' '+av.model+'</div><div class="body-txt" style="color:#6d28d9;">'+remaining+' · '+levelPct+'% full</div></div>';
+  }
 
   document.getElementById('hero-wrap').innerHTML='<div class="hero" style="background:'+heroBg+';"><button class="back-btn" onclick="showTab(\'map\')">← Map</button><div class="score-box" style="border-color:'+sc+';"><div class="score-val" style="color:'+sc+';">'+station.score+'</div><div class="score-lbl">Score</div></div><div class="hero-name">'+station.name+'</div><div class="hero-addr">'+station.address+' · '+station.distanceMiles.toFixed(1)+' mi</div></div>';
-
   var ps=station.score,ws=Math.round(100-(station.busy||30)),ds=Math.round(100-(station.distanceMiles/5)*80);
-  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big">'+priceDisplay+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+srcCls+'">'+srcLabel+(priceInfo.ago?' · '+priceInfo.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">Pricing info: '+station.pricing+'</div>':'')+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+(station.accessDaysTime?'<div class="body-txt">Hours: '+station.accessDaysTime+'</div>':'')+'</div>':'')+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+reportsHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price',ps],['Wait time',ws],['Distance',ds],['Amenities',72]].map(function(pair){return'<div class="factor-row"><div class="factor-lbl">'+pair[0]+'</div><div class="track"><div class="fill" style="width:'+pair[1]+'%;"></div></div><div class="factor-val">'+pair[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
+  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price',ps],['Wait time',ws],['Distance',ds],['Amenities',72]].map(function(pair){return'<div class="factor-row"><div class="factor-lbl">'+pair[0]+'</div><div class="track"><div class="fill" style="width:'+pair[1]+'%;"></div></div><div class="factor-val">'+pair[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
   showScreen('detail');
 }
 
 // ── Report modal ──────────────────────────────────────────────────────────────
 var FUEL_OPTS={gas:[['regular','Regular'],['midgrade','Midgrade'],['premium','Premium'],['diesel','Diesel']],ev:[['ev_l2','Level 2'],['ev_dc','DC Fast']]};
-
 function openReportModal(){
   if(!currentStation)return;
   document.getElementById('modal-station-name').textContent=currentStation.name;
@@ -555,9 +717,7 @@ function openReportModal(){
   });
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
-
 function validatePrice(){var v=parseFloat(document.getElementById('price-input').value);document.getElementById('modal-submit').disabled=!(v>0&&v<20);}
-
 function submitPrice(){
   var v=parseFloat(document.getElementById('price-input').value);
   if(!v||!currentStation)return;
@@ -567,7 +727,6 @@ function submitPrice(){
   document.getElementById('modal-submit').disabled=true;
   setTimeout(function(){closeModalDirect();showDetail(currentStation);},1200);
 }
-
 function closeModal(e){if(e.target.id==='modal-overlay')closeModalDirect();}
 function closeModalDirect(){document.getElementById('modal-overlay').classList.add('hidden');}
 
@@ -578,6 +737,192 @@ function navigateToStation(){
   var name=encodeURIComponent(currentStation.name);
   window.location.href='maps:?daddr='+addr+'&q='+name;
   setTimeout(function(){window.location.href='https://maps.google.com/?daddr='+addr+'&q='+name;},500);
+}
+
+// ── Profile screen ────────────────────────────────────────────────────────────
+function renderProfile(){
+  var profile=loadProfile()||getDefaultProfile();
+  var vehicles=loadVehicles();
+  var av=getActiveVehicle();
+
+  // Hero
+  var heroHTML='<div class="profile-avatar-row"><div class="avatar-circle" onclick="openProfileEditModal()">'+profile.emoji+'</div><div class="profile-name-block"><div class="profile-name">'+profile.name+'</div><div class="profile-email">'+profile.email+'</div><button class="profile-edit-btn" onclick="openProfileEditModal()">Edit profile</button></div></div>';
+  if(av){
+    var lvl=av.level||50;
+    var fc=fuelColor(lvl);
+    heroHTML+='<div class="active-vehicle-chip"><div><div class="avc-label">Active vehicle</div><div class="avc-name">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div><div class="avc-fuel">'+av.fuelType.charAt(0).toUpperCase()+av.fuelType.slice(1)+'</div></div><div class="avc-level"><div class="fuel-level-bar"><div class="fuel-level-fill" style="width:'+lvl+'%;background:'+fc+';"></div></div><div class="fuel-level-txt" style="color:'+fc+';">'+lvl+'%</div></div></div>';
+  }
+  document.getElementById('profile-hero').innerHTML=heroHTML;
+
+  // Body
+  var bodyHTML='';
+
+  // Vehicles section
+  bodyHTML+='<div class="profile-section"><div class="profile-section-title">My vehicles ('+vehicles.length+'/5)</div>';
+  vehicles.forEach(function(v){
+    var lvl=v.level||50;var fc=fuelColor(lvl);
+    bodyHTML+='<div class="vehicle-card'+(v.active?' active-v':'')+'" onclick="setActiveVehicle(\''+v.id+'\')"><div class="vehicle-emoji">'+v.emoji+'</div><div class="vehicle-info"><div class="vehicle-name">'+v.year+' '+v.make+' '+v.model+'</div><div class="vehicle-detail">'+v.fuelType.charAt(0).toUpperCase()+v.fuelType.slice(1)+(v.tankSize?' · '+v.tankSize+(v.fuelType==='electric'?' mi range':' gal'):'')+'</div><div class="vehicle-fuel-row"><div class="vehicle-fuel-bar"><div class="vehicle-fuel-fill" style="width:'+lvl+'%;background:'+fc+';height:100%;border-radius:3px;"></div></div><div class="vehicle-fuel-txt" style="color:'+fc+';">'+lvl+'%</div></div></div>'+(v.active?'<div class="vehicle-active-badge">Active</div>':'')+'<div style="display:flex;flex-direction:column;gap:4px;margin-left:4px;"><div onclick="event.stopPropagation();openEditVehicle(\''+v.id+'\')" style="font-size:11px;color:#1667d9;font-weight:700;cursor:pointer;">Edit</div><div onclick="event.stopPropagation();deleteVehicle(\''+v.id+'\')" style="font-size:11px;color:#dc2626;font-weight:700;cursor:pointer;">Delete</div></div></div>';
+  });
+  if(vehicles.length<5){bodyHTML+='<button class="add-vehicle-btn" onclick="openAddVehicle()">+ Add vehicle</button>';}
+  bodyHTML+='</div>';
+
+  // Preferences
+  bodyHTML+='<div class="profile-section"><div class="profile-section-title">Search preferences</div><div class="pref-row"><span class="pref-label">Max search radius</span><select class="pref-select" id="pref-radius" onchange="savePref()"><option value="1">1 mile</option><option value="2">2 miles</option><option value="5" selected>5 miles</option><option value="10">10 miles</option></select></div><div class="pref-row"><span class="pref-label">Default sort</span><select class="pref-select" id="pref-sort" onchange="savePref()"><option value="value" selected>Best value</option><option value="price">Lowest price</option><option value="distance">Closest</option><option value="wait">Least wait</option></select></div></div>';
+
+  // Stats
+  var totalReports=0;
+  try{Object.keys(localStorage).forEach(function(k){if(k.startsWith('reports_'))totalReports+=JSON.parse(localStorage.getItem(k)||'[]').length;});}catch(e){}
+  bodyHTML+='<div class="profile-section"><div class="profile-section-title">Your contributions</div><div class="pref-row"><span class="pref-label">Price reports submitted</span><span class="pref-value">'+totalReports+'</span></div><div class="pref-row"><span class="pref-label">Vehicles saved</span><span class="pref-value">'+vehicles.length+'</span></div></div>';
+
+  bodyHTML+='<button class="signout-btn" onclick="clearAllData()">Clear all data</button>';
+  bodyHTML+='<div style="height:20px;"></div>';
+  document.getElementById('profile-body').innerHTML=bodyHTML;
+}
+
+function setActiveVehicle(id){
+  var vehicles=loadVehicles();
+  vehicles.forEach(function(v){v.active=v.id===id;});
+  saveVehicles(vehicles);
+  renderProfile();
+  updateLocationDisplay();
+  // Recalculate scores with new vehicle
+  allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});
+  renderCards();
+}
+
+function deleteVehicle(id){
+  var vehicles=loadVehicles().filter(function(v){return v.id!==id;});
+  if(vehicles.length>0&&!vehicles.some(function(v){return v.active;})){vehicles[0].active=true;}
+  saveVehicles(vehicles);renderProfile();
+}
+
+function savePref(){
+  var sort=document.getElementById('pref-sort');
+  if(sort){currentSort=sort.value;renderCards();}
+}
+
+function clearAllData(){
+  if(confirm('Clear all FuelMap data? This cannot be undone.')){
+    localStorage.clear();renderProfile();loadStations();
+  }
+}
+
+// ── Vehicle modal ─────────────────────────────────────────────────────────────
+function openAddVehicle(){
+  editingVehicleId=null;
+  selectedVehicleEmoji='🚗';selectedFuelType='gas';
+  document.getElementById('vmodal-title').textContent='Add vehicle';
+  document.getElementById('v-year').value='';
+  document.getElementById('v-make').value='';
+  document.getElementById('v-model').value='';
+  document.getElementById('v-tank').value='';
+  document.getElementById('v-level').value=50;
+  document.getElementById('level-display').textContent='50%';
+  buildVehicleEmojiGrid();buildFuelTypeGrid();
+  document.getElementById('vehicle-modal').classList.remove('hidden');
+}
+
+function openEditVehicle(id){
+  var v=loadVehicles().find(function(x){return x.id===id;});
+  if(!v)return;
+  editingVehicleId=id;
+  selectedVehicleEmoji=v.emoji;selectedFuelType=v.fuelType;
+  document.getElementById('vmodal-title').textContent='Edit vehicle';
+  document.getElementById('v-year').value=v.year;
+  document.getElementById('v-make').value=v.make;
+  document.getElementById('v-model').value=v.model;
+  document.getElementById('v-tank').value=v.tankSize||'';
+  document.getElementById('v-level').value=v.level||50;
+  document.getElementById('level-display').textContent=(v.level||50)+'%';
+  buildVehicleEmojiGrid();buildFuelTypeGrid();updateTankLabel();
+  document.getElementById('vehicle-modal').classList.remove('hidden');
+}
+
+function buildVehicleEmojiGrid(){
+  var el=document.getElementById('vehicle-emoji-grid');el.innerHTML='';
+  VEHICLE_EMOJIS.forEach(function(e){
+    var d=document.createElement('div');d.className='emoji-opt'+(e===selectedVehicleEmoji?' on':'');
+    d.textContent=e;d.onclick=function(){selectedVehicleEmoji=e;buildVehicleEmojiGrid();};el.appendChild(d);
+  });
+}
+
+function buildFuelTypeGrid(){
+  var el=document.getElementById('fuel-type-grid');el.innerHTML='';
+  FUEL_TYPES.forEach(function(ft){
+    var d=document.createElement('div');d.className='ft-opt'+(ft.key===selectedFuelType?' on':'');
+    d.textContent=ft.label;d.onclick=function(){selectedFuelType=ft.key;buildFuelTypeGrid();updateTankLabel();};el.appendChild(d);
+  });
+}
+
+function updateTankLabel(){
+  var ft=FUEL_TYPES.find(function(f){return f.key===selectedFuelType;})||FUEL_TYPES[0];
+  document.getElementById('tank-label').textContent=ft.tankLabel;
+  document.getElementById('v-tank').placeholder=String(ft.defaultTank);
+}
+
+function updateLevelDisplay(){
+  var v=document.getElementById('v-level').value;
+  document.getElementById('level-display').textContent=v+'%';
+  document.getElementById('level-display').style.color=fuelColor(parseInt(v));
+}
+
+function saveVehicle(){
+  var year=document.getElementById('v-year').value;
+  var make=document.getElementById('v-make').value.trim();
+  var model=document.getElementById('v-model').value.trim();
+  if(!year||!make||!model){alert('Please fill in year, make, and model.');return;}
+  var ft=FUEL_TYPES.find(function(f){return f.key===selectedFuelType;})||FUEL_TYPES[0];
+  var tankSize=parseFloat(document.getElementById('v-tank').value)||ft.defaultTank;
+  var level=parseInt(document.getElementById('v-level').value)||50;
+  var vehicles=loadVehicles();
+  if(editingVehicleId){
+    vehicles=vehicles.map(function(v){
+      if(v.id!==editingVehicleId)return v;
+      return Object.assign({},v,{emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level});
+    });
+  } else {
+    var newV={id:'v_'+Date.now(),emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level,active:vehicles.length===0};
+    vehicles.push(newV);
+  }
+  saveVehicles(vehicles);
+  closeVehicleModalDirect();
+  renderProfile();
+  updateLocationDisplay();
+}
+
+function closeVehicleModal(e){if(e.target.id==='vehicle-modal')closeVehicleModalDirect();}
+function closeVehicleModalDirect(){document.getElementById('vehicle-modal').classList.add('hidden');}
+
+// ── Profile edit modal ────────────────────────────────────────────────────────
+function openProfileEditModal(){
+  var p=loadProfile()||getDefaultProfile();
+  selectedProfileEmoji=p.emoji;
+  document.getElementById('edit-name').value=p.name;
+  document.getElementById('edit-email').value=p.email;
+  buildProfileEmojiGrid();
+  document.getElementById('profile-edit-modal').classList.remove('hidden');
+}
+
+function buildProfileEmojiGrid(){
+  var el=document.getElementById('profile-emoji-grid');el.innerHTML='';
+  PROFILE_EMOJIS.forEach(function(e){
+    var d=document.createElement('div');d.className='emoji-opt'+(e===selectedProfileEmoji?' on':'');
+    d.textContent=e;d.onclick=function(){selectedProfileEmoji=e;buildProfileEmojiGrid();};el.appendChild(d);
+  });
+}
+
+function saveProfile(){
+  var name=document.getElementById('edit-name').value.trim()||'Driver';
+  var email=document.getElementById('edit-email').value.trim();
+  saveProfileData({name:name,email:email,emoji:selectedProfileEmoji});
+  closeProfileEditModal();
+  renderProfile();
+  updateLocationDisplay();
+}
+
+function closeProfileEditModal(e){
+  if(e&&e.target.id!=='profile-edit-modal')return;
+  document.getElementById('profile-edit-modal').classList.add('hidden');
 }
 
 // ── Alerts ────────────────────────────────────────────────────────────────────
@@ -593,23 +938,28 @@ function renderAlerts(){
   active.forEach(function(a){el.innerHTML+='<div class="alert-card"><div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div><div class="alert-loc">'+a.nearest+'</div></div><div class="alert-pill pill-active">Active</div></div><div class="alert-price-row"><div class="alert-price-big">$'+a.current.toFixed(2)+'</div><div class="alert-price-unit">'+a.unit+' · target $'+a.threshold.toFixed(2)+'</div></div><div class="alert-btns"><div class="alert-btn btn-danger" onclick="dismissAlert(\''+a.id+'\')">Remove</div></div></div>';});
   el.innerHTML+='<div style="height:20px;"></div>';
 }
-
 function dismissAlert(id){alerts=alerts.filter(function(a){return a.id!==id;});renderAlerts();}
 
 // ── Carbon ────────────────────────────────────────────────────────────────────
 function renderCarbon(){
   var el=document.getElementById('carbon-body');
-  var touData=[28,22,30,38,32,45,82,75];
-  var touLabels=['12a','3a','6a','9a','12p','3p','6p','9p'];
+  var touData=[28,22,30,38,32,45,82,75],touLabels=['12a','3a','6a','9a','12p','3p','6p','9p'];
   var maxV=Math.max.apply(null,touData);
   var bars=touData.map(function(v){var color=v<35?'#16a34a':v<65?'#ca8a04':'#dc2626';return'<div class="tou-bar" style="height:'+Math.round(v/maxV*46)+'px;background:'+color+';"></div>';}).join('');
   var labels=touLabels.map(function(l){return'<div class="tou-label">'+l+'</div>';}).join('');
-  el.innerHTML='<div class="tou-card"><div class="tou-title">⚡ PG&E grid carbon intensity — today</div><div class="tou-bars">'+bars+'</div><div class="tou-labels">'+labels+'</div><div class="tou-note">Off-peak solar window (9 AM–3 PM): 38% lower carbon. Charging now saves ~32 gCO₂/kWh vs. peak hours.</div></div><div class="alert-sec-title" style="margin-top:4px;">SF-specific tips</div>'+TIPS.map(function(t){return'<div class="tip-card" style="border-left-color:'+t.color+';"><div class="tip-title" style="color:'+t.color+';">'+t.title+'</div><div class="tip-body">'+t.body+'</div><div class="tip-impact" style="background:'+t.bg+';color:'+t.color+';">'+t.impact+'</div></div>';}).join('')+'<div style="height:20px;"></div>';
+  el.innerHTML='<div class="tou-card"><div class="tou-title">⚡ PG&E grid carbon intensity — today</div><div class="tou-bars">'+bars+'</div><div class="tou-labels">'+labels+'</div><div class="tou-note">Off-peak solar window (9 AM–3 PM): 38% lower carbon.</div></div><div class="alert-sec-title" style="margin-top:4px;">SF-specific tips</div>'+TIPS.map(function(t){return'<div class="tip-card" style="border-left-color:'+t.color+';"><div class="tip-title" style="color:'+t.color+';">'+t.title+'</div><div class="tip-body">'+t.body+'</div><div class="tip-impact" style="background:'+t.bg+';color:'+t.color+';">'+t.impact+'</div></div>';}).join('')+'<div style="height:20px;"></div>';
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function showScreen(name){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById('screen-'+name).classList.add('active');}
-function showTab(name){if(['map','alerts','carbon'].indexOf(name)>-1){showScreen(name);document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+name).classList.add('active');}else{showScreen(name);}}
+function showTab(name){
+  if(['map','alerts','carbon','profile'].indexOf(name)>-1){
+    showScreen(name);
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+    document.getElementById('tab-'+name).classList.add('active');
+    if(name==='profile')renderProfile();
+  } else {showScreen(name);}
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 renderAlerts();
