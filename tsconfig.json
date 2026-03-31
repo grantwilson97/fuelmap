@@ -1,0 +1,55 @@
+import { useEffect, useState } from 'react';
+import * as Location from 'expo-location';
+import { useAppStore } from '../store/useAppStore';
+import { SF_CENTER } from '../utils/constants';
+
+export function useLocation() {
+  const setUserLocation = useAppStore(s => s.setUserLocation);
+  const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let subscription: Location.LocationSubscription | null = null;
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setPermissionStatus(status);
+
+      if (status !== 'granted') {
+        setError('Location permission denied — using SF city center as fallback.');
+        setUserLocation(SF_CENTER);
+        return;
+      }
+
+      // Get initial position immediately
+      const initial = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setUserLocation({
+        latitude: initial.coords.latitude,
+        longitude: initial.coords.longitude,
+      });
+
+      // Watch for position updates
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          distanceInterval: 50, // update every 50 metres
+          timeInterval: 30000,  // or every 30 seconds
+        },
+        (location) => {
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        },
+      );
+    })();
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  return { permissionStatus, error };
+}

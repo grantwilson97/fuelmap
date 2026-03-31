@@ -1,0 +1,205 @@
+import { PRICE_SENSITIVITY, WAIT_HALF_LIFE_MIN, DEFAULT_WEIGHTS } from './constants';
+
+export interface UserWeights {
+  price: number;
+  wait: number;
+  distance: number;
+  amenity: number;
+}
+
+export interface StationForScoring {
+  price: number;
+  loyaltyDiscountPerGal: number;
+  priceRecordedAt: Date;
+  distanceMi: number;
+  busynessNow: number; // 0–100
+  isEV: boolean;
+  availableConnectors?: number;
+  totalConnectors?: number;
+  amenities: AmenitySet;
+  fuelType: string;
+}
+
+export interface AmenitySet {
+  carWash?: boolean;
+  convenienceStore?: boolean;
+  restrooms?: boolean;
+  airWater?: boolean;
+  evCharging?: boolean;
+  atm?: boolean;
+  def?: boolean;
+  open24h?: boolean;
+  wellLit?: boolean;
+  loyaltyProgram?: boolean;
+}
+
+export interface SubScores {
+  price: number;
+  wait: number;
+  distance: number;
+  amenity: number;
+}
+
+export interface ValueScoreResult {
+  total: number;
+  subScores: SubScores;
+  effectivePrice: number;
+  estimatedWaitMin: number;
+  stalenessApplied: boolean;
+  loyaltyApplied: boolean;
+}
+
+// ─── Normalise weights so they always sum to 1.0 ─────────────────────────────
+export function normaliseWeights(raw: Partial<UserWeights>): UserWeights {
+  const w = { ...DEFAULT_WEIGHTS, ...raw };
+  const sum = w.price + w.wait + w.distance + w.amenity;
+  if (sum === 0) return DEFAULT_WEIGHTS;
+  return {
+    price: w.price / sum,
+    wait: w.wait / sum,
+    distance: w.distance / sum,
+    amenity: w.amenity / sum,
+  };
+}
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+// ─── Price sub-score ─────────────────────────────────────────────────────────
+export function calcPriceScore(
+  price: number,
+  loyaltyDiscount: number,
+  areaMedian: number,
+  priceRecordedAt: Date,
+): { score: number; effectivePrice: number; stalenessApplied: boolean } {
+  const effectivePrice = Math.max(0, price - loyaltyDiscount);
+  const raw = 50 + ((areaMedian - effectivePrice) / areaMedian) * PRICE_SENSITIVITY;
+  let score = clamp(raw, 0, 100);
+
+  // Staleness penalty — pulls toward 50 after 90 minutes
+  const ageMin = (Date.now() - priceRecordedAt.getTime()) / 60000;
+  const stalenessApplied = ageMin > 90;
+  if (stalenessApplied) {
+    const staleness = clamp((ageMin - 90) / 90, 0, 1);
+    score = score + staleness * (50 - score);
+  }
+
+  return { score: Math.round(score), effectivePrice, stalenessApplied };
+}
+
+// ─── Wait sub-score — exponential decay ──────────────────────────────────────
+export function calcWaitScore(
+  busynessNow: number,
+  isEV: boolean,
+  availableConnectors?: number,
+  totalConnectors?: number,
+): { score: number; estimatedWaitMin: number } {
+  let busyness = busynessNow;
+
+  // For EV, blend in charger availability signal
+  if (isEV && totalConnectors && availableConnectors !== undefined) {
+    const occupancy = 1 - availableConnectors / totalConnectors;
+    busyness = clamp(busyness * 0.4 + occupancy * 100 * 0.6, 0, 100);
+  }
+
+  const estimatedWaitMin = isEV
+    ? Math.max(0, (busyness - 10) / 8)
+    : Math.max(0, (busyness - 20) / 20);
+
+  const k = Math.log(2) / WAIT_HALF_LIFE_MIN;
+  const score = 100 * Math.exp(-k * estimatedWaitMin);
+
+  return { score: Math.round(clamp(score, 0, 100)), estimatedWaitMin };
+}
+
+// ─── Distance sub-score ───────────────────────────────────────────────────────
+export function calcDistanceScore(distanceMi: number, maxDistanceMi: number): number {
+  const score = 100 - (distanceMi / maxDistanceMi) * 80;
+  return Math.round(clamp(score, 0, 100));
+}
+
+// ─── Amenity sub-score ────────────────────────────────────────────────────────
+const AMENITY_BASE: Record<string, number> = {
+  carWash: 18,
+  convenienceStore: 16,
+  restrooms: 15,
+  airWater: 10,
+  evCharging: 20,
+  atm: 8,
+  def: 6,
+  open24h: 7,
+  wellLit: 8,
+  loyaltyProgram: 12,
+};
+
+export function calcAmenityScore(
+  amenities: AmenitySet,
+  isEVUser: boolean,
+  isTruck: boolean,
+  distanceMi: number,
+  hourOfDay: number,
+): number {
+  const isNight = hourOfDay >= 21 || hourOfDay < 6;
+  const isFar = distanceMi > 1;
+  let total = 0;
+
+  if (amenities.carWash) total += AMENITY_BASE.carWash;
+  if (amenities.convenienceStore) total += AMENITY_BASE.convenienceStore + (isEVUser ? 4 : 0);
+  if (amenities.restrooms) total += AMENITY_BASE.restrooms + (isFar ? 5 : 0);
+  if (amenities.airWater) total += AMENITY_BASE.airWater;
+  if (amenities.evCharging) total += AMENITY_BASE.evCharging * (isEVUser ? 2 : 0.5);
+  if (amenities.atm) total += AMENITY_BASE.atm;
+  if (amenities.def) total += AMENITY_BASE.def * (isTruck ? 3 : 1);
+  if (amenities.open24h) total += AMENITY_BASE.open24h * (isNight ? 2 : 1);
+  if (amenities.wellLit) total += AMENITY_BASE.wellLit * (isNight ? 2 : 1);
+  if (amenities.loyaltyProgram) total += AMENITY_BASE.loyaltyProgram;
+
+  return Math.round(clamp(total, 0, 100));
+}
+
+// ─── Master scorer ────────────────────────────────────────────────────────────
+export function scoreStation(
+  station: StationForScoring,
+  areaMedianPrice: number,
+  maxDistanceMi: number,
+  weights: UserWeights,
+  isEVUser: boolean,
+  isTruck: boolean,
+  hourOfDay: number,
+): ValueScoreResult {
+  const w = normaliseWeights(weights);
+
+  const { score: priceS, effectivePrice, stalenessApplied } = calcPriceScore(
+    station.price,
+    station.loyaltyDiscountPerGal,
+    areaMedianPrice,
+    station.priceRecordedAt,
+  );
+
+  const { score: waitS, estimatedWaitMin } = calcWaitScore(
+    station.busynessNow,
+    station.isEV,
+    station.availableConnectors,
+    station.totalConnectors,
+  );
+
+  const distS = calcDistanceScore(station.distanceMi, maxDistanceMi);
+  const amenS = calcAmenityScore(station.amenities, isEVUser, isTruck, station.distanceMi, hourOfDay);
+
+  const total = Math.round(
+    priceS * w.price +
+    waitS * w.wait +
+    distS * w.distance +
+    amenS * w.amenity,
+  );
+
+  return {
+    total: clamp(total, 0, 100),
+    subScores: { price: priceS, wait: waitS, distance: distS, amenity: amenS },
+    effectivePrice,
+    estimatedWaitMin,
+    stalenessApplied,
+    loyaltyApplied: station.loyaltyDiscountPerGal > 0,
+  };
+}

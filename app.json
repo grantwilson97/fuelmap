@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "FuelMap",
+    "slug": "fuelmap",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1667d9"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.fuelmap",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "FuelMap uses your location to find fuel stations and calculate distances.",
+        "NSLocationAlwaysUsageDescription": "FuelMap uses your location in the background for price drop alerts near you."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1667d9"
+      },
+      "package": "com.yourname.fuelmap",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "plugins": [
+      "expo-location",
+      "expo-notifications",
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": "sk.eyJ1IjoiZ3JhbnR3aWxzb245NyIsImEiOiJjbW5keGc4azMxbmN2Mm9vNHEzZDI3aGdqIn0.LoATvJFawi4Id4KhPTCCsg"
+        }
+      ]
+    ],
+    "extra": {
+      "MAPBOX_PUBLIC_TOKEN": "pk.eyJ1IjoiZ3JhbnR3aWxzb245NyIsImEiOiJjbW5keGRhNzkwNG1jMnFvcmpqNHA3OTJtIn0.jZOYmgHuABKUU6CvrCbqXA",
+      "GOOGLE_PLACES_API_KEY": "AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8",
+      "AFDC_API_KEY": "ttfn7IlYeswqqaKwZvN7HNvJYgfqixTbBS4eFkyI",
+      "WATTTIME_USER": "grantwilson97",
+      "WATTTIME_PASS": "Gw9575321!"
+    }
+  }
+}
