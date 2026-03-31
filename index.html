@@ -449,6 +449,37 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 
 <script>
 var GOOGLE_API_KEY='AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8';
+  var autocompleteTimer=null;
+document.addEventListener('input',function(e){
+  if(e.target.id!=='trip-destination')return;
+  clearTimeout(autocompleteTimer);
+  var val=e.target.value.trim();
+  var dd=document.getElementById('autocomplete-dropdown');
+  if(!dd)return;
+  if(val.length<3){dd.style.display='none';dd.innerHTML='';return;}
+  autocompleteTimer=setTimeout(function(){
+    fetch('https://fuelmap-api-sf.vercel.app/api/autocomplete?input='+encodeURIComponent(val))
+      .then(function(r){return r.json();})
+      .then(function(data){
+        var preds=data.predictions||[];
+        if(!preds.length){dd.style.display='none';return;}
+        dd.innerHTML=preds.map(function(p){
+          return '<div onclick="selectPlace(\''+p.description.replace(/'/g,"\\'")+'\')" style="padding:11px 14px;font-size:14px;color:#1a1a2e;border-bottom:0.5px solid #f0f0f0;cursor:pointer;">'+
+            '<span style="font-weight:600;">'+p.structured_formatting.main_text+'</span> '+
+            '<span style="color:#888;font-size:12px;">'+p.structured_formatting.secondary_text+'</span></div>';
+        }).join('');
+        dd.style.display='block';
+      })
+      .catch(function(){dd.style.display='none';});
+  },300);
+});
+
+function selectPlace(description){
+  var input=document.getElementById('trip-destination');
+  var dd=document.getElementById('autocomplete-dropdown');
+  if(input)input.value=description;
+  if(dd){dd.style.display='none';dd.innerHTML='';}
+}
 var VERCEL_API='https://fuelmap-api-sf.vercel.app/api/stations';
 var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35,EIA_EV_DC_AVG=0.47;
 var VEHICLE_EMOJIS=['🚗','🚙','🛻','🏎️','🚐','🚕','🚌','🏍️','🛵','⚡'];
