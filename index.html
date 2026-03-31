@@ -24,12 +24,16 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .filter-row::-webkit-scrollbar{display:none;}
 .chip{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;color:#555;background:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .chip.on{background:#1667d9;border-color:#1667d9;color:#fff;}
-.map-box{flex:1;background:#f0f4ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+.map-box{flex:1;background:#f0f4ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;position:relative;}
 .map-icon{font-size:48px;}
 .map-title{font-size:20px;font-weight:700;color:#1667d9;}
 .map-sub{font-size:12px;color:#888;}
-.eia-badge{background:#E6F1FB;border:1px solid #B5D4F4;border-radius:8px;padding:4px 10px;margin-top:4px;}
-.eia-badge-txt{font-size:11px;color:#0C447C;font-weight:600;}
+.live-badge{background:#dcfce7;border:1px solid #16a34a;border-radius:8px;padding:4px 10px;margin-top:4px;}
+.live-badge-txt{font-size:11px;color:#15803d;font-weight:700;}
+.loading-overlay{position:absolute;inset:0;background:rgba(240,244,255,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+.loading-spinner{width:32px;height:32px;border:3px solid #e0e7ff;border-top-color:#1667d9;border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-txt{font-size:13px;color:#1667d9;font-weight:600;}
 .sheet{background:#fff;border-top:0.5px solid #e5e5e5;}
 .drag{width:40px;height:4px;background:#ddd;border-radius:2px;margin:8px auto;}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;}
@@ -40,13 +44,17 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .cards{display:flex;gap:10px;padding:0 14px 14px;overflow-x:auto;scrollbar-width:none;}
 .cards::-webkit-scrollbar{display:none;}
 .card{flex-shrink:0;width:175px;background:#fff;border-radius:16px;border:1.5px solid #eee;padding:12px;cursor:pointer;}
+.card.live{border-color:#16a34a;}
 .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
 .card-name{font-size:13px;font-weight:700;color:#1a1a2e;line-height:1.3;}
 .card-dist{font-size:10px;color:#888;margin-top:2px;}
 .ring{width:36px;height:36px;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .ring-txt{font-size:12px;font-weight:800;}
 .card-price{font-size:18px;font-weight:800;color:#1667d9;margin-bottom:2px;}
-.card-price-source{font-size:9px;margin-bottom:6px;}
+.card-price-source{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:6px;}
+.src-live{background:#dcfce7;color:#15803d;}
+.src-community{background:#dbeafe;color:#1d4ed8;}
+.src-eia{background:#f3f4f6;color:#6b7280;}
 .stat-row{display:flex;gap:5px;}
 .stat-box{flex:1;background:#f7f7f9;border-radius:8px;padding:6px;}
 .stat-lbl{font-size:9px;color:#888;font-weight:700;text-transform:uppercase;}
@@ -62,11 +70,10 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .sec-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;}
 .price-big{font-size:28px;font-weight:800;color:#1667d9;}
 .price-note{font-size:12px;color:#888;margin-top:4px;}
-.price-source-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.price-source-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
 .price-source-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;}
-.source-community{background:#dcfce7;color:#15803d;}
-.source-eia{background:#E6F1FB;color:#0C447C;}
-.report-btn{flex:1;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;color:#1667d9;cursor:pointer;text-align:center;}
+.connector-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.connector-pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;background:#f3f4f6;color:#374151;}
 .factor-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .factor-lbl{font-size:12px;color:#555;width:70px;}
 .track{flex:1;height:6px;background:#eee;border-radius:3px;}
@@ -76,7 +83,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .pge-box{border-left:3px solid #f59e0b;background:#fffbeb;}
 .pge-sec-title{color:#92400e;}
 .pge-body{color:#b45309;}
-.community-reports{margin-top:8px;}
+.community-reports{margin-top:4px;}
 .report-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid #f0f0f0;}
 .report-price{font-size:15px;font-weight:700;color:#1667d9;}
 .report-meta{font-size:11px;color:#888;}
@@ -85,14 +92,13 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .actions{padding:14px;background:#fff;border-top:0.5px solid #e5e5e5;display:flex;gap:8px;}
 .nav-btn{flex:2;background:#1667d9;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;}
 .report-price-btn{flex:1;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:12px;padding:13px;font-size:13px;font-weight:700;color:#1a1a2e;cursor:pointer;}
-
-/* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:100;}
 .modal-overlay.hidden{display:none;}
 .modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:430px;}
 .modal-title{font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:4px;}
-.modal-sub{font-size:13px;color:#888;margin-bottom:16px;}
+.modal-sub{font-size:13px;color:#888;margin-bottom:8px;}
 .modal-station{font-size:14px;font-weight:700;color:#1667d9;margin-bottom:16px;}
+.thanks-msg{background:#EAF3DE;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#27500A;font-weight:600;display:none;}
 .fuel-select{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
 .fuel-opt{padding:8px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:13px;font-weight:600;color:#555;cursor:pointer;}
 .fuel-opt.on{background:#1667d9;border-color:#1667d9;color:#fff;}
@@ -104,9 +110,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .modal-cancel{flex:1;padding:12px;border-radius:12px;background:#f2f2f7;border:none;font-size:14px;font-weight:700;color:#555;cursor:pointer;}
 .modal-submit{flex:2;padding:12px;border-radius:12px;background:#1667d9;border:none;font-size:14px;font-weight:700;color:#fff;cursor:pointer;}
 .modal-submit:disabled{background:#B5D4F4;cursor:not-allowed;}
-.thanks-msg{background:#EAF3DE;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#27500A;font-weight:600;display:none;}
-
-/* alerts + carbon same as before */
 .hero-blue{background:#1667d9;padding:18px;}
 .hero-green{background:#065f46;padding:18px;}
 .hero-title{font-size:24px;font-weight:800;color:#fff;margin-bottom:2px;}
@@ -161,37 +164,41 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .tab.active .tab-icon{opacity:1;}
 .tab-label{font-size:10px;font-weight:600;color:#aaa;}
 .tab.active .tab-label{color:#1667d9;}
+.refresh-btn{position:absolute;top:10px;right:10px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:#1667d9;cursor:pointer;}
 </style>
 </head>
 <body>
 
-<!-- MAP SCREEN -->
 <div class="screen active" id="screen-map">
   <div class="topbar">
     <div class="title-row">
       <div class="wordmark">fuel<span>map</span></div>
-      <div class="subtitle">SF Bay Area</div>
+      <div class="subtitle" id="location-txt">Getting location…</div>
     </div>
     <div class="pge-chip"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh</span></div>
     <div class="filter-row" id="filters"></div>
   </div>
-  <div class="map-box">
+  <div class="map-box" id="map-box">
     <div class="map-icon">📍</div>
-    <div class="map-title">SoMa, San Francisco</div>
-    <div class="map-sub" id="station-count">6 stations nearby</div>
-    <div class="eia-badge"><span class="eia-badge-txt">📊 EIA baseline: $6.02/gal · Updated weekly</span></div>
+    <div class="map-title" id="map-title">Finding your location…</div>
+    <div class="map-sub" id="station-count">Loading stations…</div>
+    <div class="live-badge"><span class="live-badge-txt" id="data-source-txt">🔌 AFDC live data + SF stations</span></div>
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-txt" id="loading-txt">Getting your location…</div>
+    </div>
+    <button class="refresh-btn" onclick="loadStations()" id="refresh-btn" style="display:none;">↻ Refresh</button>
   </div>
   <div class="sheet">
     <div class="drag"></div>
     <div class="sheet-head">
-      <div class="sheet-title" id="sheet-title">6 stations nearby</div>
+      <div class="sheet-title" id="sheet-title">Loading…</div>
       <div class="sort-row" id="sorts"></div>
     </div>
     <div class="cards" id="cards"></div>
   </div>
 </div>
 
-<!-- DETAIL SCREEN -->
 <div class="screen" id="screen-detail" style="background:#f7f7f9;">
   <div id="hero-wrap"></div>
   <div class="scroll" id="detail-body"></div>
@@ -201,7 +208,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
-<!-- ALERTS SCREEN -->
 <div class="screen" id="screen-alerts" style="background:#f7f7f9;">
   <div class="hero-blue">
     <div class="hero-title">Price alerts</div>
@@ -215,7 +221,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div class="alert-body" id="alerts-body"></div></div>
 </div>
 
-<!-- CARBON SCREEN -->
 <div class="screen" id="screen-carbon" style="background:#f7f7f9;">
   <div class="hero-green">
     <div class="hero-title">Carbon tracker</div>
@@ -236,7 +241,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div style="padding:14px;" id="carbon-body"></div></div>
 </div>
 
-<!-- REPORT PRICE MODAL -->
 <div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">Report a price</div>
@@ -256,7 +260,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
-<!-- TAB BAR -->
 <div class="tab-bar">
   <button class="tab active" onclick="showTab('map')" id="tab-map"><span class="tab-icon">📍</span><span class="tab-label">Map</span></button>
   <button class="tab" onclick="showTab('alerts')" id="tab-alerts"><span class="tab-icon">🔔</span><span class="tab-label">Alerts</span></button>
@@ -264,267 +267,305 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 </div>
 
 <script>
-// ── Data ─────────────────────────────────────────────────────────────────────
-const EIA_AVERAGES = { regular:6.02, midgrade:6.32, premium:6.62, diesel:7.29, ev_l2:0.35, ev_dc:0.47 };
+// ── Config ────────────────────────────────────────────────────────────────────
+var VERCEL_API = 'https://fuelmap-api-sf.vercel.app/api/stations';
+var EIA_GAS_AVG = 6.02;
+var EIA_EV_L2_AVG = 0.35;
+var EIA_EV_DC_AVG = 0.47;
 
-const STATIONS = [
-  {id:'1',name:'Volta · Metreon',address:'101 4th St, SoMa',type:'ev',basePrice:0.34,dist:0.2,busy:25,score:92},
-  {id:'2',name:'Chevron · Van Ness',address:'1601 Van Ness Ave, Civic Center',type:'gas',basePrice:5.89,dist:0.4,busy:55,score:84},
-  {id:'3',name:'Arco · Cesar Chavez',address:'3001 Cesar Chavez St, Mission',type:'gas',basePrice:5.84,dist:0.7,busy:25,score:88},
-  {id:'4',name:'Shell · 4th & Bryant',address:'598 4th St, SoMa',type:'gas',basePrice:6.09,dist:0.9,busy:80,score:51},
-  {id:'5',name:'Electrify America · SOMA',address:'1 SOMA Grand, SoMa',type:'ev',basePrice:0.47,dist:1.1,busy:45,score:67},
-  {id:'6',name:'ChargePoint · SFO',address:'SFO Terminal 3, South San Francisco',type:'ev',basePrice:0.29,dist:1.4,busy:20,score:79},
+// ── SF demo stations (shown alongside live AFDC data) ────────────────────────
+var DEMO_STATIONS = [
+  {id:'demo_1',name:'Volta · Metreon',address:'101 4th St, SoMa, San Francisco, CA',type:'ev',basePrice:0.34,latitude:37.7847,longitude:-122.4029,busy:25,isLive:false,network:'Volta',l2Connectors:4,dcConnectors:0,open24h:true,pricing:'Free'},
+  {id:'demo_2',name:'Chevron · Van Ness',address:'1601 Van Ness Ave, San Francisco, CA',type:'gas',basePrice:5.89,latitude:37.7934,longitude:-122.4214,busy:55,isLive:false,network:'Chevron',open24h:true},
+  {id:'demo_3',name:'Arco · Cesar Chavez',address:'3001 Cesar Chavez St, San Francisco, CA',type:'gas',basePrice:5.84,latitude:37.7484,longitude:-122.4186,busy:25,isLive:false,network:'Arco',open24h:false},
+  {id:'demo_4',name:'Shell · 4th & Bryant',address:'598 4th St, SoMa, San Francisco, CA',type:'gas',basePrice:6.09,latitude:37.7785,longitude:-122.3948,busy:80,isLive:false,network:'Shell',open24h:true},
+  {id:'demo_5',name:'Electrify America · SOMA',address:'1 SOMA Grand, San Francisco, CA',type:'ev',basePrice:0.47,latitude:37.7793,longitude:-122.4103,busy:45,isLive:false,network:'Electrify America',l2Connectors:0,dcConnectors:6,open24h:true,pricing:'$0.47/kWh'},
 ];
 
-const ALERTS_DATA = [
+var ALERTS_DATA = [
   {id:'1',name:'Regular gas · any SF station',threshold:5.70,current:6.02,unit:'/gal',status:'active',nearest:'Arco · Cesar Chavez · $5.84 · 19¢ from target'},
   {id:'2',name:'EV DC Fast · Electrify America',threshold:0.45,current:0.43,unit:'/kWh',status:'triggered',nearest:'Serramonte Center, Daly City · 4.1 mi away'},
   {id:'3',name:'Premium · Chevron Van Ness',threshold:6.30,current:6.49,unit:'/gal',status:'active',nearest:'19¢ above your target'},
 ];
 
-const TIPS = [
-  {title:'Charge before 3 PM — solar peaks at noon',body:'PG&E solar generation peaks midday, dropping grid carbon below 100 gCO₂/kWh.',impact:'−22 kg CO₂/mo',color:'#16a34a',bg:'#f0fdf4'},
+var TIPS = [
+  {title:'Charge before 3 PM — solar peaks at noon',body:'PG&E solar peaks midday, dropping grid carbon below 100 gCO₂/kWh. Open Supercharger stalls: SoMa Hub, Mission Bay, Stonestown.',impact:'−22 kg CO₂/mo',color:'#16a34a',bg:'#f0fdf4'},
   {title:'Skip 4th & Bryant Shell — priciest in SF',body:'At $6.09/gal it\'s 7¢ above average. Arco on Cesar Chavez is $5.84 — $1.25 cheaper per fillup.',impact:'$1.25/fillup saved',color:'#dc2626',bg:'#fef2f2'},
   {title:'Free Level 2 charging at SFO Terminal 3',body:'Included with parking. Arrive 30 min early and charge while you wait.',impact:'−8 kg CO₂/mo',color:'#1667d9',bg:'#eff6ff'},
   {title:'Charge overnight 11 PM – 6 AM',body:'PG&E off-peak rate ($0.26/kWh) vs. peak ($0.57/kWh) is a 54% saving per session.',impact:'$12–18/mo saved',color:'#d97706',bg:'#fffbeb'},
 ];
 
-// ── Community price storage ───────────────────────────────────────────────────
-function getReports(stationId) {
-  try { return JSON.parse(localStorage.getItem('reports_'+stationId)||'[]'); }
-  catch(e) { return []; }
-}
-
-function saveReport(stationId, fuelType, price) {
-  const reports = getReports(stationId);
-  reports.unshift({ fuelType, price, ts: Date.now(), ago: 'Just now' });
-  if(reports.length > 5) reports.pop();
-  localStorage.setItem('reports_'+stationId, JSON.stringify(reports));
-}
-
-function getLatestPrice(station) {
-  if(station.type === 'ev') return { price: station.basePrice, source: 'network' };
-  const reports = getReports(station.id);
-  const regularReport = reports.find(r => r.fuelType === 'regular');
-  if(regularReport) {
-    const ageMin = Math.round((Date.now() - regularReport.ts) / 60000);
-    const agoStr = ageMin < 1 ? 'Just now' : ageMin < 60 ? `${ageMin}m ago` : `${Math.round(ageMin/60)}h ago`;
-    return { price: regularReport.price, source: 'community', ago: agoStr };
-  }
-  return { price: station.basePrice, source: 'eia' };
-}
-
-function timeAgo(ts) {
-  const m = Math.round((Date.now()-ts)/60000);
-  if(m<1) return 'Just now';
-  if(m<60) return `${m}m ago`;
-  return `${Math.round(m/60)}h ago`;
-}
+// ── State ─────────────────────────────────────────────────────────────────────
+var allStations = [];
+var currentFilter = 'all';
+var currentSort = 'value';
+var currentStation = null;
+var alerts = ALERTS_DATA.slice();
+var userLat = null;
+var userLng = null;
+var modalFuelType = 'regular';
+var liveCount = 0;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-let currentFilter='all', currentSort='value', currentStation=null, alerts=[...ALERTS_DATA];
-let modalFuelType='regular';
-
 function scoreColor(s){return s>=80?'#16a34a':s>=65?'#d97706':'#dc2626';}
 function crowdColor(b){return b<35?'#16a34a':b<65?'#d97706':'#dc2626';}
 function crowdLabel(b){return b<35?'Light':b<65?'Moderate':'Busy';}
 function waitMin(b){return Math.max(0,Math.round((b-20)/20));}
 
-function priceStr(station) {
-  const {price} = getLatestPrice(station);
-  return station.type==='ev' ? `$${price.toFixed(2)}/kWh` : `$${price.toFixed(2)}/gal`;
+function distMiles(lat1,lng1,lat2,lng2){
+  var R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
+function calcScore(station){
+  var price = getLatestPrice(station).price;
+  var median = station.type==='ev' ? EIA_EV_L2_AVG : EIA_GAS_AVG;
+  var priceScore = Math.min(100,Math.max(0, 50+((median-price)/median)*300));
+  var waitScore = Math.min(100,Math.max(0, 100*Math.exp(-0.1733*waitMin(station.busy||30))));
+  var distScore = Math.min(100,Math.max(0, 100-(station.distanceMiles/5)*80));
+  var amenScore = 65;
+  if(station.open24h) amenScore+=10;
+  if((station.l2Connectors||0)+(station.dcConnectors||0)>2) amenScore+=10;
+  amenScore = Math.min(100,amenScore);
+  return Math.round(0.40*priceScore + 0.35*waitScore + 0.15*distScore + 0.10*amenScore);
+}
+
+// ── Community price storage ───────────────────────────────────────────────────
+function getReports(id){try{return JSON.parse(localStorage.getItem('reports_'+id)||'[]');}catch(e){return[];}}
+function saveReport(id,fuelType,price){
+  var r=getReports(id);
+  r.unshift({fuelType:fuelType,price:price,ts:Date.now()});
+  if(r.length>5)r.pop();
+  localStorage.setItem('reports_'+id,JSON.stringify(r));
+}
+function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
+
+function getLatestPrice(station){
+  var reports=getReports(station.id);
+  var fuelReport=reports.find(function(r){return r.fuelType==='regular'||r.fuelType==='ev_l2';});
+  if(fuelReport){return{price:fuelReport.price,source:'community',ago:timeAgo(fuelReport.ts)};}
+  return{price:station.basePrice||station.price||EIA_GAS_AVG,source:station.isLive?'live':'eia'};
+}
+
+// ── Load stations ─────────────────────────────────────────────────────────────
+function setLoading(msg){
+  document.getElementById('loading-overlay').style.display='flex';
+  document.getElementById('loading-txt').textContent=msg;
+  document.getElementById('refresh-btn').style.display='none';
+}
+function clearLoading(){
+  document.getElementById('loading-overlay').style.display='none';
+  document.getElementById('refresh-btn').style.display='block';
+}
+
+function loadStations(){
+  setLoading('Getting your location…');
+  if(!navigator.geolocation){
+    useFallbackLocation();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      userLat=pos.coords.latitude;
+      userLng=pos.coords.longitude;
+      document.getElementById('location-txt').textContent=userLat.toFixed(3)+', '+userLng.toFixed(3);
+      document.getElementById('map-title').textContent='Near you · SF Bay Area';
+      fetchAFDC(userLat,userLng);
+    },
+    function(){
+      useFallbackLocation();
+    },
+    {timeout:8000,enableHighAccuracy:false}
+  );
+}
+
+function useFallbackLocation(){
+  userLat=37.7749;
+  userLng=-122.4194;
+  document.getElementById('location-txt').textContent='SoMa, San Francisco';
+  document.getElementById('map-title').textContent='SoMa, San Francisco';
+  fetchAFDC(userLat,userLng);
+}
+
+function fetchAFDC(lat,lng){
+  setLoading('Finding live EV chargers…');
+  fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius=5')
+    .then(function(r){return r.json();})
+    .then(function(data){
+      var liveStations=(data.stations||[]).map(function(s){
+        return{
+          id:'afdc_'+s.id,
+          name:s.name,
+          address:s.address,
+          type:'ev',
+          basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,
+          latitude:s.latitude,
+          longitude:s.longitude,
+          distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),
+          busy:30,
+          isLive:true,
+          network:s.network,
+          l2Connectors:s.l2Connectors||0,
+          dcConnectors:s.dcConnectors||0,
+          connectorTypes:s.connectorTypes||[],
+          open24h:s.open24h||false,
+          pricing:s.pricing||null,
+          isOpen:s.isOpen,
+        };
+      });
+      liveCount=liveStations.length;
+      buildStationList(lat,lng,liveStations);
+    })
+    .catch(function(){
+      liveCount=0;
+      buildStationList(lat,lng,[]);
+    });
+}
+
+function buildStationList(lat,lng,liveStations){
+  var demoWithDist=DEMO_STATIONS.map(function(s){
+    return Object.assign({},s,{distanceMiles:Math.round(distMiles(lat,lng,s.latitude,s.longitude)*10)/10});
+  });
+
+  // Deduplicate — remove demo stations too close to a live station
+  var filtered=demoWithDist.filter(function(d){
+    return!liveStations.some(function(l){return distMiles(d.latitude,d.longitude,l.latitude,l.longitude)<0.15;});
+  });
+
+  allStations=liveStations.concat(filtered);
+  allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});
+  allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
+
+  var total=allStations.length;
+  document.getElementById('station-count').textContent=total+' stations found';
+  document.getElementById('data-source-txt').textContent='🔌 '+liveCount+' live AFDC + '+(total-liveCount)+' SF stations';
+  clearLoading();
+  renderAll();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
 function getFiltered(){
-  return STATIONS.filter(s=>{
-    if(currentFilter==='gas') return s.type==='gas';
-    if(currentFilter==='ev') return s.type==='ev';
+  return allStations.filter(function(s){
+    if(currentFilter==='gas')return s.type==='gas';
+    if(currentFilter==='ev')return s.type==='ev';
     return true;
-  }).sort((a,b)=>{
-    if(currentSort==='value') return b.score-a.score;
-    if(currentSort==='price') return getLatestPrice(a).price - getLatestPrice(b).price;
-    if(currentSort==='wait') return a.busy-b.busy;
+  }).sort(function(a,b){
+    if(currentSort==='value')return b.score-a.score;
+    if(currentSort==='price')return getLatestPrice(a).price-getLatestPrice(b).price;
+    if(currentSort==='wait')return(a.busy||30)-(b.busy||30);
+    if(currentSort==='distance')return a.distanceMiles-b.distanceMiles;
     return 0;
   });
 }
 
-// ── Render functions ──────────────────────────────────────────────────────────
 function renderFilters(){
-  const el=document.getElementById('filters');el.innerHTML='';
-  [['all','All stations'],['gas','Gas only'],['ev','EV charging']].forEach(([k,l])=>{
-    const c=document.createElement('div');c.className='chip'+(currentFilter===k?' on':'');
-    c.textContent=l;c.onclick=()=>{currentFilter=k;renderAll();};el.appendChild(c);
+  var el=document.getElementById('filters');el.innerHTML='';
+  [['all','All'],['gas','Gas'],['ev','EV']].forEach(function(pair){
+    var k=pair[0],l=pair[1];
+    var c=document.createElement('div');c.className='chip'+(currentFilter===k?' on':'');
+    c.textContent=l;c.onclick=function(){currentFilter=k;renderAll();};el.appendChild(c);
   });
 }
 
 function renderSorts(){
-  const el=document.getElementById('sorts');el.innerHTML='';
-  ['value','price','wait'].forEach(sv=>{
-    const c=document.createElement('div');c.className='sp'+(currentSort===sv?' on':'');
-    c.textContent=sv;c.onclick=()=>{currentSort=sv;renderAll();};el.appendChild(c);
+  var el=document.getElementById('sorts');el.innerHTML='';
+  [['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(pair){
+    var sv=pair[0],sl=pair[1];
+    var c=document.createElement('div');c.className='sp'+(currentSort===sv?' on':'');
+    c.textContent=sl;c.onclick=function(){currentSort=sv;renderAll();};el.appendChild(c);
   });
 }
 
 function renderCards(){
-  const el=document.getElementById('cards');el.innerHTML='';
-  const filtered=getFiltered();
-  document.getElementById('station-count').textContent=`${filtered.length} stations nearby`;
-  document.getElementById('sheet-title').textContent=`${filtered.length} stations nearby`;
-  filtered.forEach(st=>{
-    const sc=scoreColor(st.score);
-    const cc=crowdColor(st.busy);
-    const wm=waitMin(st.busy);
-    const {price,source} = getLatestPrice(st);
-    const priceDisplay = st.type==='ev' ? `$${price.toFixed(2)}/kWh` : `$${price.toFixed(2)}/gal`;
-    const sourceLabel = source==='community' ? '👤 Community reported' : source==='eia' ? '📊 EIA baseline' : '🔌 Network rate';
-    const sourceCls = source==='community' ? 'source-community' : 'source-eia';
-    const card=document.createElement('div');card.className='card';
-    card.innerHTML=`
-      <div class="card-top">
-        <div style="flex:1;padding-right:6px;">
-          <div class="card-name">${st.name}</div>
-          <div class="card-dist">${st.dist.toFixed(1)} mi · ${st.type.toUpperCase()}</div>
-        </div>
-        <div class="ring" style="border-color:${sc};background:${sc}22;">
-          <span class="ring-txt" style="color:${sc};">${st.score}</span>
-        </div>
-      </div>
-      <div class="card-price">${priceDisplay}</div>
-      <div class="card-price-source price-source-badge ${sourceCls}">${sourceLabel}</div>
-      <div class="stat-row" style="margin-top:6px;">
-        <div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:${cc};">${wm}m</div></div>
-        <div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:${cc};">${crowdLabel(st.busy)}</div></div>
-      </div>`;
-    card.onclick=()=>showDetail(st);el.appendChild(card);
+  var el=document.getElementById('cards');el.innerHTML='';
+  var filtered=getFiltered();
+  document.getElementById('sheet-title').textContent=filtered.length+' stations nearby';
+  filtered.forEach(function(st){
+    var sc=scoreColor(st.score);
+    var cc=crowdColor(st.busy||30);
+    var wm=waitMin(st.busy||30);
+    var priceInfo=getLatestPrice(st);
+    var priceDisplay=st.type==='ev'?'$'+priceInfo.price.toFixed(2)+'/kWh':'$'+priceInfo.price.toFixed(2)+'/gal';
+    var srcLabel=priceInfo.source==='community'?'👤 Community':priceInfo.source==='live'?'🔌 Live':'📊 EIA avg';
+    var srcCls=priceInfo.source==='community'?'src-community':priceInfo.source==='live'?'src-live':'src-eia';
+    var card=document.createElement('div');
+    card.className='card'+(st.isLive?' live':'');
+    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div><div class="card-price">'+priceDisplay+'</div><div class="card-price-source '+srcCls+'">'+srcLabel+'</div><div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
+    card.onclick=function(){showDetail(st);};el.appendChild(card);
   });
 }
 
 function renderAll(){renderFilters();renderSorts();renderCards();}
 
+// ── Detail ────────────────────────────────────────────────────────────────────
 function showDetail(station){
   currentStation=station;
-  const sc=scoreColor(station.score);
-  const heroBg=station.type==='ev'?'#064e35':'#0d3d8a';
-  const wm=waitMin(station.busy);
-  const {price,source,ago} = getLatestPrice(station);
-  const priceDisplay = station.type==='ev' ? `$${price.toFixed(2)}/kWh` : `$${price.toFixed(2)}/gal`;
-  const sourceLabel = source==='community' ? '👤 Community reported' : source==='eia' ? '📊 EIA weekly average' : '🔌 Network rate';
-  const sourceCls = source==='community' ? 'source-community' : 'source-eia';
-  const vsAvg = station.type==='ev'
-    ? `vs. SF avg $0.41/kWh`
-    : `vs. SF avg $6.02/gal`;
-  const pgeMsg = station.type==='ev'
-    ? 'Off-peak charging (9 PM–3 PM): $0.26/kWh vs. peak $0.57/kWh — a 54% saving per session.'
-    : price < 6.02
-      ? `${(6.02-price).toFixed(2)} below SF average — good value right now.`
-      : `${(price-6.02).toFixed(2)} above SF average. Consider Arco on Cesar Chavez at $5.84.`;
+  var sc=scoreColor(station.score);
+  var heroBg=station.type==='ev'?'#064e35':'#0d3d8a';
+  var wm=waitMin(station.busy||30);
+  var priceInfo=getLatestPrice(station);
+  var priceDisplay=station.type==='ev'?'$'+priceInfo.price.toFixed(2)+'/kWh':'$'+priceInfo.price.toFixed(2)+'/gal';
+  var vsAvg=station.type==='ev'?'vs. SF avg $'+EIA_EV_L2_AVG+'/kWh':'vs. SF avg $'+EIA_GAS_AVG+'/gal';
+  var srcLabel=priceInfo.source==='community'?'👤 Community reported':priceInfo.source==='live'?'🔌 Live AFDC data':'📊 EIA weekly average';
+  var srcCls=priceInfo.source==='community'?'src-community':priceInfo.source==='live'?'src-live':'src-eia';
+  var pgeMsg=station.type==='ev'?'Off-peak charging (9 PM–3 PM): $0.26/kWh vs. peak $0.57/kWh — a 54% saving per session.':priceInfo.price<EIA_GAS_AVG?(EIA_GAS_AVG-priceInfo.price).toFixed(2)+' below SF average — good value right now.':(priceInfo.price-EIA_GAS_AVG).toFixed(2)+' above SF average. Consider Arco on Cesar Chavez at $5.84.';
 
-  const reports = getReports(station.id);
-  const reportsHTML = reports.length === 0
-    ? `<div class="no-reports">No community reports yet — be the first!</div>`
-    : reports.map(r => `
-        <div class="report-item">
-          <div>
-            <div class="report-fuel">${r.fuelType.charAt(0).toUpperCase()+r.fuelType.slice(1)}</div>
-            <div class="report-meta">${timeAgo(r.ts)}</div>
-          </div>
-          <div class="report-price">$${Number(r.price).toFixed(2)}</div>
-        </div>`).join('');
+  var connHTML='';
+  if(station.connectorTypes&&station.connectorTypes.length>0){
+    connHTML='<div class="connector-row">'+station.connectorTypes.map(function(c){return'<span class="connector-pill">'+c+'</span>';}).join('')+'</div>';
+  }
 
-  document.getElementById('hero-wrap').innerHTML=`
-    <div class="hero" style="background:${heroBg};">
-      <button class="back-btn" onclick="showTab('map')">← Map</button>
-      <div class="score-box" style="border-color:${sc};">
-        <div class="score-val" style="color:${sc};">${station.score}</div>
-        <div class="score-lbl">Score</div>
-      </div>
-      <div class="hero-name">${station.name}</div>
-      <div class="hero-addr">${station.address} · ${station.dist.toFixed(1)} mi</div>
-    </div>`;
+  var stallsHTML='';
+  if(station.type==='ev'){
+    var parts=[];
+    if(station.l2Connectors>0)parts.push(station.l2Connectors+' Level 2');
+    if(station.dcConnectors>0)parts.push(station.dcConnectors+' DC Fast');
+    if(parts.length>0)stallsHTML='<div class="body-txt" style="margin-top:4px;">'+parts.join(' · ')+'</div>';
+  }
 
-  const ps=station.score,ws=Math.round(100-station.busy),ds=Math.round(100-(station.dist/3)*80);
-  document.getElementById('detail-body').innerHTML=`
-    <div class="section">
-      <div class="sec-title">Price</div>
-      <div class="price-big">${priceDisplay}</div>
-      <div class="price-note">${vsAvg}</div>
-      <div class="price-source-row">
-        <span class="price-source-badge ${sourceCls}">${sourceLabel}${ago?' · '+ago:''}</span>
-      </div>
-    </div>
-    <div class="section">
-      <div class="sec-title">Community price reports</div>
-      <div class="community-reports">${reportsHTML}</div>
-    </div>
-    <div class="section">
-      <div class="sec-title">Value score breakdown</div>
-      ${[['Price',ps],['Wait time',ws],['Distance',ds],['Amenities',72]].map(([l,v])=>`
-        <div class="factor-row">
-          <div class="factor-lbl">${l}</div>
-          <div class="track"><div class="fill" style="width:${v}%;"></div></div>
-          <div class="factor-val">${v}</div>
-        </div>`).join('')}
-    </div>
-    <div class="section">
-      <div class="sec-title">Wait time</div>
-      <div class="body-txt">${wm===0?'No wait — pull straight in':`~${wm} min estimated wait`}</div>
-    </div>
-    <div class="section pge-box">
-      <div class="sec-title pge-sec-title">PG&E tip</div>
-      <div class="body-txt pge-body">${pgeMsg}</div>
-    </div>
-    <div style="height:20px;"></div>`;
+  var reports=getReports(station.id);
+  var reportsHTML=reports.length===0?'<div class="no-reports">No community reports yet — be the first!</div>':reports.map(function(r){return'<div class="report-item"><div><div class="report-fuel">'+r.fuelType.charAt(0).toUpperCase()+r.fuelType.slice(1)+'</div><div class="report-meta">'+timeAgo(r.ts)+'</div></div><div class="report-price">$'+Number(r.price).toFixed(2)+'</div></div>';}).join('');
 
+  document.getElementById('hero-wrap').innerHTML='<div class="hero" style="background:'+heroBg+';"><button class="back-btn" onclick="showTab(\'map\')">← Map</button><div class="score-box" style="border-color:'+sc+';"><div class="score-val" style="color:'+sc+';">'+station.score+'</div><div class="score-lbl">Score</div></div><div class="hero-name">'+station.name+'</div><div class="hero-addr">'+station.address+' · '+station.distanceMiles.toFixed(1)+' mi</div></div>';
+
+  var ps=station.score,ws=Math.round(100-(station.busy||30)),ds=Math.round(100-(station.distanceMiles/5)*80);
+  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big">'+priceDisplay+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+srcCls+'">'+srcLabel+(priceInfo.ago?' · '+priceInfo.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">Pricing info: '+station.pricing+'</div>':'')+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+(station.accessDaysTime?'<div class="body-txt">Hours: '+station.accessDaysTime+'</div>':'')+'</div>':'')+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+reportsHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price',ps],['Wait time',ws],['Distance',ds],['Amenities',72]].map(function(pair){return'<div class="factor-row"><div class="factor-lbl">'+pair[0]+'</div><div class="track"><div class="fill" style="width:'+pair[1]+'%;"></div></div><div class="factor-val">'+pair[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
   showScreen('detail');
 }
 
-// ── Report modal ───────────────────────────────────────────────────────────────
-const FUEL_OPTS = {
-  gas: [['regular','Regular'],['midgrade','Midgrade'],['premium','Premium'],['diesel','Diesel']],
-  ev: [['ev_l2','Level 2'],['ev_dc','DC Fast']],
-};
+// ── Report modal ──────────────────────────────────────────────────────────────
+var FUEL_OPTS={gas:[['regular','Regular'],['midgrade','Midgrade'],['premium','Premium'],['diesel','Diesel']],ev:[['ev_l2','Level 2'],['ev_dc','DC Fast']]};
 
 function openReportModal(){
-  if(!currentStation) return;
+  if(!currentStation)return;
   document.getElementById('modal-station-name').textContent=currentStation.name;
   document.getElementById('thanks-msg').style.display='none';
   document.getElementById('price-input').value='';
   document.getElementById('modal-submit').disabled=true;
-  const fuelSel=document.getElementById('fuel-select');
-  fuelSel.innerHTML='';
-  const opts = currentStation.type==='ev' ? FUEL_OPTS.ev : FUEL_OPTS.gas;
-  modalFuelType = opts[0][0];
-  document.getElementById('price-per').textContent = currentStation.type==='ev' ? '/kWh' : '/gal';
-  opts.forEach(([k,l])=>{
-    const d=document.createElement('div');
-    d.className='fuel-opt'+(k===modalFuelType?' on':'');
-    d.textContent=l;
-    d.onclick=()=>{
-      modalFuelType=k;
-      document.querySelectorAll('.fuel-opt').forEach(o=>o.classList.remove('on'));
-      d.classList.add('on');
-    };
+  var fuelSel=document.getElementById('fuel-select');fuelSel.innerHTML='';
+  var opts=currentStation.type==='ev'?FUEL_OPTS.ev:FUEL_OPTS.gas;
+  modalFuelType=opts[0][0];
+  document.getElementById('price-per').textContent=currentStation.type==='ev'?'/kWh':'/gal';
+  opts.forEach(function(pair){
+    var k=pair[0],l=pair[1];
+    var d=document.createElement('div');d.className='fuel-opt'+(k===modalFuelType?' on':'');d.textContent=l;
+    d.onclick=function(){modalFuelType=k;document.querySelectorAll('.fuel-opt').forEach(function(o){o.classList.remove('on');});d.classList.add('on');};
     fuelSel.appendChild(d);
   });
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
 
-function validatePrice(){
-  const v=parseFloat(document.getElementById('price-input').value);
-  document.getElementById('modal-submit').disabled=!(v>0&&v<20);
-}
+function validatePrice(){var v=parseFloat(document.getElementById('price-input').value);document.getElementById('modal-submit').disabled=!(v>0&&v<20);}
 
 function submitPrice(){
-  const v=parseFloat(document.getElementById('price-input').value);
-  if(!v||!currentStation) return;
-  saveReport(currentStation.id, modalFuelType, v);
+  var v=parseFloat(document.getElementById('price-input').value);
+  if(!v||!currentStation)return;
+  saveReport(currentStation.id,modalFuelType,v);
   document.getElementById('thanks-msg').style.display='block';
   document.getElementById('price-input').value='';
   document.getElementById('modal-submit').disabled=true;
-  setTimeout(()=>{
-    closeModalDirect();
-    showDetail(currentStation);
-  },1200);
+  setTimeout(function(){closeModalDirect();showDetail(currentStation);},1200);
 }
 
 function closeModal(e){if(e.target.id==='modal-overlay')closeModalDirect();}
@@ -532,49 +573,48 @@ function closeModalDirect(){document.getElementById('modal-overlay').classList.a
 
 // ── Navigate ──────────────────────────────────────────────────────────────────
 function navigateToStation(){
-  if(!currentStation) return;
-  const addr=encodeURIComponent(currentStation.address);
-  const name=encodeURIComponent(currentStation.name);
-  window.location.href=`maps:?daddr=${addr}&q=${name}`;
-  setTimeout(()=>{window.location.href=`https://maps.google.com/?daddr=${addr}&q=${name}`;},500);
+  if(!currentStation)return;
+  var addr=encodeURIComponent(currentStation.address);
+  var name=encodeURIComponent(currentStation.name);
+  window.location.href='maps:?daddr='+addr+'&q='+name;
+  setTimeout(function(){window.location.href='https://maps.google.com/?daddr='+addr+'&q='+name;},500);
 }
 
 // ── Alerts ────────────────────────────────────────────────────────────────────
 function renderAlerts(){
-  const el=document.getElementById('alerts-body');el.innerHTML='';
-  const triggered=alerts.filter(a=>a.status==='triggered');
-  const active=alerts.filter(a=>a.status==='active');
+  var el=document.getElementById('alerts-body');el.innerHTML='';
+  var triggered=alerts.filter(function(a){return a.status==='triggered';});
+  var active=alerts.filter(function(a){return a.status==='active';});
   document.getElementById('triggered-count').textContent=triggered.length;
   document.getElementById('total-count').textContent=alerts.length;
-  el.innerHTML+=`<div class="pge-card"><div class="pge-card-title">⚡ Best EV charging window tonight</div><div class="pge-card-body">PG&E off-peak starts 9 PM. Charging 11 PM–6 AM cuts cost from $0.57 → $0.26/kWh and saves 28% CO₂.</div><button class="pge-cta">Set 11 PM charging reminder</button></div>`;
-  if(triggered.length>0){
-    el.innerHTML+=`<div class="alert-sec-title">Triggered — act now</div>`;
-    triggered.forEach(a=>{el.innerHTML+=`<div class="alert-card alert-triggered"><div class="alert-top"><div style="flex:1;"><div class="alert-name">${a.name}</div><div class="alert-loc">${a.nearest}</div></div><div class="alert-pill pill-triggered">Triggered!</div></div><div class="alert-price-row"><div class="alert-price-big">$${a.current.toFixed(2)}</div><div class="alert-price-unit">${a.unit} · target $${a.threshold.toFixed(2)}</div></div><div class="alert-btns"><div class="alert-btn btn-primary">Navigate ↗</div><div class="alert-btn btn-danger" onclick="dismissAlert('${a.id}')">Dismiss</div></div></div>`;});
-  }
-  el.innerHTML+=`<div class="alert-sec-title">Active alerts</div>`;
-  active.forEach(a=>{el.innerHTML+=`<div class="alert-card"><div class="alert-top"><div style="flex:1;"><div class="alert-name">${a.name}</div><div class="alert-loc">${a.nearest}</div></div><div class="alert-pill pill-active">Active</div></div><div class="alert-price-row"><div class="alert-price-big">$${a.current.toFixed(2)}</div><div class="alert-price-unit">${a.unit} · target $${a.threshold.toFixed(2)}</div></div><div class="alert-btns"><div class="alert-btn btn-danger" onclick="dismissAlert('${a.id}')">Remove</div></div></div>`;});
-  el.innerHTML+=`<div style="height:20px;"></div>`;
+  el.innerHTML+='<div class="pge-card"><div class="pge-card-title">⚡ Best EV charging window tonight</div><div class="pge-card-body">PG&E off-peak starts 9 PM. Charging 11 PM–6 AM cuts cost from $0.57 → $0.26/kWh and saves 28% CO₂.</div><button class="pge-cta">Set 11 PM charging reminder</button></div>';
+  if(triggered.length>0){el.innerHTML+='<div class="alert-sec-title">Triggered — act now</div>';triggered.forEach(function(a){el.innerHTML+='<div class="alert-card alert-triggered"><div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div><div class="alert-loc">'+a.nearest+'</div></div><div class="alert-pill pill-triggered">Triggered!</div></div><div class="alert-price-row"><div class="alert-price-big">$'+a.current.toFixed(2)+'</div><div class="alert-price-unit">'+a.unit+' · target $'+a.threshold.toFixed(2)+'</div></div><div class="alert-btns"><div class="alert-btn btn-primary">Navigate ↗</div><div class="alert-btn btn-danger" onclick="dismissAlert(\''+a.id+'\')">Dismiss</div></div></div>';});}
+  el.innerHTML+='<div class="alert-sec-title">Active alerts</div>';
+  active.forEach(function(a){el.innerHTML+='<div class="alert-card"><div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div><div class="alert-loc">'+a.nearest+'</div></div><div class="alert-pill pill-active">Active</div></div><div class="alert-price-row"><div class="alert-price-big">$'+a.current.toFixed(2)+'</div><div class="alert-price-unit">'+a.unit+' · target $'+a.threshold.toFixed(2)+'</div></div><div class="alert-btns"><div class="alert-btn btn-danger" onclick="dismissAlert(\''+a.id+'\')">Remove</div></div></div>';});
+  el.innerHTML+='<div style="height:20px;"></div>';
 }
 
-function dismissAlert(id){alerts=alerts.filter(a=>a.id!==id);renderAlerts();}
+function dismissAlert(id){alerts=alerts.filter(function(a){return a.id!==id;});renderAlerts();}
 
 // ── Carbon ────────────────────────────────────────────────────────────────────
 function renderCarbon(){
-  const el=document.getElementById('carbon-body');
-  const touData=[28,22,30,38,32,45,82,75];
-  const touLabels=['12a','3a','6a','9a','12p','3p','6p','9p'];
-  const maxV=Math.max(...touData);
-  const bars=touData.map(v=>{const color=v<35?'#16a34a':v<65?'#ca8a04':'#dc2626';return`<div class="tou-bar" style="height:${Math.round(v/maxV*46)}px;background:${color};"></div>`;}).join('');
-  const labels=touLabels.map(l=>`<div class="tou-label">${l}</div>`).join('');
-  el.innerHTML=`<div class="tou-card"><div class="tou-title">⚡ PG&E grid carbon intensity — today</div><div class="tou-bars">${bars}</div><div class="tou-labels">${labels}</div><div class="tou-note">Off-peak solar window (9 AM–3 PM): 38% lower carbon. Charging now saves ~32 gCO₂/kWh vs. peak hours.</div></div><div class="alert-sec-title" style="margin-top:4px;">SF-specific tips</div>${TIPS.map(t=>`<div class="tip-card" style="border-left-color:${t.color};"><div class="tip-title" style="color:${t.color};">${t.title}</div><div class="tip-body">${t.body}</div><div class="tip-impact" style="background:${t.bg};color:${t.color};">${t.impact}</div></div>`).join('')}<div style="height:20px;"></div>`;
+  var el=document.getElementById('carbon-body');
+  var touData=[28,22,30,38,32,45,82,75];
+  var touLabels=['12a','3a','6a','9a','12p','3p','6p','9p'];
+  var maxV=Math.max.apply(null,touData);
+  var bars=touData.map(function(v){var color=v<35?'#16a34a':v<65?'#ca8a04':'#dc2626';return'<div class="tou-bar" style="height:'+Math.round(v/maxV*46)+'px;background:'+color+';"></div>';}).join('');
+  var labels=touLabels.map(function(l){return'<div class="tou-label">'+l+'</div>';}).join('');
+  el.innerHTML='<div class="tou-card"><div class="tou-title">⚡ PG&E grid carbon intensity — today</div><div class="tou-bars">'+bars+'</div><div class="tou-labels">'+labels+'</div><div class="tou-note">Off-peak solar window (9 AM–3 PM): 38% lower carbon. Charging now saves ~32 gCO₂/kWh vs. peak hours.</div></div><div class="alert-sec-title" style="margin-top:4px;">SF-specific tips</div>'+TIPS.map(function(t){return'<div class="tip-card" style="border-left-color:'+t.color+';"><div class="tip-title" style="color:'+t.color+';">'+t.title+'</div><div class="tip-body">'+t.body+'</div><div class="tip-impact" style="background:'+t.bg+';color:'+t.color+';">'+t.impact+'</div></div>';}).join('')+'<div style="height:20px;"></div>';
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
-function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');}
-function showTab(name){if(['map','alerts','carbon'].includes(name)){showScreen(name);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');}else{showScreen(name);}}
+function showScreen(name){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById('screen-'+name).classList.add('active');}
+function showTab(name){if(['map','alerts','carbon'].indexOf(name)>-1){showScreen(name);document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+name).classList.add('active');}else{showScreen(name);}}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-renderAll();renderAlerts();renderCarbon();
+renderAlerts();
+renderCarbon();
+loadStations();
 </script>
 </body>
 </html>
