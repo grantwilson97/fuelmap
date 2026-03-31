@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FuelMap">
+<title>FuelMap</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.screen{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.screen.active{display:flex;}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.topbar{padding:14px 14px 8px;background:#fff;border-bottom:0.5px solid #e5e5e5;}
+.title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.wordmark{font-size:26px;font-weight:800;color:#1667d9;letter-spacing:-0.5px;}
+.wordmark span{color:#f5a623;}
+.subtitle{font-size:11px;color:#888;}
+.pge-chip{background:#fff7e6;border:1px solid #fbbf24;border-radius:8px;padding:5px 10px;margin-bottom:8px;}
+.pge-chip-txt{font-size:11px;font-weight:700;color:#b45309;}
+.filter-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.filter-row::-webkit-scrollbar{display:none;}
+.chip{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;color:#555;background:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.chip.on{background:#1667d9;border-color:#1667d9;color:#fff;}
+.map-box{flex:1;background:#f0f4ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+.map-icon{font-size:48px;}
+.map-title{font-size:20px;font-weight:700;color:#1667d9;}
+.map-sub{font-size:12px;color:#888;}
+.sheet{background:#fff;border-top:0.5px solid #e5e5e5;}
+.drag{width:40px;height:4px;background:#ddd;border-radius:2px;margin:8px auto;}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;}
+.sheet-title{font-size:14px;font-weight:700;color:#1a1a2e;}
+.sort-row{display:flex;gap:5px;}
+.sp{padding:4px 10px;border-radius:20px;border:1.5px solid #e0e0e0;font-size:11px;font-weight:600;color:#888;cursor:pointer;}
+.sp.on{background:#1667d9;border-color:#1667d9;color:#fff;}
+.cards{display:flex;gap:10px;padding:0 14px 14px;overflow-x:auto;scrollbar-width:none;}
+.cards::-webkit-scrollbar{display:none;}
+.card{flex-shrink:0;width:175px;background:#fff;border-radius:16px;border:1.5px solid #eee;padding:12px;cursor:pointer;}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
+.card-name{font-size:13px;font-weight:700;color:#1a1a2e;line-height:1.3;}
+.card-dist{font-size:10px;color:#888;margin-top:2px;}
+.ring{width:36px;height:36px;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ring-txt{font-size:12px;font-weight:800;}
+.card-price{font-size:18px;font-weight:800;color:#1667d9;margin-bottom:8px;}
+.stat-row{display:flex;gap:5px;}
+.stat-box{flex:1;background:#f7f7f9;border-radius:8px;padding:6px;}
+.stat-lbl{font-size:9px;color:#888;font-weight:700;text-transform:uppercase;}
+.stat-val{font-size:12px;font-weight:700;margin-top:2px;}
+.hero{padding:16px;padding-top:52px;position:relative;}
+.back-btn{position:absolute;top:14px;left:14px;background:rgba(255,255,255,0.95);border-radius:10px;padding:6px 12px;font-size:13px;font-weight:700;color:#1667d9;cursor:pointer;border:none;}
+.score-box{position:absolute;top:12px;right:14px;background:#fff;border-radius:12px;padding:7px 12px;border:2px solid;text-align:center;}
+.score-val{font-size:22px;font-weight:800;}
+.score-lbl{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;}
+.hero-name{font-size:20px;font-weight:800;color:#fff;margin-bottom:3px;}
+.hero-addr{font-size:12px;color:rgba(255,255,255,0.75);}
+.section{background:#fff;margin-top:10px;padding:14px;}
+.sec-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;}
+.price-big{font-size:28px;font-weight:800;color:#1667d9;}
+.price-note{font-size:12px;color:#888;margin-top:4px;}
+.factor-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.factor-lbl{font-size:12px;color:#555;width:70px;}
+.track{flex:1;height:6px;background:#eee;border-radius:3px;}
+.fill{height:100%;border-radius:3px;background:#1667d9;}
+.factor-val{font-size:12px;font-weight:700;color:#1667d9;width:24px;text-align:right;}
+.body-txt{font-size:14px;color:#555;margin-bottom:5px;line-height:1.5;}
+.pge-box{border-left:3px solid #f59e0b;background:#fffbeb;}
+.pge-sec-title{color:#92400e;}
+.pge-body{color:#b45309;}
+.actions{padding:14px;background:#fff;border-top:0.5px solid #e5e5e5;}
+.nav-btn{width:100%;background:#1667d9;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;}
+.hero-blue{background:#1667d9;padding:18px;}
+.hero-green{background:#065f46;padding:18px;}
+.hero-title{font-size:24px;font-weight:800;color:#fff;margin-bottom:2px;}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.75);margin-bottom:12px;}
+.hero-stats{display:flex;gap:10px;}
+.hero-stat{flex:1;background:rgba(255,255,255,0.15);border-radius:10px;padding:10px;text-align:center;}
+.hero-stat-val{font-size:22px;font-weight:800;color:#fff;}
+.hero-stat-lbl{font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;}
+.alert-body{padding:14px;}
+.pge-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:2px solid #fbbf24;}
+.pge-card-title{font-size:13px;font-weight:800;color:#92400e;margin-bottom:5px;}
+.pge-card-body{font-size:12px;color:#b45309;line-height:1.5;margin-bottom:8px;}
+.pge-cta{width:100%;background:#f59e0b;border:none;border-radius:10px;padding:9px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;}
+.alert-sec-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;}
+.alert-card{background:#fff;border-radius:14px;padding:13px;margin-bottom:9px;border:1.5px solid #eee;}
+.alert-triggered{border-color:#f59e0b;background:#fffbeb;}
+.alert-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+.alert-name{font-size:13px;font-weight:700;color:#1a1a2e;}
+.alert-loc{font-size:11px;color:#888;margin-top:2px;}
+.alert-pill{border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;}
+.pill-active{background:#dcfce7;color:#15803d;}
+.pill-triggered{background:#fef3c7;color:#b45309;}
+.alert-price-row{display:flex;align-items:baseline;gap:6px;margin-bottom:8px;}
+.alert-price-big{font-size:22px;font-weight:800;color:#1667d9;}
+.alert-price-unit{font-size:12px;color:#888;}
+.alert-btns{display:flex;gap:7px;}
+.alert-btn{flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid;text-align:center;}
+.btn-primary{background:#1667d9;border-color:#1667d9;color:#fff;}
+.btn-danger{background:#fff;border-color:#fecaca;color:#dc2626;}
+.carbon-hero-row{display:flex;align-items:center;gap:16px;}
+.carbon-ring{width:80px;height:80px;border-radius:50%;border:4px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+.carbon-ring-val{font-size:18px;font-weight:800;}
+.carbon-ring-unit{font-size:9px;color:rgba(255,255,255,0.7);text-align:center;}
+.carbon-stats{flex:1;}
+.carbon-stat-row{display:flex;justify-content:space-between;padding:3px 0;}
+.carbon-stat-lbl{font-size:12px;color:rgba(255,255,255,0.7);}
+.carbon-stat-val{font-size:12px;font-weight:700;color:#fff;}
+.tou-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #fbbf24;}
+.tou-title{font-size:13px;font-weight:800;color:#92400e;margin-bottom:10px;}
+.tou-bars{display:flex;align-items:flex-end;height:50px;gap:3px;margin-bottom:5px;}
+.tou-bar{flex:1;border-radius:2px 2px 0 0;}
+.tou-labels{display:flex;justify-content:space-between;margin-bottom:8px;}
+.tou-label{font-size:9px;color:#aaa;}
+.tou-note{font-size:11px;color:#b45309;line-height:1.5;}
+.tip-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;border:1.5px solid #e0e0e0;border-left-width:4px;}
+.tip-title{font-size:13px;font-weight:700;margin-bottom:5px;}
+.tip-body{font-size:12px;color:#666;line-height:1.5;margin-bottom:8px;}
+.tip-impact{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.tab-bar{display:flex;border-top:0.5px solid #e5e5e5;background:#fff;padding-bottom:env(safe-area-inset-bottom);}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;cursor:pointer;border:none;background:none;}
+.tab-icon{font-size:22px;opacity:0.4;}
+.tab.active .tab-icon{opacity:1;}
+.tab-label{font-size:10px;font-weight:600;color:#aaa;}
+.tab.active .tab-label{color:#1667d9;}
+</style>
+</head>
+<body>
+<div class="screen active" id="screen-map">
+  <div class="topbar">
+    <div class="title-row">
+      <div class="wordmark">fuel<span>map</span></div>
+      <div class="subtitle">SF Bay Area</div>
+    </div>
+    <div class="pge-chip"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh</span></div>
+    <div class="filter-row" id="filters"></div>
+  </div>
+  <div class="map-box">
+    <div class="map-icon">📍</div>
+    <div class="map-title">SoMa, San Francisco</div>
+    <div class="map-sub" id="station-count">6 stations nearby</div>
+    <div class="map-sub">SF avg gas: $6.02 · EV L2: $0.35/kWh</div>
+  </div>
+  <div class="sheet">
+    <div class="drag"></div>
+    <div class="sheet-head">
+      <div class="sheet-title" id="sheet-title">6 stations nearby</div>
+      <div class="sort-row" id="sorts"></div>
+    </div>
+    <div class="cards" id="cards"></div>
+  </div>
+</div>
+<div class="screen" id="screen-detail" style="background:#f7f7f9;">
+  <div id="hero-wrap"></div>
+  <div class="scroll" id="detail-body"></div>
+  <div class="actions">
+    <button class="nav-btn" onclick="navigateToStation()">Navigate in Maps</button>
+  </div>
+</div>
+<div class="screen" id="screen-alerts" style="background:#f7f7f9;">
+  <div class="hero-blue">
+    <div class="hero-title">Price alerts</div>
+    <div class="hero-sub">San Francisco Bay Area</div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-val">2</div><div class="hero-stat-lbl">Active</div></div>
+      <div class="hero-stat"><div class="hero-stat-val" id="triggered-count">1</div><div class="hero-stat-lbl">Triggered</div></div>
+      <div class="hero-stat"><div class="hero-stat-val" id="total-count">3</div><div class="hero-stat-lbl">Total</div></div>
+    </div>
+  </div>
+  <div class="scroll"><div class="alert-body" id="alerts-body"></div></div>
+</div>
+<div class="screen" id="screen-carbon" style="background:#f7f7f9;">
+  <div class="hero-green">
+    <div class="hero-title">Carbon tracker</div>
+    <div class="hero-sub">PG&E grid · SF Bay Area</div>
+    <div class="carbon-hero-row">
+      <div class="carbon-ring" style="border-color:#d97706;">
+        <div class="carbon-ring-val" style="color:#d97706;">141</div>
+        <div class="carbon-ring-unit">gCO₂/kWh</div>
+      </div>
+      <div class="carbon-stats">
+        <div class="carbon-stat-row"><span class="carbon-stat-lbl">Grid status</span><span class="carbon-stat-val" style="color:#d97706;">Moderate</span></div>
+        <div class="carbon-stat-row"><span class="carbon-stat-lbl">Monthly CO₂</span><span class="carbon-stat-val">142 kg</span></div>
+        <div class="carbon-stat-row"><span class="carbon-stat-lbl">vs. SF avg</span><span class="carbon-stat-val">↓ 44%</span></div>
+        <div class="carbon-stat-row"><span class="carbon-stat-lbl">Sessions</span><span class="carbon-stat-val">11 this mo</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll"><div style="padding:14px;" id="carbon-body"></div></div>
+</div>
+<div class="tab-bar">
+  <button class="tab active" onclick="showTab('map')" id="tab-map"><span class="tab-icon">📍</span><span class="tab-label">Map</span></button>
+  <button class="tab" onclick="showTab('alerts')" id="tab-alerts"><span class="tab-icon">🔔</span><span class="tab-label">Alerts</span></button>
+  <button class="tab" onclick="showTab('carbon')" id="tab-carbon"><span class="tab-icon">🌿</span><span class="tab-label">Carbon</span></button>
+</div>
+<script>
+const STATIONS=[{id:'1',name:'Volta · Metreon',address:'101 4th St, SoMa',type:'ev',price:0.34,dist:0.2,busy:25,score:92},{id:'2',name:'Chevron · Van Ness',address:'1601 Van Ness Ave, Civic Center',type:'gas',price:5.89,dist:0.4,busy:55,score:84},{id:'3',name:'Arco · Cesar Chavez',address:'3001 Cesar Chavez St, Mission',type:'gas',price:5.84,dist:0.7,busy:25,score:88},{id:'4',name:'Shell · 4th & Bryant',address:'598 4th St, SoMa',type:'gas',price:6.09,dist:0.9,busy:80,score:51},{id:'5',name:'Electrify America · SOMA',address:'1 SOMA Grand, SoMa',type:'ev',price:0.47,dist:1.1,busy:45,score:67},{id:'6',name:'ChargePoint · SFO',address:'SFO Terminal 3, South San Francisco',type:'ev',price:0.29,dist:1.4,busy:20,score:79}];
+const ALERTS_DATA=[{id:'1',name:'Regular gas · any SF station',threshold:5.70,current:6.02,unit:'/gal',status:'active',nearest:'Arco · Cesar Chavez · $5.84 · 19¢ from target'},{id:'2',name:'EV DC Fast · Electrify America',threshold:0.45,current:0.43,unit:'/kWh',status:'triggered',nearest:'Serramonte Center, Daly City · 4.1 mi away'},{id:'3',name:'Premium · Chevron Van Ness',threshold:6.30,current:6.49,unit:'/gal',status:'active',nearest:'19¢ above your target'}];
+const TIPS=[{title:'Charge before 3 PM — solar peaks at noon',body:"PG&E solar generation peaks midday, dropping grid carbon below 100 gCO₂/kWh. Open Supercharger stalls now: SoMa Hub, Mission Bay, Stonestown.",impact:'−22 kg CO₂/mo',color:'#16a34a',bg:'#f0fdf4'},{title:'Skip 4th & Bryant Shell — priciest in SF',body:"At $6.09/gal it's 7¢ above average. The Arco on Cesar Chavez is $5.84 — $1.25 cheaper per fillup.",impact:'$1.25/fillup saved',color:'#dc2626',bg:'#fef2f2'},{title:'Free Level 2 charging at SFO Terminal 3',body:'Included with parking. Arrive 30 min early and charge while you wait.',impact:'−8 kg CO₂/mo',color:'#1667d9',bg:'#eff6ff'},{title:'Charge overnight 11 PM – 6 AM',body:'PG&E off-peak rate ($0.26/kWh) vs. peak ($0.57/kWh) is a 54% saving per session.',impact:'$12–18/mo saved',color:'#d97706',bg:'#fffbeb'}];
+let currentFilter='all',currentSort='value',currentStation=null,alerts=[...ALERTS_DATA];
+function scoreColor(s){return s>=80?'#16a34a':s>=65?'#d97706':'#dc2626';}
+function crowdColor(b){return b<35?'#16a34a':b<65?'#d97706':'#dc2626';}
+function crowdLabel(b){return b<35?'Light':b<65?'Moderate':'Busy';}
+function waitMin(b){return Math.max(0,Math.round((b-20)/20));}
+function priceStr(s){return s.type==='ev'?`$${s.price.toFixed(2)}/kWh`:`$${s.price.toFixed(2)}/gal`;}
+function getFiltered(){return STATIONS.filter(s=>{if(currentFilter==='gas')return s.type==='gas';if(currentFilter==='ev')return s.type==='ev';return true;}).sort((a,b)=>{if(currentSort==='value')return b.score-a.score;if(currentSort==='price')return a.price-b.price;if(currentSort==='wait')return a.busy-b.busy;return 0;});}
+function renderFilters(){const el=document.getElementById('filters');el.innerHTML='';[['all','All stations'],['gas','Gas only'],['ev','EV charging']].forEach(([k,l])=>{const c=document.createElement('div');c.className='chip'+(currentFilter===k?' on':'');c.textContent=l;c.onclick=()=>{currentFilter=k;renderAll();};el.appendChild(c);});}
+function renderSorts(){const el=document.getElementById('sorts');el.innerHTML='';['value','price','wait'].forEach(sv=>{const c=document.createElement('div');c.className='sp'+(currentSort===sv?' on':'');c.textContent=sv;c.onclick=()=>{currentSort=sv;renderAll();};el.appendChild(c);});}
+function renderCards(){const el=document.getElementById('cards');el.innerHTML='';const filtered=getFiltered();document.getElementById('station-count').textContent=`${filtered.length} stations nearby`;document.getElementById('sheet-title').textContent=`${filtered.length} stations nearby`;filtered.forEach(st=>{const sc=scoreColor(st.score);const cc=crowdColor(st.busy);const wm=waitMin(st.busy);const card=document.createElement('div');card.className='card';card.innerHTML=`<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">${st.name}</div><div class="card-dist">${st.dist.toFixed(1)} mi · ${st.type.toUpperCase()}</div></div><div class="ring" style="border-color:${sc};background:${sc}22;"><span class="ring-txt" style="color:${sc};">${st.score}</span></div></div><div class="card-price">${priceStr(st)}</div><div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:${cc};">${wm}m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:${cc};">${crowdLabel(st.busy)}</div></div></div>`;card.onclick=()=>showDetail(st);el.appendChild(card);});}
+function renderAll(){renderFilters();renderSorts();renderCards();}
+function showDetail(station){currentStation=station;const sc=scoreColor(station.score);const heroBg=station.type==='ev'?'#064e35':'#0d3d8a';const wm=waitMin(station.busy);const pgeMsg=station.type==='ev'?'Off-peak charging (9 PM–3 PM): $0.26/kWh vs. peak $0.57/kWh — a 54% saving per session.':station.price<6.02?`${(6.02-station.price).toFixed(2)} below SF average — good value right now.`:`${(station.price-6.02).toFixed(2)} above SF average. Consider Arco on Cesar Chavez at $5.84.`;document.getElementById('hero-wrap').innerHTML=`<div class="hero" style="background:${heroBg};"><button class="back-btn" onclick="showTab('map')">← Map</button><div class="score-box" style="border-color:${sc};"><div class="score-val" style="color:${sc};">${station.score}</div><div class="score-lbl">Score</div></div><div class="hero-name">${station.name}</div><div class="hero-addr">${station.address} · ${station.dist.toFixed(1)} mi</div></div>`;const ps=station.score;const ws=Math.round(100-station.busy);const ds=Math.round(100-(station.dist/3)*80);document.getElementById('detail-body').innerHTML=`<div class="section"><div class="sec-title">Price</div><div class="price-big">${priceStr(station)}</div><div class="price-note">${station.type==='ev'?'vs. SF avg $0.41/kWh':'vs. SF avg $6.02/gal'}</div></div><div class="section"><div class="sec-title">Value score breakdown</div>${[['Price',ps],['Wait time',ws],['Distance',ds],['Amenities',72]].map(([l,v])=>`<div class="factor-row"><div class="factor-lbl">${l}</div><div class="track"><div class="fill" style="width:${v}%;"></div></div><div class="factor-val">${v}</div></div>`).join('')}</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">${wm===0?'No wait — pull straight in':`~${wm} min estimated wait`}</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">${pgeMsg}</div></div><div style="height:20px;"></div>`;showScreen('detail');}
+function navigateToStation(){if(!currentStation)return;const addr=encodeURIComponent(currentStation.address);const name=encodeURIComponent(currentStation.name);window.location.href=`maps:?daddr=${addr}&q=${name}`;setTimeout(()=>{window.location.href=`https://maps.google.com/?daddr=${addr}&q=${name}`;},500);}
+function renderAlerts(){const el=document.getElementById('alerts-body');el.innerHTML='';const triggered=alerts.filter(a=>a.status==='triggered');const active=alerts.filter(a=>a.status==='active');document.getElementById('triggered-count').textContent=triggered.length;document.getElementById('total-count').textContent=alerts.length;el.innerHTML+=`<div class="pge-card"><div class="pge-card-title">⚡ Best EV charging window tonight</div><div class="pge-card-body">PG&E off-peak starts 9 PM. Charging 11 PM–6 AM cuts cost from $0.57 → $0.26/kWh and saves 28% CO₂.</div><button class="pge-cta">Set 11 PM charging reminder</button></div>`;if(triggered.length>0){el.innerHTML+=`<div class="alert-sec-title">Triggered — act now</div>`;triggered.forEach(a=>{el.innerHTML+=`<div class="alert-card alert-triggered"><div class="alert-top"><div style="flex:1;"><div class="alert-name">${a.name}</div><div class="alert-loc">${a.nearest}</div></div><div class="alert-pill pill-triggered">Triggered!</div></div><div class="alert-price-row"><div class="alert-price-big">$${a.current.toFixed(2)}</div><div class="alert-price-unit">${a.unit} · target $${a.threshold.toFixed(2)}</div></div><div class="alert-btns"><div class="alert-btn btn-primary">Navigate ↗</div><div class="alert-btn btn-danger" onclick="dismissAlert('${a.id}')">Dismiss</div></div></div>`;});}el.innerHTML+=`<div class="alert-sec-title">Active alerts</div>`;active.forEach(a=>{el.innerHTML+=`<div class="alert-card"><div class="alert-top"><div style="flex:1;"><div class="alert-name">${a.name}</div><div class="alert-loc">${a.nearest}</div></div><div class="alert-pill pill-active">Active</div></div><div class="alert-price-row"><div class="alert-price-big">$${a.current.toFixed(2)}</div><div class="alert-price-unit">${a.unit} · target $${a.threshold.toFixed(2)}</div></div><div class="alert-btns"><div class="alert-btn btn-danger" onclick="dismissAlert('${a.id}')">Remove</div></div></div>`;});el.innerHTML+=`<div style="height:20px;"></div>`;}
+function dismissAlert(id){alerts=alerts.filter(a=>a.id!==id);renderAlerts();}
+function renderCarbon(){const el=document.getElementById('carbon-body');const touData=[28,22,30,38,32,45,82,75];const touLabels=['12a','3a','6a','9a','12p','3p','6p','9p'];const maxV=Math.max(...touData);const bars=touData.map((v)=>{const color=v<35?'#16a34a':v<65?'#ca8a04':'#dc2626';return `<div class="tou-bar" style="height:${Math.round(v/maxV*46)}px;background:${color};"></div>`;}).join('');const labels=touLabels.map(l=>`<div class="tou-label">${l}</div>`).join('');el.innerHTML=`<div class="tou-card"><div class="tou-title">⚡ PG&E grid carbon intensity — today</div><div class="tou-bars">${bars}</div><div class="tou-labels">${labels}</div><div class="tou-note">Off-peak solar window (9 AM–3 PM): 38% lower carbon. Charging now saves ~32 gCO₂/kWh vs. peak hours.</div></div><div class="alert-sec-title" style="margin-top:4px;">SF-specific tips</div>${TIPS.map(t=>`<div class="tip-card" style="border-left-color:${t.color};"><div class="tip-title" style="color:${t.color};">${t.title}</div><div class="tip-body">${t.body}</div><div class="tip-impact" style="background:${t.bg};color:${t.color};">${t.impact}</div></div>`).join('')}<div style="height:20px;"></div>`;}
+function showScreen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+name).classList.add('active');}
+function showTab(name){if(name==='map'||name==='alerts'||name==='carbon'){showScreen(name);document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');}else{showScreen(name);}}
+renderAll();renderAlerts();renderCarbon();
+</script>
+</body>
+</html>
