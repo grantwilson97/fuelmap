@@ -767,7 +767,7 @@ function renderProfile(){
   bodyHTML+='</div>';
 
   // Preferences
-  bodyHTML+='<div class="profile-section"><div class="profile-section-title">Search preferences</div><div class="pref-row"><span class="pref-label">Max search radius</span><select class="pref-select" id="pref-radius" onchange="savePref()"><option value="1">1 mile</option><option value="2">2 miles</option><option value="5" selected>5 miles</option><option value="10">10 miles</option></select></div><div class="pref-row"><span class="pref-label">Default sort</span><select class="pref-select" id="pref-sort" onchange="savePref()"><option value="value" selected>Best value</option><option value="price">Lowest price</option><option value="distance">Closest</option><option value="wait">Least wait</option></select></div></div>';
+  bodyHTML+='<div class="profile-section"><div class="profile-section-title">Search preferences</div><div class="pref-row"><span class="pref-label">Max search radius</span><select class="pref-select" id="pref-radius" onchange="savePref()"><option value="1">1 mile</option><option value="2">2 miles</option><option value="5" selected>5 miles</option><option value="10">10 miles</option><option value="25">25 miles</option><option value="50">50 miles</option></select></div><div class="pref-row"><span class="pref-label">Default sort</span><select class="pref-select" id="pref-sort" onchange="savePref()"><option value="value" selected>Best value</option><option value="price">Lowest price</option><option value="distance">Closest</option><option value="wait">Least wait</option></select></div></div>';
 
   // Stats
   var totalReports=0;
