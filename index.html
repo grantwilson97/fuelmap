@@ -563,9 +563,20 @@ function clearLoading(){document.getElementById('loading-overlay').style.display
 function loadStations(){
   setLoading('Getting your location…');
   if(!navigator.geolocation){useFallbackLocation();return;}
+  var locationTimer=setTimeout(function(){
+    useFallbackLocation();
+  },6000);
   navigator.geolocation.getCurrentPosition(
-    function(pos){userLat=pos.coords.latitude;userLng=pos.coords.longitude;updateLocationDisplay();fetchOCM(userLat,userLng);},
-    function(){useFallbackLocation();},{timeout:8000,enableHighAccuracy:false}
+    function(pos){
+      clearTimeout(locationTimer);
+      userLat=pos.coords.latitude;userLng=pos.coords.longitude;
+      updateLocationDisplay();fetchOCM(userLat,userLng);
+    },
+    function(){
+      clearTimeout(locationTimer);
+      useFallbackLocation();
+    },
+    {timeout:5000,enableHighAccuracy:false,maximumAge:60000}
   );
 }
 
