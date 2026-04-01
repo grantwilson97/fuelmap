@@ -1292,9 +1292,11 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     samplePoints.push({lat:pt.lat,lng:pt.lng,milesIn:Math.round(fraction*totalMiles)});
   }
 
-  // Fetch gas stations near each sample point, dedupe, then pick best
-  var fetchType=av&&av.fuelType==='electric'?'ev':'gas';
-  var apiUrl=fetchType==='ev'?VERCEL_API:GAS_API;
+  // Determine correct station type based on vehicle fuel type
+  // electric → EV chargers; everything else (gas/diesel/hybrid/phev/unknown) → gas stations
+  var isEVVehicle=av&&av.fuelType==='electric';
+  var fetchType=isEVVehicle?'ev':'gas';
+  var apiUrl=isEVVehicle?VERCEL_API:GAS_API;
   var allCandidates=[];
   var fetches=samplePoints.map(function(pt){
     return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=8')
@@ -1302,15 +1304,13 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
       .then(function(data){
         var stations=data.stations||[];
         stations.forEach(function(s){
-          // Avoid duplicates by place id
-          var sid=fetchType==='ev'?'ocm_'+s.id:'gpl_'+s.id;
+          var sid=isEVVehicle?'ocm_'+s.id:'gpl_'+s.id;
           if(!allCandidates.find(function(c){return c.id===sid;})){
-            // Calculate how far this station is off the direct route line
             var detourFromRoute=Math.round(distMiles(pt.lat,pt.lng,s.latitude||pt.lat,s.longitude||pt.lng)*10)/10;
             allCandidates.push(Object.assign({},s,{
               id:sid,
-              type:fetchType==='ev'?'ev':'gas',
-              basePrice:fetchType==='ev'?(s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG):EIA_GAS_AVG,
+              type:isEVVehicle?'ev':'gas',
+              basePrice:isEVVehicle?(s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG):EIA_GAS_AVG,
               busy:40,
               isLive:true,
               distanceMiles:distMiles(userLat,userLng,s.latitude||pt.lat,s.longitude||pt.lng),
