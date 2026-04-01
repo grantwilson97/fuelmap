@@ -1247,44 +1247,137 @@ function planTrip(){
     .then(function(data){
       if(data.status!=='OK'||!data.routes||!data.routes.length){showTripError('Could not find a route. Please try a different address.');return;}
       var route=data.routes[0].legs[0];
-      processTripRoute(route.distance.value/1609.34,Math.round(route.duration.value/60),dest,route.end_address,route.end_location.lat,route.end_location.lng);
+      processTripRoute(route.distance.value/1609.34,Math.round(route.duration.value/60),dest,route.end_address,route.end_location.lat,route.end_location.lng,route.steps||[]);
     })
     .catch(function(){
       processTripRoute(20,25,dest,dest,userLat+0.15,userLng+0.15);
     });
 }
 
-function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,destLng){
+function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,destLng,routeSteps){
   var av=getActiveVehicle();
   var ft=av?FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||FUEL_TYPES[0]:FUEL_TYPES[0];
   var tankSize=av?(av.tankSize||ft.defaultTank):ft.defaultTank;
   var fuelLevel=(av?(av.level||50):50)/100;
-  // Use vehicle's real-world MPG if set, fall back to fuel type default
   var mpg=av&&av.mpg?av.mpg:(ft.mpg||25);
   var currentRange=av&&av.fuelType==='electric'?fuelLevel*tankSize:fuelLevel*tankSize*mpg;
+  // Need to stop if trip exceeds 85% of current range
   var needsStop=totalMiles>currentRange*0.85;
-  var stopPoint=needsStop?Math.min(currentRange*0.75,totalMiles*0.5):null;
-  var stopFraction=stopPoint?stopPoint/totalMiles:null;
-  var stopLat=stopFraction?userLat+(destLat-userLat)*stopFraction:null;
-  var stopLng=stopFraction?userLng+(destLng-userLng)*stopFraction:null;
-  if(!needsStop){tripResult={needsStop:false,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,currentRange:Math.round(currentRange),av:av,ft:ft};renderTripResult();return;}
-  document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Finding best fuel stop…</div></div>';
-  fetch(VERCEL_API+'?latitude='+stopLat+'&longitude='+stopLng+'&radius=3')
-    .then(function(r){return r.json();})
-    .then(function(data){
-      var candidates=(data.stations||[]).map(function(s){return Object.assign({},s,{id:'ocm_'+s.id,type:'ev',basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,busy:30,isLive:true,distanceMiles:s.distanceMiles||0});});
-      if(av&&av.fuelType!=='electric'){DEMO_STATIONS.filter(function(s){return s.type==='gas';}).forEach(function(s){candidates.push(Object.assign({},s,{distanceMiles:Math.round(distMiles(stopLat,stopLng,s.latitude,s.longitude)*10)/10}));});}
-      candidates=candidates.map(function(s){return Object.assign({},s,{score:calcScore(s)});}).sort(function(a,b){return b.score-a.score;});
-      var best=candidates[0]||null;
-      var detour=best?Math.round(distMiles(stopLat,stopLng,best.latitude||stopLat,best.longitude||stopLng)*10)/10:0;
-      var stopMinFromStart=Math.round(durationMin*(stopPoint/totalMiles));
-      var fuelCost=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*(best?getLatestPrice(best).price:EIA_GAS_AVG)*100)/100;
-      var fuelCostAvg=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*EIA_GAS_AVG*100)/100;
-      var savings=fuelCost&&fuelCostAvg?Math.max(0,Math.round((fuelCostAvg-fuelCost)*100)/100):null;
-      tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,stopLat:stopLat,stopLng:stopLng,bestStop:best,detourMiles:detour,currentRange:Math.round(currentRange),stopPoint:Math.round(stopPoint),stopMinFromStart:stopMinFromStart,fuelCost:fuelCost,savings:savings,av:av,ft:ft};
-      renderTripResult();
-    })
-    .catch(function(){tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,bestStop:null,currentRange:Math.round(currentRange),av:av,ft:ft};renderTripResult();});
+
+  if(!needsStop){
+    tripResult={needsStop:false,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,currentRange:Math.round(currentRange),av:av,ft:ft};
+    renderTripResult();return;
+  }
+
+  document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Canvassing route for best fuel stop…</div></div>';
+
+  // ── Smart corridor search ──────────────────────────────────────────────────
+  // Window: start searching at 40% of range (don't stop too early),
+  // must stop by 80% of range (leave a buffer). Clamp to route length.
+  var searchWindowStart=Math.max(totalMiles*0.15, currentRange*0.40);
+  var searchWindowEnd=Math.min(totalMiles*0.90, currentRange*0.80);
+  // If window is invalid (very short trip), just use midpoint
+  if(searchWindowStart>=searchWindowEnd){
+    searchWindowStart=totalMiles*0.30;
+    searchWindowEnd=totalMiles*0.70;
+  }
+
+  // Sample 3 evenly spaced waypoints within the search window along the route
+  var samplePoints=[];
+  var numSamples=3;
+  for(var i=0;i<numSamples;i++){
+    var fraction=(searchWindowStart+(searchWindowEnd-searchWindowStart)*(i/(numSamples-1)))/totalMiles;
+    fraction=Math.max(0.05,Math.min(0.95,fraction));
+    var pt=getRoutePoint(routeSteps,fraction,userLat,userLng,destLat,destLng);
+    samplePoints.push({lat:pt.lat,lng:pt.lng,milesIn:Math.round(fraction*totalMiles)});
+  }
+
+  // Fetch gas stations near each sample point, dedupe, then pick best
+  var fetchType=av&&av.fuelType==='electric'?'ev':'gas';
+  var apiUrl=fetchType==='ev'?VERCEL_API:GAS_API;
+  var allCandidates=[];
+  var fetches=samplePoints.map(function(pt){
+    return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=8')
+      .then(function(r){return r.json();})
+      .then(function(data){
+        var stations=data.stations||[];
+        stations.forEach(function(s){
+          // Avoid duplicates by place id
+          var sid=fetchType==='ev'?'ocm_'+s.id:'gpl_'+s.id;
+          if(!allCandidates.find(function(c){return c.id===sid;})){
+            // Calculate how far this station is off the direct route line
+            var detourFromRoute=Math.round(distMiles(pt.lat,pt.lng,s.latitude||pt.lat,s.longitude||pt.lng)*10)/10;
+            allCandidates.push(Object.assign({},s,{
+              id:sid,
+              type:fetchType==='ev'?'ev':'gas',
+              basePrice:fetchType==='ev'?(s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG):EIA_GAS_AVG,
+              busy:40,
+              isLive:true,
+              distanceMiles:distMiles(userLat,userLng,s.latitude||pt.lat,s.longitude||pt.lng),
+              detourFromRoute:detourFromRoute,
+              milesFromStart:pt.milesIn
+            }));
+          }
+        });
+      })
+      .catch(function(){});
+  });
+
+  Promise.all(fetches).then(function(){
+    // Score each candidate — penalise large detours heavily
+    var scored=allCandidates.map(function(s){
+      s.score=calcScore(s);
+      // Composite trip score: value score minus detour penalty (1pt per 0.1mi off route)
+      s.tripScore=s.score-(s.detourFromRoute||0)*3;
+      return s;
+    });
+
+    // Sort by tripScore descending
+    scored.sort(function(a,b){return b.tripScore-a.tripScore;});
+    var best=scored[0]||null;
+
+    if(!best){
+      // Fallback: use geometric midpoint
+      var midFrac=((searchWindowStart+searchWindowEnd)/2)/totalMiles;
+      var mid=getRoutePoint(routeSteps,midFrac,userLat,userLng,destLat,destLng);
+      tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,bestStop:null,currentRange:Math.round(currentRange),av:av,ft:ft};
+      renderTripResult();return;
+    }
+
+    var stopPointMiles=best.milesFromStart||Math.round(totalMiles*0.5);
+    var stopMinFromStart=Math.round(durationMin*(stopPointMiles/totalMiles));
+    var detour=Math.round((best.detourFromRoute||0)*10)/10;
+    var fuelCost=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*(getLatestPrice(best).price)*100)/100;
+    var fuelCostAvg=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*EIA_GAS_AVG*100)/100;
+    var savings=fuelCost&&fuelCostAvg?Math.max(0,Math.round((fuelCostAvg-fuelCost)*100)/100):null;
+
+    tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,bestStop:best,detourMiles:detour,currentRange:Math.round(currentRange),stopPoint:stopPointMiles,stopMinFromStart:stopMinFromStart,fuelCost:fuelCost,savings:savings,av:av,ft:ft};
+    renderTripResult();
+  });
+}
+
+// Returns a lat/lng point at a given fraction along the route
+// Uses actual route steps if available, falls back to linear interpolation
+function getRoutePoint(steps,fraction,startLat,startLng,endLat,endLng){
+  if(!steps||steps.length===0){
+    return{lat:startLat+(endLat-startLat)*fraction,lng:startLng+(endLng-startLng)*fraction};
+  }
+  // Calculate total route distance from steps
+  var totalDist=0;
+  var stepDists=steps.map(function(s){
+    var d=s.distance?s.distance.value:0;
+    totalDist+=d;return d;
+  });
+  var targetDist=totalDist*fraction;
+  var accumulated=0;
+  for(var i=0;i<steps.length;i++){
+    accumulated+=stepDists[i];
+    if(accumulated>=targetDist||i===steps.length-1){
+      var loc=steps[i].end_location||steps[i].start_location;
+      if(loc)return{lat:loc.lat,lng:loc.lng};
+    }
+  }
+  return{lat:startLat+(endLat-startLat)*fraction,lng:startLng+(endLng-startLng)*fraction};
 }
 
 function renderTripResult(){
