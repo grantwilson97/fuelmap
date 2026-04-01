@@ -729,7 +729,7 @@ var TRIP_TYPES=[
 // ── App state ─────────────────────────────────────────────────────────────────
 var currentUser=null;
 var currentSession=null;
-var allStations=[],currentFilter='gas',currentSort='value',currentStation=null;
+var allStations=[],currentFilter='gas',currentSort='value',currentStation=null,autoFitMap=false;
 var alerts=ALERTS_DATA.slice(),userLat=null,userLng=null,modalFuelType='regular';
 var editingVehicleId=null,selectedVehicleEmoji='🚗',selectedFuelType='gas',selectedProfileEmoji='😊',selectedGasGrade='regular';
 var selectedTripType='commute',tripResult=null,autocompleteTimer=null;
@@ -1174,6 +1174,27 @@ function updateMapPins(stations){
   });
 }
 
+function fitMapToTopStations(stations){
+  if(!gMap||!stations||stations.length===0)return;
+  var top=stations.slice(0,3);
+  // Include user location in bounds
+  var bounds=new google.maps.LatLngBounds();
+  if(userLat&&userLng)bounds.extend({lat:userLat,lng:userLng});
+  var added=0;
+  top.forEach(function(s){
+    if(s.latitude&&s.longitude){
+      bounds.extend({lat:s.latitude,lng:s.longitude});
+      added++;
+    }
+  });
+  if(added===0)return;
+  gMap.fitBounds(bounds,{top:40,right:20,bottom:20,left:20});
+  // Don't zoom in too close if stations are very nearby
+  var listener=google.maps.event.addListenerOnce(gMap,'bounds_changed',function(){
+    if(gMap.getZoom()>15)gMap.setZoom(15);
+  });
+}
+
 function showDetailFromMap(stationId){
   if(selectedInfoWindow){selectedInfoWindow.close();selectedInfoWindow=null;}
   var st=allStations.find(function(s){return s.id===stationId;});
@@ -1278,14 +1299,13 @@ function renderFilters(){
     var c=document.createElement('div');
     c.className='chip'+(currentFilter===p[0]?' on':'');
     c.textContent=p[1];
-    c.onclick=function(){currentFilter=p[0];renderAll();};
+    c.onclick=function(){currentFilter=p[0];autoFitMap=true;renderAll();};
     el.appendChild(c);
   });
-  // Show PGE ribbon only for EV and All filters
   var ribbon=document.getElementById('pge-ribbon');
   if(ribbon)ribbon.style.display=(currentFilter==='ev'||currentFilter==='all')?'block':'none';
 }
-function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp'+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];renderAll();};el.appendChild(c);});}
+function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp'+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];autoFitMap=true;renderAll();};el.appendChild(c);});}
 function renderCards(){
   var el=document.getElementById('cards');el.innerHTML='';var filtered=getFiltered();
   document.getElementById('sheet-title').textContent=filtered.length+' stations nearby';
@@ -1328,6 +1348,12 @@ function renderAll(){
     return true;
   });
   updateMapPins(mappable);
+  // Fit map to top stations only when user explicitly changed sort/filter
+  if(autoFitMap){
+    var sorted=getFiltered().filter(function(s){return s.latitude&&s.longitude;});
+    if(sorted.length>0&&gMap)fitMapToTopStations(sorted);
+    autoFitMap=false;
+  }
 }
 
 function showDetail(station){
