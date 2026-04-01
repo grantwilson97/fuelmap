@@ -527,6 +527,7 @@ var SUPABASE_URL='https://puovjdcbgecvmhyilmvx.supabase.co';
 var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1b3ZqZGNiZ2Vjdm1oeWlsbXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMDc5NzcsImV4cCI6MjA5MDU4Mzk3N30.ZN4Ch7x8es6xehsOmQc-Rc_-XKXrhb9Hy7jz3mN43V4';
 
 var VERCEL_API='https://fuelmap-api-sf.vercel.app/api/stations';
+var GAS_API='https://fuelmap-api-sf.vercel.app/api/gasstations';
 var DIRECTIONS_API='https://fuelmap-api-sf.vercel.app/api/directions';
 var AUTOCOMPLETE_API='https://fuelmap-api-sf.vercel.app/api/autocomplete';
 var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35;
@@ -853,6 +854,10 @@ function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just 
 function getLatestPrice(station){
   var r=getReports(station.id);var rep=r.find(function(x){return x.fuelType==='regular'||x.fuelType==='ev_l2';});
   if(rep)return{price:rep.price,source:'community',ago:timeAgo(rep.ts)};
+  // Google Places gas stations use EIA baseline
+  if(station.type==='gas'&&station.id&&station.id.startsWith('gpl_')){
+    return{price:EIA_GAS_AVG,source:'eia'};
+  }
   return{price:station.basePrice||station.price||EIA_GAS_AVG,source:station.isLive?'live':'eia'};
 }
 
@@ -983,28 +988,44 @@ function updateLocationDisplay(){
 function useFallbackLocation(){userLat=37.7749;userLng=-122.4194;document.getElementById('map-title').textContent='SoMa, San Francisco';document.getElementById('location-txt').textContent='SF Bay Area';ensureMap();updateMapCenter(userLat,userLng);fetchOCM(userLat,userLng);}
 
 function fetchOCM(lat,lng){
-  setLoading('Finding live EV chargers…');
+  setLoading('Finding nearby stations…');
   var av=getActiveVehicle();
   if(av&&av.fuelType==='electric')currentFilter='ev';
   else if(av&&(av.fuelType==='gas'||av.fuelType==='diesel'))currentFilter='gas';
-  fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius=5')
+  // Fetch EV chargers and gas stations in parallel
+  var evPromise=fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius=5')
     .then(function(r){return r.json();})
     .then(function(data){
-      var live=(data.stations||[]).map(function(s){return{id:'ocm_'+s.id,name:s.name,address:s.address,type:'ev',basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:30,isLive:true,network:s.network,l2Connectors:s.l2Connectors||0,dcConnectors:s.dcConnectors||0,connectorTypes:s.connectorTypes||[],open24h:s.open24h||false,pricing:s.pricing||null,isOpen:s.isOpen};});
-      buildStationList(lat,lng,live);
+      return(data.stations||[]).map(function(s){return{id:'ocm_'+s.id,name:s.name,address:s.address,type:'ev',basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:30,isLive:true,network:s.network,l2Connectors:s.l2Connectors||0,dcConnectors:s.dcConnectors||0,connectorTypes:s.connectorTypes||[],open24h:s.open24h||false,pricing:s.pricing||null,isOpen:s.isOpen};});
     })
-    .catch(function(){buildStationList(lat,lng,[]);});
+    .catch(function(){return[];});
+  var gasPromise=fetch(GAS_API+'?latitude='+lat+'&longitude='+lng+'&radius=5')
+    .then(function(r){return r.json();})
+    .then(function(data){
+      return(data.stations||[]).map(function(s){return{id:'gpl_'+s.id,name:s.name,address:s.address,type:'gas',basePrice:EIA_GAS_AVG,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:40,isLive:true,network:s.brand||'Gas',brand:s.brand,rating:s.rating,open24h:false,isOpen:s.isOpen!==false,priceSource:'eia'};});
+    })
+    .catch(function(){return[];});
+  Promise.all([evPromise,gasPromise]).then(function(results){
+    var liveEV=results[0];var liveGas=results[1];
+    buildStationList(lat,lng,liveEV,liveGas);
+  });
 }
 
-function buildStationList(lat,lng,live){
-  var demo=DEMO_STATIONS.map(function(s){return Object.assign({},s,{distanceMiles:Math.round(distMiles(lat,lng,s.latitude,s.longitude)*10)/10});});
-  var filtered=demo.filter(function(d){return!live.some(function(l){return distMiles(d.latitude,d.longitude,l.latitude,l.longitude)<0.15;});});
-  allStations=live.concat(filtered).map(function(s){return Object.assign({},s,{score:calcScore(s)});});
+function buildStationList(lat,lng,liveEV,liveGas){
+  liveEV=liveEV||[];liveGas=liveGas||[];
+  var allLive=liveEV.concat(liveGas);
+  // Only use demo gas stations if Google Places returned nothing
+  var demo=[];
+  if(liveGas.length===0){
+    demo=DEMO_STATIONS.filter(function(s){return s.type==='gas';}).map(function(s){return Object.assign({},s,{distanceMiles:Math.round(distMiles(lat,lng,s.latitude,s.longitude)*10)/10});});
+  }
+  // Keep demo EV stations not duplicated by live OCM
+  var demoEV=DEMO_STATIONS.filter(function(s){return s.type==='ev';}).map(function(s){return Object.assign({},s,{distanceMiles:Math.round(distMiles(lat,lng,s.latitude,s.longitude)*10)/10});}).filter(function(d){return!liveEV.some(function(l){return distMiles(d.latitude,d.longitude,l.latitude,l.longitude)<0.15;});});
+  allStations=allLive.concat(demo).concat(demoEV).map(function(s){return Object.assign({},s,{score:calcScore(s)});});
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
   document.getElementById('station-count').textContent=allStations.length+' stations found';
-  document.getElementById('data-source-txt').textContent='🔌 '+live.length+' live OCM + '+(allStations.length-live.length)+' SF stations';
+  document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV · live';
   clearLoading();renderAll();
-  // Update map pins with all stations that have coordinates
   var mappable=allStations.filter(function(s){return s.latitude&&s.longitude;});
   updateMapPins(mappable);
 }
@@ -1025,7 +1046,7 @@ function renderCards(){
     var sl=pi.source==='community'?'👤 Community':pi.source==='live'?'🔌 Live':'📊 EIA avg';
     var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
     var card=document.createElement('div');card.className='card'+(st.isLive?' live':'');
-    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div><div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div><div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
+    var ratingStr=st.rating?'⭐ '+st.rating:'';var distLabel=st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div><div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div><div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
     card.onclick=function(){showDetail(st);};el.appendChild(card);
   });
 }
