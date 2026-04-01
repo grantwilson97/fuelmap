@@ -1030,8 +1030,6 @@ function buildStationList(lat,lng,liveEV,liveGas){
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV · live';
   clearLoading();renderAll();
-  var mappable=allStations.filter(function(s){return s.latitude&&s.longitude;});
-  updateMapPins(mappable);
 }
 
 function getFiltered(){
