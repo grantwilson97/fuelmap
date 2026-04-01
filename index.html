@@ -714,14 +714,24 @@ function syncLocalToCloud(){
     }
   });
 
-  // Sync vehicles: if cloud empty but local has vehicles, push local up
+  // Sync vehicles intelligently — merge cloud structure with local mpg/grade data
   loadCloudVehicles().then(function(cloudVehicles){
     var localVehicles=loadLocalVehicles();
     if(cloudVehicles&&cloudVehicles.length>0){
-      // Cloud has vehicles — use them
-      saveLocalVehicles(cloudVehicles);
+      // Cloud has vehicles — merge with local to preserve mpg/gasGrade
+      var merged=cloudVehicles.map(function(cv){
+        var lv=localVehicles.find(function(l){return String(l.id)===String(cv.id);});
+        // Use cloud as base, but prefer local mpg/gasGrade if cloud lacks them
+        return Object.assign({},cv,{
+          mpg:cv.mpg||(lv?lv.mpg:null),
+          gasGrade:cv.gasGrade&&cv.gasGrade!=='regular'?cv.gasGrade:(lv?lv.gasGrade:'regular')
+        });
+      });
+      saveLocalVehicles(merged);
+      // Push merged data back to cloud to update any missing mpg/grade
+      merged.forEach(function(v){if(v.mpg||v.gasGrade)saveCloudVehicle(v);});
     } else if(localVehicles&&localVehicles.length>0){
-      // Local has vehicles, cloud is empty — push to cloud
+      // Local has vehicles, cloud is empty — push all up
       syncAllVehiclesToCloud(localVehicles);
     }
   });
@@ -1250,7 +1260,7 @@ function renderTripResult(){
     if(r.bestStop){
       var sc=scoreColor(r.bestStop.score);var pi=getLatestPrice(r.bestStop);var pd=r.bestStop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
       var stopId=r.bestStop.id;
-      html+='<div class="fuel-stop-card" onclick="openTripStopDetail(\"'+stopId+'\")"\ style="cursor:pointer;"><div class="fsc-header"><div><div class="fsc-label">⛽ Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div><div style="text-align:center;padding-top:6px;font-size:11px;color:#1667d9;font-weight:600;">Tap to view full station details →</div></div>';
+      html+='<div class="fuel-stop-card" onclick="openTripStopDetail(this.dataset.id)" data-id='+JSON.stringify(stopId)+' style="cursor:pointer;"><div class="fsc-header"><div><div class="fsc-label">⛽ Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div><div style="text-align:center;padding-top:6px;font-size:11px;color:#1667d9;font-weight:600;">Tap to view full station details →</div></div>';
     }
     if(r.savings&&r.savings>0){html+='<div class="savings-card"><div class="savings-title">💰 Savings vs. SF average</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">You save</div></div><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
     else if(r.fuelCost){html+='<div class="savings-card"><div class="savings-title">⛽ Trip fuel estimate</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. cost</div></div><div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((r.ft&&r.ft.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
@@ -1273,9 +1283,10 @@ function openGoogleMaps(){if(!tripResult||!tripResult.bestStop)return;var appUrl
 function openAppleMapsDirectOnly(){if(!tripResult)return;window.location.href='maps:?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.destInput);}
 function openGoogleMapsDirectOnly(){if(!tripResult)return;var appUrl='comgooglemaps://?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.destInput)+'&directionsmode=driving';var webUrl='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(tripResult.destInput);var w=window.open(appUrl,'_blank');setTimeout(function(){if(!w||w.closed)window.open(webUrl,'_blank');},500);}
 function openTripStopDetail(stationId){
-  // Find the station in allStations — it may be an OCM or Google Places station
-  var st=allStations.find(function(s){return s.id===stationId;});
-  if(!st&&tripResult&&tripResult.bestStop){st=tripResult.bestStop;}
+  // stationId may come from data attribute as a string
+  if(!stationId&&tripResult&&tripResult.bestStop)stationId=tripResult.bestStop.id;
+  var st=allStations.find(function(s){return String(s.id)===String(stationId);});
+  if(!st&&tripResult&&tripResult.bestStop)st=tripResult.bestStop;
   if(!st)return;
   // Make sure it has distanceMiles set
   if(!st.distanceMiles&&userLat&&userLng){
