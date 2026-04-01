@@ -854,7 +854,7 @@ function saveLocalVehicles(v){localStorage.setItem('fm_vehicles',JSON.stringify(
 function loadProfile(){return loadLocalProfile()||{name:'Driver',email:'',emoji:'😊'};}
 function loadPrefs(){try{return JSON.parse(localStorage.getItem('fm_prefs')||'null');}catch(e){return null;}}
 function savePrefs(p){localStorage.setItem('fm_prefs',JSON.stringify(p));}
-function getSearchRadius(){var p=loadPrefs();return p&&p.radius?p.radius:5;}
+function getSearchRadius(){var p=loadPrefs();return p&&p.radius?p.radius:15;}
 function loadVehicles(){return loadLocalVehicles();}
 function getActiveVehicle(){var v=loadVehicles();return v.find(function(x){return x.active;})||v[0]||null;}
 
@@ -926,9 +926,9 @@ var userMarker=null;
 var selectedInfoWindow=null;
 
 function initMap(){
-  var defaultCenter={lat:37.7749,lng:-122.4194};
+  var defaultCenter={lat:37.8044,lng:-122.2712}; // Bay Area center (Oakland)
   gMap=new google.maps.Map(document.getElementById('google-map'),{
-    zoom:14,
+    zoom:10,
     center:defaultCenter,
     disableDefaultUI:true,
     zoomControl:true,
@@ -944,10 +944,20 @@ function ensureMap(){
   if(!gMap&&typeof google!=='undefined'&&google.maps){initMap();}
 }
 
+function getSmartZoom(lat,lng,stationCount){
+  // Density-based zoom: more stations nearby = denser area = zoom in more
+  // Also use lat/lng to detect SF peninsula vs suburbs
+  var isSFPeninsula=(lat>37.70&&lat<37.83&&lng<-122.35&&lng>-122.52);
+  var isInnerEastBay=(lat>37.75&&lat<37.90&&lng>-122.30&&lng<-122.15);
+  if(stationCount>15||isSFPeninsula)return 13;
+  if(stationCount>8||isInnerEastBay)return 12;
+  return 11;
+}
 function updateMapCenter(lat,lng){
   ensureMap();
   if(!gMap)return;
   gMap.setCenter({lat:lat,lng:lng});
+  gMap.setZoom(13); // Will be refined by smart zoom after stations load
   // User location dot
   if(userMarker)userMarker.setMap(null);
   userMarker=new google.maps.Marker({
@@ -1045,7 +1055,7 @@ function updateLocationDisplay(){
   document.getElementById('map-title').textContent='Hi '+(profile.name||'there')+'! Near you';
 }
 
-function useFallbackLocation(){userLat=37.7749;userLng=-122.4194;document.getElementById('map-title').textContent='SoMa, San Francisco';document.getElementById('location-txt').textContent='SF Bay Area';ensureMap();updateMapCenter(userLat,userLng);fetchOCM(userLat,userLng);}
+function useFallbackLocation(){userLat=37.8044;userLng=-122.2712;document.getElementById('map-title').textContent='SF Bay Area';document.getElementById('location-txt').textContent='SF Bay Area';ensureMap();updateMapCenter(userLat,userLng);if(gMap)gMap.setZoom(10);fetchOCM(userLat,userLng);}
 
 function fetchOCM(lat,lng){
   setLoading('Finding nearby stations…');
@@ -1088,6 +1098,11 @@ function buildStationList(lat,lng,liveEV,liveGas){
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV · live';
   clearLoading();renderAll();
+  // Apply smart zoom based on station density
+  if(gMap&&userLat&&userLng){
+    var zoom=getSmartZoom(userLat,userLng,allStations.length);
+    gMap.setZoom(zoom);
+  }
 }
 
 function getFiltered(){
