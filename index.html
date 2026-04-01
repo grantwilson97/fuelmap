@@ -165,12 +165,38 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .tab-label{font-size:9px;font-weight:600;color:#aaa;}
 .tab.active .tab-label{color:#1667d9;}
 .refresh-btn{position:absolute;top:10px;right:10px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:#1667d9;cursor:pointer;}
+
+/* ── AUTH SCREEN ── */
+.auth-screen{flex:1;display:flex;flex-direction:column;background:#fff;}
+.auth-hero{background:linear-gradient(135deg,#1667d9,#0f4c81);padding:40px 24px 32px;text-align:center;}
+.auth-logo{font-size:40px;font-weight:800;color:#fff;letter-spacing:-1px;margin-bottom:4px;}
+.auth-logo span{color:#f5a623;}
+.auth-tagline{font-size:14px;color:rgba(255,255,255,0.8);}
+.auth-body{flex:1;padding:24px;overflow-y:auto;}
+.auth-tabs{display:flex;background:#f7f7f9;border-radius:12px;padding:3px;margin-bottom:20px;}
+.auth-tab{flex:1;padding:8px;border-radius:10px;font-size:14px;font-weight:700;color:#888;text-align:center;cursor:pointer;border:none;background:none;}
+.auth-tab.on{background:#fff;color:#1667d9;box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+.auth-field{margin-bottom:14px;}
+.auth-label{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;display:block;}
+.auth-input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;outline:none;background:#fff;}
+.auth-input:focus{border-color:#1667d9;}
+.auth-btn{width:100%;padding:14px;background:#1667d9;border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;}
+.auth-btn:disabled{background:#B5D4F4;cursor:not-allowed;}
+.auth-error{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;font-size:13px;color:#dc2626;margin-bottom:14px;display:none;}
+.auth-success{background:#EAF3DE;border:1px solid #C0DD97;border-radius:10px;padding:10px 14px;font-size:13px;color:#27500A;margin-bottom:14px;display:none;}
+.auth-divider{text-align:center;font-size:12px;color:#aaa;margin:16px 0;}
+.auth-skip{width:100%;padding:12px;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;font-weight:600;color:#555;cursor:pointer;}
+.auth-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;}
+.auth-loading-spinner{width:24px;height:24px;border:2px solid #e0e7ff;border-top-color:#1667d9;border-radius:50%;animation:spin 0.8s linear infinite;}
+
+/* ── PROFILE SCREEN ── */
 .profile-hero{background:linear-gradient(135deg,#4c1d95,#6d28d9);padding:20px 18px 24px;}
 .profile-avatar-row{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
 .avatar-circle{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:36px;cursor:pointer;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;}
 .profile-name-block{flex:1;}
 .profile-name{font-size:20px;font-weight:800;color:#fff;margin-bottom:2px;}
 .profile-email{font-size:12px;color:rgba(255,255,255,0.7);}
+.profile-badge{display:inline-block;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:#fff;margin-top:4px;}
 .profile-edit-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;margin-top:6px;}
 .active-vehicle-chip{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;}
 .avc-label{font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;text-transform:uppercase;margin-bottom:2px;}
@@ -200,6 +226,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .pref-label{font-size:14px;color:#1a1a2e;}
 .pref-select{border:1px solid #e0e0e0;border-radius:8px;padding:5px 10px;font-size:13px;color:#1a1a2e;background:#fff;}
 .signout-btn{width:100%;padding:13px;border-radius:12px;border:1.5px solid #fecaca;background:#fff;font-size:14px;font-weight:700;color:#dc2626;cursor:pointer;margin-top:4px;}
+.sync-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:#dcfce7;color:#15803d;margin-bottom:8px;}
 .vform-field{margin-bottom:14px;}
 .vform-label{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;display:block;}
 .vform-input{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;outline:none;}
@@ -236,8 +263,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .trip-planning{display:flex;flex-direction:column;align-items:center;padding:30px 20px;gap:12px;}
 .trip-planning-spinner{width:36px;height:36px;border:3px solid #e0e7ff;border-top-color:#1667d9;border-radius:50%;animation:spin 0.8s linear infinite;}
 .trip-planning-txt{font-size:14px;color:#1667d9;font-weight:600;text-align:center;}
-
-/* Route timeline */
 .route-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
 .route-card-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:14px;}
 .route-stop{display:flex;gap:12px;align-items:flex-start;}
@@ -253,14 +278,10 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .route-detail{font-size:12px;color:#888;margin-bottom:2px;}
 .route-eta{font-size:12px;font-weight:700;color:#1667d9;}
 .route-badge{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
-
-/* Trip stats */
 .trip-stats-row{display:flex;gap:8px;margin-top:12px;}
 .trip-stat{flex:1;background:#f7f7f9;border-radius:10px;padding:10px;text-align:center;}
 .trip-stat-val{font-size:16px;font-weight:800;color:#1667d9;}
 .trip-stat-lbl{font-size:9px;color:#888;font-weight:600;margin-top:2px;text-transform:uppercase;}
-
-/* Fuel stop card */
 .no-stop-card{background:#EAF3DE;border-radius:14px;padding:16px;margin-bottom:12px;border:1.5px solid #C0DD97;text-align:center;}
 .no-stop-icon{font-size:36px;margin-bottom:8px;}
 .no-stop-title{font-size:16px;font-weight:700;color:#27500A;margin-bottom:4px;}
@@ -276,16 +297,12 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .fsc-detail-box{flex:1;background:#f7f7f9;border-radius:8px;padding:8px;text-align:center;}
 .fsc-detail-val{font-size:15px;font-weight:700;color:#1667d9;}
 .fsc-detail-lbl{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;margin-top:1px;}
-
-/* Savings card */
 .savings-card{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #86efac;}
 .savings-title{font-size:12px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;}
 .savings-row{display:flex;gap:8px;}
 .savings-item{flex:1;text-align:center;}
 .savings-val{font-size:20px;font-weight:800;color:#15803d;}
 .savings-lbl{font-size:10px;color:#166534;font-weight:600;margin-top:2px;}
-
-/* Navigate buttons */
 .nav-choice-row{display:flex;gap:8px;margin-bottom:8px;}
 .nav-apple{flex:1;padding:13px;background:#000;border:none;border-radius:12px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
 .nav-google{flex:1;padding:13px;background:#fff;border:2px solid #e0e0e0;border-radius:12px;font-size:13px;font-weight:700;color:#1a1a2e;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
@@ -297,7 +314,44 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 </head>
 <body>
 
-<div class="screen active" id="screen-map">
+<!-- AUTH SCREEN -->
+<div class="screen active" id="screen-auth">
+  <div class="auth-hero">
+    <div class="auth-logo">fuel<span>map</span></div>
+    <div class="auth-tagline">SF Bay Area · Live fuel prices</div>
+  </div>
+  <div class="auth-body">
+    <div class="auth-loading" id="auth-loading">
+      <div class="auth-loading-spinner"></div>
+    </div>
+    <div id="auth-form-wrap" style="display:none;">
+      <div class="auth-tabs">
+        <button class="auth-tab on" id="tab-signin" onclick="switchAuthTab('signin')">Sign in</button>
+        <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create account</button>
+      </div>
+      <div class="auth-error" id="auth-error"></div>
+      <div class="auth-success" id="auth-success"></div>
+      <div class="auth-field">
+        <label class="auth-label">Email</label>
+        <input class="auth-input" type="email" id="auth-email" placeholder="you@email.com" autocomplete="email"/>
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Password</label>
+        <input class="auth-input" type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <div class="auth-field" id="auth-name-field" style="display:none;">
+        <label class="auth-label">Your name</label>
+        <input class="auth-input" type="text" id="auth-name" placeholder="Grant Wilson"/>
+      </div>
+      <button class="auth-btn" id="auth-submit-btn" onclick="handleAuth()">Sign in</button>
+      <div class="auth-divider">or</div>
+      <button class="auth-skip" onclick="skipAuth()">Continue without account</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP SCREEN -->
+<div class="screen" id="screen-map">
   <div class="topbar">
     <div class="title-row">
       <div class="wordmark">fuel<span>map</span></div>
@@ -327,6 +381,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- DETAIL SCREEN -->
 <div class="screen" id="screen-detail" style="background:#f7f7f9;">
   <div id="hero-wrap"></div>
   <div class="scroll" id="detail-body"></div>
@@ -336,6 +391,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- TRIP SCREEN -->
 <div class="screen" id="screen-trip" style="background:#f7f7f9;">
   <div class="trip-hero">
     <div class="trip-title">Trip planner</div>
@@ -348,6 +404,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div class="trip-body" id="trip-body"></div></div>
 </div>
 
+<!-- ALERTS SCREEN -->
 <div class="screen" id="screen-alerts" style="background:#f7f7f9;">
   <div class="hero-blue">
     <div class="hero-title">Price alerts</div>
@@ -361,6 +418,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div class="alert-body" id="alerts-body"></div></div>
 </div>
 
+<!-- CARBON SCREEN -->
 <div class="screen" id="screen-carbon" style="background:#f7f7f9;">
   <div class="hero-green">
     <div class="hero-title">Carbon tracker</div>
@@ -378,6 +436,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div style="padding:14px;" id="carbon-body"></div></div>
 </div>
 
+<!-- PROFILE SCREEN -->
 <div class="screen" id="screen-profile" style="background:#f7f7f9;">
   <div class="profile-hero" id="profile-hero"></div>
   <div class="scroll"><div class="profile-body" id="profile-body"></div></div>
@@ -435,7 +494,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
     <div class="modal-title">Edit profile</div>
     <div class="modal-sub" style="margin-bottom:16px;">Your name shows across the app</div>
     <div class="vform-field"><label class="vform-label">Your name</label><input class="vform-input" type="text" id="edit-name" placeholder="Grant Wilson"/></div>
-    <div class="vform-field"><label class="vform-label">Email</label><input class="vform-input" type="email" id="edit-email" placeholder="you@email.com"/></div>
     <div class="vform-field"><label class="vform-label">Profile emoji</label><div class="emoji-grid" id="profile-emoji-grid"></div></div>
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeProfileEditModal()">Cancel</button>
@@ -445,7 +503,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 </div>
 
 <!-- TAB BAR -->
-<div class="tab-bar">
+<div class="tab-bar" id="tab-bar" style="display:none;">
   <button class="tab active" onclick="showTab('map')" id="tab-map"><span class="tab-icon">📍</span><span class="tab-label">Map</span></button>
   <button class="tab" onclick="showTab('trip')" id="tab-trip"><span class="tab-icon">🗺️</span><span class="tab-label">Trip</span></button>
   <button class="tab" onclick="showTab('alerts')" id="tab-alerts"><span class="tab-icon">🔔</span><span class="tab-label">Alerts</span></button>
@@ -454,10 +512,14 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 </div>
 
 <script>
+// ── Supabase config ───────────────────────────────────────────────────────────
+var SUPABASE_URL='https://puovjdcbgecvmhyilmvx.supabase.co';
+var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1b3ZqZGNiZ2Vjdm1oeWlsbXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMDc5NzcsImV4cCI6MjA5MDU4Mzk3N30.ZN4Ch7x8es6xehsOmQc-Rc_-XKXrhb9Hy7jz3mN43V4';
+
 var VERCEL_API='https://fuelmap-api-sf.vercel.app/api/stations';
 var DIRECTIONS_API='https://fuelmap-api-sf.vercel.app/api/directions';
 var AUTOCOMPLETE_API='https://fuelmap-api-sf.vercel.app/api/autocomplete';
-var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35,EIA_EV_DC_AVG=0.47;
+var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35;
 var VEHICLE_EMOJIS=['🚗','🚙','🛻','🏎️','🚐','🚕','🚌','🏍️','🛵','⚡'];
 var PROFILE_EMOJIS=['😊','😎','🤠','👨','👩','🧑','👦','👧','🧔','👱'];
 var FUEL_TYPES=[
@@ -493,25 +555,196 @@ var TRIP_TYPES=[
   {key:'custom',label:'Custom',icon:'📍'},
 ];
 
+// ── App state ─────────────────────────────────────────────────────────────────
+var currentUser=null;
+var currentSession=null;
 var allStations=[],currentFilter='all',currentSort='value',currentStation=null;
 var alerts=ALERTS_DATA.slice(),userLat=null,userLng=null,modalFuelType='regular';
 var editingVehicleId=null,selectedVehicleEmoji='🚗',selectedFuelType='gas',selectedProfileEmoji='😊';
 var selectedTripType='commute',tripResult=null,autocompleteTimer=null;
+var authMode='signin';
 
-function loadProfile(){try{return JSON.parse(localStorage.getItem('fm_profile')||'null');}catch(e){return null;}}
-function saveProfileData(p){localStorage.setItem('fm_profile',JSON.stringify(p));}
-function loadVehicles(){try{return JSON.parse(localStorage.getItem('fm_vehicles')||'[]');}catch(e){return[];}}
-function saveVehicles(v){localStorage.setItem('fm_vehicles',JSON.stringify(v));}
+// ── Supabase API helpers ──────────────────────────────────────────────────────
+function sbFetch(path,options){
+  var headers=Object.assign({'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(currentSession?currentSession.access_token:SUPABASE_ANON_KEY)},options.headers||{});
+  return fetch(SUPABASE_URL+path,Object.assign({},options,{headers:headers}));
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function switchAuthTab(mode){
+  authMode=mode;
+  document.getElementById('tab-signin').classList.toggle('on',mode==='signin');
+  document.getElementById('tab-signup').classList.toggle('on',mode==='signup');
+  document.getElementById('auth-name-field').style.display=mode==='signup'?'block':'none';
+  document.getElementById('auth-submit-btn').textContent=mode==='signin'?'Sign in':'Create account';
+  document.getElementById('auth-error').style.display='none';
+  document.getElementById('auth-success').style.display='none';
+  document.getElementById('auth-password').setAttribute('autocomplete',mode==='signin'?'current-password':'new-password');
+}
+
+function showAuthError(msg){var el=document.getElementById('auth-error');el.textContent=msg;el.style.display='block';document.getElementById('auth-success').style.display='none';}
+function showAuthSuccess(msg){var el=document.getElementById('auth-success');el.textContent=msg;el.style.display='block';document.getElementById('auth-error').style.display='none';}
+
+function handleAuth(){
+  var email=document.getElementById('auth-email').value.trim();
+  var password=document.getElementById('auth-password').value;
+  var name=document.getElementById('auth-name').value.trim()||'Driver';
+  if(!email||!password){showAuthError('Please enter your email and password.');return;}
+  if(password.length<6){showAuthError('Password must be at least 6 characters.');return;}
+  var btn=document.getElementById('auth-submit-btn');
+  btn.disabled=true;btn.textContent=authMode==='signin'?'Signing in…':'Creating account…';
+  document.getElementById('auth-error').style.display='none';
+  if(authMode==='signin'){
+    signIn(email,password);
+  } else {
+    signUp(email,password,name);
+  }
+}
+
+function signIn(email,password){
+  sbFetch('/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.error||data.error_code){showAuthError(data.error_description||data.message||'Sign in failed.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Sign in';return;}
+      currentSession=data;currentUser=data.user;
+      localStorage.setItem('fm_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user}));
+      onSignedIn();
+    })
+    .catch(function(){showAuthError('Network error. Please try again.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Sign in';});
+}
+
+function signUp(email,password,name){
+  sbFetch('/auth/v1/signup',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.error||data.error_code){showAuthError(data.msg||data.message||'Sign up failed.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Create account';return;}
+      if(data.session){
+        currentSession=data.session;currentUser=data.user||data.session.user;
+        localStorage.setItem('fm_session',JSON.stringify({access_token:data.session.access_token,refresh_token:data.session.refresh_token,user:currentUser}));
+        // Update profile name
+        if(name&&name!=='Driver'){
+          sbFetch('/rest/v1/profiles?id=eq.'+currentUser.id,{method:'PATCH',body:JSON.stringify({name:name,email:email})});
+        }
+        onSignedIn();
+      } else {
+        showAuthSuccess('Account created! Check your email to confirm, then sign in.');
+        document.getElementById('auth-submit-btn').disabled=false;
+        document.getElementById('auth-submit-btn').textContent='Create account';
+        switchAuthTab('signin');
+      }
+    })
+    .catch(function(){showAuthError('Network error. Please try again.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Create account';});
+}
+
+function refreshSession(refreshToken){
+  return sbFetch('/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:refreshToken})})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.access_token){
+        currentSession=data;currentUser=data.user;
+        localStorage.setItem('fm_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user}));
+        return true;
+      }
+      return false;
+    })
+    .catch(function(){return false;});
+}
+
+function skipAuth(){
+  localStorage.setItem('fm_skip_auth','1');
+  onSignedIn();
+}
+
+function onSignedIn(){
+  document.getElementById('tab-bar').style.display='flex';
+  showScreen('map');
+  document.getElementById('tab-map').classList.add('active');
+  renderAlerts();renderCarbon();loadStations();
+}
+
+function signOut(){
+  if(currentSession){
+    sbFetch('/auth/v1/logout',{method:'POST'}).catch(function(){});
+  }
+  currentUser=null;currentSession=null;
+  localStorage.removeItem('fm_session');
+  localStorage.removeItem('fm_skip_auth');
+  document.getElementById('tab-bar').style.display='none';
+  document.getElementById('auth-email').value='';
+  document.getElementById('auth-password').value='';
+  document.getElementById('auth-error').style.display='none';
+  document.getElementById('auth-success').style.display='none';
+  document.getElementById('auth-submit-btn').disabled=false;
+  document.getElementById('auth-submit-btn').textContent='Sign in';
+  switchAuthTab('signin');
+  showScreen('auth');
+}
+
+// ── Cloud profile sync ────────────────────────────────────────────────────────
+function loadCloudProfile(){
+  if(!currentUser)return Promise.resolve(null);
+  return sbFetch('/rest/v1/profiles?id=eq.'+currentUser.id+'&select=*',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(data){return data&&data[0]?data[0]:null;})
+    .catch(function(){return null;});
+}
+
+function saveCloudProfile(profile){
+  if(!currentUser)return;
+  sbFetch('/rest/v1/profiles?id=eq.'+currentUser.id,{method:'PATCH',body:JSON.stringify({name:profile.name,emoji:profile.emoji})}).catch(function(){});
+}
+
+function loadCloudVehicles(){
+  if(!currentUser)return Promise.resolve([]);
+  return sbFetch('/rest/v1/vehicles?user_id=eq.'+currentUser.id+'&order=created_at.asc&select=*',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!Array.isArray(data))return[];
+      return data.map(function(v){return{id:v.id,emoji:v.emoji||'🚗',year:v.year,make:v.make,model:v.model,fuelType:v.fuel_type||'gas',tankSize:v.tank_size,level:v.fuel_level||50,active:v.is_active};});
+    })
+    .catch(function(){return[];});
+}
+
+function saveCloudVehicle(vehicle){
+  if(!currentUser)return Promise.resolve();
+  var row={user_id:currentUser.id,emoji:vehicle.emoji,year:vehicle.year,make:vehicle.make,model:vehicle.model,fuel_type:vehicle.fuelType,tank_size:vehicle.tankSize,fuel_level:vehicle.level,is_active:vehicle.active||false};
+  if(vehicle.id&&!vehicle.id.startsWith('v_')){
+    return sbFetch('/rest/v1/vehicles?id=eq.'+vehicle.id,{method:'PATCH',body:JSON.stringify(row)}).then(function(){return vehicle.id;});
+  } else {
+    return sbFetch('/rest/v1/vehicles',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(row)})
+      .then(function(r){return r.json();})
+      .then(function(data){return data&&data[0]?data[0].id:vehicle.id;});
+  }
+}
+
+function deleteCloudVehicle(id){
+  if(!currentUser||!id||String(id).startsWith('v_'))return;
+  sbFetch('/rest/v1/vehicles?id=eq.'+id,{method:'DELETE'}).catch(function(){});
+}
+
+function setAllVehiclesInactive(){
+  if(!currentUser)return Promise.resolve();
+  return sbFetch('/rest/v1/vehicles?user_id=eq.'+currentUser.id,{method:'PATCH',body:JSON.stringify({is_active:false})}).catch(function(){});
+}
+
+// ── Local fallback profile (no account) ──────────────────────────────────────
+function loadLocalProfile(){try{return JSON.parse(localStorage.getItem('fm_profile')||'null');}catch(e){return null;}}
+function saveLocalProfile(p){localStorage.setItem('fm_profile',JSON.stringify(p));}
+function loadLocalVehicles(){try{return JSON.parse(localStorage.getItem('fm_vehicles')||'[]');}catch(e){return[];}}
+function saveLocalVehicles(v){localStorage.setItem('fm_vehicles',JSON.stringify(v));}
+
+function loadProfile(){return loadLocalProfile()||{name:'Driver',email:'',emoji:'😊'};}
+function loadVehicles(){return loadLocalVehicles();}
 function getActiveVehicle(){var v=loadVehicles();return v.find(function(x){return x.active;})||v[0]||null;}
-function getDefaultProfile(){return{name:'Driver',email:'',emoji:'😊'};}
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function scoreColor(s){return s>=80?'#16a34a':s>=65?'#d97706':'#dc2626';}
 function crowdColor(b){return b<35?'#16a34a':b<65?'#d97706':'#dc2626';}
 function crowdLabel(b){return b<35?'Light':b<65?'Moderate':'Busy';}
 function waitMin(b){return Math.max(0,Math.round((b-20)/20));}
 function fuelColor(p){return p>50?'#16a34a':p>20?'#d97706':'#dc2626';}
 function distMiles(a,b,c,d){var R=3958.8,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
-function formatTime(minutesFromNow){var d=new Date(Date.now()+minutesFromNow*60000);var h=d.getHours();var m=d.getMinutes();var ampm=h>=12?'PM':'AM';h=h%12||12;return h+':'+(m<10?'0':'')+m+' '+ampm;}
+function formatTime(min){var d=new Date(Date.now()+min*60000);var h=d.getHours();var m=d.getMinutes();var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+(m<10?'0':'')+m+' '+ap;}
 function formatDuration(min){if(min<60)return min+' min';var h=Math.floor(min/60);var m=min%60;return h+'h'+(m>0?' '+m+'m':'');}
 
 function calcScore(station){
@@ -535,6 +768,7 @@ function getLatestPrice(station){
   return{price:station.basePrice||station.price||EIA_GAS_AVG,source:station.isLive?'live':'eia'};
 }
 
+// ── Location + stations ───────────────────────────────────────────────────────
 function setLoading(msg){document.getElementById('loading-overlay').style.display='flex';document.getElementById('loading-txt').textContent=msg;document.getElementById('refresh-btn').style.display='none';}
 function clearLoading(){document.getElementById('loading-overlay').style.display='none';document.getElementById('refresh-btn').style.display='block';}
 
@@ -551,9 +785,9 @@ function loadStations(){
 }
 
 function updateLocationDisplay(){
-  var av=getActiveVehicle();var profile=loadProfile()||getDefaultProfile();
+  var av=getActiveVehicle();var profile=loadProfile();
   document.getElementById('location-txt').textContent=av?av.year+' '+av.make+' '+av.model:'SF Bay Area';
-  document.getElementById('map-title').textContent='Hi '+profile.name+'! Near you';
+  document.getElementById('map-title').textContent='Hi '+(profile.name||'there')+'! Near you';
 }
 
 function useFallbackLocation(){userLat=37.7749;userLng=-122.4194;document.getElementById('map-title').textContent='SoMa, San Francisco';document.getElementById('location-txt').textContent='SF Bay Area';fetchOCM(userLat,userLng);}
@@ -648,10 +882,8 @@ function handleDestinationInput(val){
   },350);
 }
 function selectPlace(description){
-  var input=document.getElementById('trip-destination');
-  var dd=document.getElementById('ac-dropdown');
-  if(input)input.value=description;
-  if(dd){dd.style.display='none';dd.innerHTML='';}
+  var input=document.getElementById('trip-destination');var dd=document.getElementById('ac-dropdown');
+  if(input)input.value=description;if(dd){dd.style.display='none';dd.innerHTML='';}
 }
 
 // ── Trip planner ──────────────────────────────────────────────────────────────
@@ -679,13 +911,6 @@ function renderTripPlanner(){
       '<div class="trip-type-grid">'+typeOpts+'</div>'+
       '<button class="plan-btn" onclick="planTrip()">Plan my trip</button>'+
     '</div>'+
-    '<div class="trip-form-card" style="background:#f0f4ff;border-color:#B5D4F4;">'+
-      '<div class="trip-form-title" style="color:#0C447C;">How it works</div>'+
-      '<div class="body-txt" style="font-size:13px;color:#185FA5;margin-bottom:4px;">1. Search and select your destination</div>'+
-      '<div class="body-txt" style="font-size:13px;color:#185FA5;margin-bottom:4px;">2. FuelMap checks your vehicle\'s range</div>'+
-      '<div class="body-txt" style="font-size:13px;color:#185FA5;margin-bottom:4px;">3. Finds the best fuel stop along the route</div>'+
-      '<div class="body-txt" style="font-size:13px;color:#185FA5;">4. Open in Apple Maps or Google Maps — stop included</div>'+
-    '</div>'+
     '<div style="height:20px;"></div>';
 }
 
@@ -696,22 +921,15 @@ function planTrip(){
   if(!dest){alert('Please enter a destination.');return;}
   if(!userLat||!userLng){alert('Location not found. Please enable location and try again.');return;}
   document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Getting route from Google Maps…</div></div>';
-  var origin=userLat+','+userLng;
-  fetch(DIRECTIONS_API+'?origin='+encodeURIComponent(origin)+'&destination='+encodeURIComponent(dest))
+  fetch(DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest))
     .then(function(r){return r.json();})
     .then(function(data){
-      if(data.status!=='OK'||!data.routes||!data.routes.length){showTripError('Could not find a route to that destination. Please try a different address.');return;}
+      if(data.status!=='OK'||!data.routes||!data.routes.length){showTripError('Could not find a route. Please try a different address.');return;}
       var route=data.routes[0].legs[0];
-      var totalMiles=route.distance.value/1609.34;
-      var durationMin=Math.round(route.duration.value/60);
-      var destLat=route.end_location.lat;
-      var destLng=route.end_location.lng;
-      processTripRoute(totalMiles,durationMin,dest,route.end_address,destLat,destLng);
+      processTripRoute(route.distance.value/1609.34,Math.round(route.duration.value/60),dest,route.end_address,route.end_location.lat,route.end_location.lng);
     })
     .catch(function(){
-      var destLatApprox=userLat+0.15;var destLngApprox=userLng+0.15;
-      var totalMiles=distMiles(userLat,userLng,destLatApprox,destLngApprox);
-      processTripRoute(totalMiles,Math.round(totalMiles*1.3),dest,dest,destLatApprox,destLngApprox);
+      processTripRoute(20,25,dest,dest,userLat+0.15,userLng+0.15);
     });
 }
 
@@ -727,136 +945,61 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
   var stopFraction=stopPoint?stopPoint/totalMiles:null;
   var stopLat=stopFraction?userLat+(destLat-userLat)*stopFraction:null;
   var stopLng=stopFraction?userLng+(destLng-userLng)*stopFraction:null;
-
-  if(!needsStop){
-    tripResult={needsStop:false,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,currentRange:Math.round(currentRange),av:av,ft:ft};
-    renderTripResult();return;
-  }
+  if(!needsStop){tripResult={needsStop:false,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,currentRange:Math.round(currentRange),av:av,ft:ft};renderTripResult();return;}
   document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Finding best fuel stop…</div></div>';
   fetch(VERCEL_API+'?latitude='+stopLat+'&longitude='+stopLng+'&radius=3')
     .then(function(r){return r.json();})
     .then(function(data){
       var candidates=(data.stations||[]).map(function(s){return Object.assign({},s,{id:'ocm_'+s.id,type:'ev',basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,busy:30,isLive:true,distanceMiles:s.distanceMiles||0});});
       if(av&&av.fuelType!=='electric'){DEMO_STATIONS.filter(function(s){return s.type==='gas';}).forEach(function(s){candidates.push(Object.assign({},s,{distanceMiles:Math.round(distMiles(stopLat,stopLng,s.latitude,s.longitude)*10)/10}));});}
-      candidates=candidates.map(function(s){return Object.assign({},s,{score:calcScore(s)});});
-      candidates.sort(function(a,b){return b.score-a.score;});
+      candidates=candidates.map(function(s){return Object.assign({},s,{score:calcScore(s)});}).sort(function(a,b){return b.score-a.score;});
       var best=candidates[0]||null;
       var detour=best?Math.round(distMiles(stopLat,stopLng,best.latitude||stopLat,best.longitude||stopLng)*10)/10:0;
       var stopMinFromStart=Math.round(durationMin*(stopPoint/totalMiles));
       var fuelCost=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*(best?getLatestPrice(best).price:EIA_GAS_AVG)*100)/100;
       var fuelCostAvg=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*EIA_GAS_AVG*100)/100;
-      var savings=fuelCost&&fuelCostAvg?Math.round((fuelCostAvg-fuelCost)*100)/100:null;
+      var savings=fuelCost&&fuelCostAvg?Math.max(0,Math.round((fuelCostAvg-fuelCost)*100)/100):null;
       tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,stopLat:stopLat,stopLng:stopLng,bestStop:best,detourMiles:detour,currentRange:Math.round(currentRange),stopPoint:Math.round(stopPoint),stopMinFromStart:stopMinFromStart,fuelCost:fuelCost,savings:savings,av:av,ft:ft};
       renderTripResult();
     })
-    .catch(function(){
-      tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,bestStop:null,currentRange:Math.round(currentRange),av:av,ft:ft};
-      renderTripResult();
-    });
+    .catch(function(){tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,bestStop:null,currentRange:Math.round(currentRange),av:av,ft:ft};renderTripResult();});
 }
 
 function renderTripResult(){
   var r=tripResult;var av=r.av;var html='';
-  var now=new Date();
-
   if(!r.needsStop){
-    html+='<div class="no-stop-card"><div class="no-stop-icon">✅</div><div class="no-stop-title">You can make it without stopping!</div><div class="no-stop-body">Your '+(av?av.emoji+' '+av.year+' '+av.make+' '+av.model:'vehicle')+' has ~'+r.currentRange+' miles of range. The trip is '+Math.round(r.totalMiles)+' miles — you\'re good to go.</div></div>';
-
-    // Route timeline — no stop
     var etaDest=formatTime(r.durationMin);
+    html+='<div class="no-stop-card"><div class="no-stop-icon">✅</div><div class="no-stop-title">You can make it without stopping!</div><div class="no-stop-body">Your '+(av?av.emoji+' '+av.year+' '+av.make+' '+av.model:'vehicle')+' has ~'+r.currentRange+' miles of range. The trip is '+Math.round(r.totalMiles)+' miles.</div></div>';
     html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
     html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
     html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA '+etaDest+'</div></div></div>';
     html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">'+etaDest+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
-
-    // Navigate buttons — no stop needed, direct route
-    html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div>';
-    html+='<div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()"> 🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
-
+    html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
   } else {
-
-    // Fuel stop card
     if(r.bestStop){
-      var sc=scoreColor(r.bestStop.score);var pi=getLatestPrice(r.bestStop);
-      var pd=r.bestStop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
+      var sc=scoreColor(r.bestStop.score);var pi=getLatestPrice(r.bestStop);var pd=r.bestStop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
       html+='<div class="fuel-stop-card"><div class="fsc-header"><div><div class="fsc-label">⛽ Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div></div>';
-    } else {
-      html+='<div class="trip-form-card" style="border-color:#fecaca;background:#fef2f2;"><div class="trip-form-title" style="color:#dc2626;">No fuel stops found near route</div><div class="body-txt" style="color:#dc2626;font-size:13px;">Try navigating directly and watching for stations along the way.</div></div>';
     }
-
-    // Savings card
-    if(r.savings&&r.savings>0){
-      html+='<div class="savings-card"><div class="savings-title">💰 Savings vs. SF average</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">Fuel savings</div></div><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Value score</div></div></div></div>';
-    } else if(r.fuelCost){
-      html+='<div class="savings-card"><div class="savings-title">⛽ Trip fuel estimate</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((r.ft&&r.ft.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';
-    }
-
-    // Route timeline with stop
+    if(r.savings&&r.savings>0){html+='<div class="savings-card"><div class="savings-title">💰 Savings vs. SF average</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">You save</div></div><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
+    else if(r.fuelCost){html+='<div class="savings-card"><div class="savings-title">⛽ Trip fuel estimate</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. cost</div></div><div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((r.ft&&r.ft.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
     var etaStop=formatTime(r.stopMinFromStart||Math.round(r.durationMin*0.5));
-    var etaDest=formatTime(r.durationMin+(r.detourMiles?Math.round(r.detourMiles*2):0));
+    var etaDest2=formatTime(r.durationMin+(r.detourMiles?Math.round(r.detourMiles*2):0));
     html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
     html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
-    if(r.bestStop){
-      html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-fuel">⛽</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Fuel stop · ~'+Math.round(r.stopPoint||r.totalMiles*0.5)+' mi in</div><div class="route-name">'+r.bestStop.name+'</div><div class="route-detail">'+r.bestStop.address+'</div><div class="route-eta">ETA '+etaStop+'</div><span class="route-badge" style="background:#dbeafe;color:#1d4ed8;">Score '+r.bestStop.score+'</span></div></div>';
-    }
-    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi total · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA ~'+etaDest+'</div></div></div>';
-    html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">~'+etaDest+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
-
-    // Navigate buttons
-    if(r.bestStop){
-      html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate with fuel stop</div>';
-      html+='<div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMaps()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMaps()">🗺 Google Maps</button></div>';
-      html+='<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">Or navigate direct (no stop)</div>';
-      html+='<div class="direct-nav-row"><button class="direct-nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Direct via Apple</button><button class="direct-nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Direct via Google</button></div></div>';
-    } else {
-      html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div>';
-      html+='<div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
-    }
+    if(r.bestStop){html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-fuel">⛽</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Fuel stop · ~'+Math.round(r.stopPoint||r.totalMiles*0.5)+' mi in</div><div class="route-name">'+r.bestStop.name+'</div><div class="route-detail">'+r.bestStop.address+'</div><div class="route-eta">ETA '+etaStop+'</div><span class="route-badge" style="background:#dbeafe;color:#1d4ed8;">Score '+r.bestStop.score+'</span></div></div>';}
+    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA ~'+etaDest2+'</div></div></div>';
+    html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">~'+etaDest2+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
+    if(r.bestStop){html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate with fuel stop</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMaps()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMaps()">🗺 Google Maps</button></div><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">Or navigate direct</div><div class="direct-nav-row"><button class="direct-nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Direct via Apple</button><button class="direct-nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Direct via Google</button></div></div>';}
+    else{html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';}
   }
-
   html+='<button class="new-trip-btn" onclick="newTrip()">← Plan another trip</button><div style="height:20px;"></div>';
   document.getElementById('trip-body').innerHTML=html;
 }
 
-// ── Navigation functions ───────────────────────────────────────────────────────
-function openAppleMaps(){
-  if(!tripResult||!tripResult.bestStop)return;
-  var origin=encodeURIComponent(userLat+','+userLng);
-  var stop=encodeURIComponent(tripResult.bestStop.address);
-  var dest=encodeURIComponent(tripResult.destInput);
-  // Apple Maps multi-stop: saddr → first daddr → second daddr via +to: syntax
-  window.location.href='maps:?saddr='+origin+'&daddr='+stop+'+to:'+dest;
-}
-
-function openGoogleMaps(){
-  if(!tripResult||!tripResult.bestStop)return;
-  var origin=encodeURIComponent(userLat+','+userLng);
-  var stop=encodeURIComponent(tripResult.bestStop.address);
-  var dest=encodeURIComponent(tripResult.destInput);
-  // Try Google Maps app first, fall back to web
-  var appUrl='comgooglemaps://?saddr='+origin+'&daddr='+stop+'+to:'+dest+'&directionsmode=driving';
-  var webUrl='https://www.google.com/maps/dir/?api=1&origin='+origin+'&destination='+dest+'&waypoints='+stop;
-  var appWindow=window.open(appUrl,'_blank');
-  setTimeout(function(){if(!appWindow||appWindow.closed)window.open(webUrl,'_blank');},500);
-}
-
-function openAppleMapsDirectOnly(){
-  if(!tripResult)return;
-  var origin=encodeURIComponent(userLat+','+userLng);
-  var dest=encodeURIComponent(tripResult.destInput);
-  window.location.href='maps:?saddr='+origin+'&daddr='+dest;
-}
-
-function openGoogleMapsDirectOnly(){
-  if(!tripResult)return;
-  var origin=encodeURIComponent(userLat+','+userLng);
-  var dest=encodeURIComponent(tripResult.destInput);
-  var appUrl='comgooglemaps://?saddr='+origin+'&daddr='+dest+'&directionsmode=driving';
-  var webUrl='https://www.google.com/maps/dir/?api=1&origin='+origin+'&destination='+dest;
-  var appWindow=window.open(appUrl,'_blank');
-  setTimeout(function(){if(!appWindow||appWindow.closed)window.open(webUrl,'_blank');},500);
-}
-
+function openAppleMaps(){if(!tripResult||!tripResult.bestStop)return;window.location.href='maps:?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.bestStop.address)+'+to:'+encodeURIComponent(tripResult.destInput);}
+function openGoogleMaps(){if(!tripResult||!tripResult.bestStop)return;var appUrl='comgooglemaps://?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.bestStop.address)+'+to:'+encodeURIComponent(tripResult.destInput)+'&directionsmode=driving';var webUrl='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(tripResult.destInput)+'&waypoints='+encodeURIComponent(tripResult.bestStop.address);var w=window.open(appUrl,'_blank');setTimeout(function(){if(!w||w.closed)window.open(webUrl,'_blank');},500);}
+function openAppleMapsDirectOnly(){if(!tripResult)return;window.location.href='maps:?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.destInput);}
+function openGoogleMapsDirectOnly(){if(!tripResult)return;var appUrl='comgooglemaps://?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.destInput)+'&directionsmode=driving';var webUrl='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(tripResult.destInput);var w=window.open(appUrl,'_blank');setTimeout(function(){if(!w||w.closed)window.open(webUrl,'_blank');},500);}
 function newTrip(){tripResult=null;renderTripPlanner();}
 function showTripError(msg){document.getElementById('trip-body').innerHTML='<div class="trip-form-card" style="border-color:#fecaca;background:#fef2f2;"><div class="trip-form-title" style="color:#dc2626;">Could not plan trip</div><div class="body-txt" style="color:#dc2626;">'+msg+'</div><button class="plan-btn" style="background:#dc2626;margin-top:10px;" onclick="newTrip()">Try again</button></div>';}
 
@@ -871,37 +1014,88 @@ function navigateToStation(){if(!currentStation)return;var a=encodeURIComponent(
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 function renderProfile(){
-  var profile=loadProfile()||getDefaultProfile();var vehicles=loadVehicles();var av=getActiveVehicle();
-  var heroHTML='<div class="profile-avatar-row"><div class="avatar-circle" onclick="openProfileEditModal()">'+profile.emoji+'</div><div class="profile-name-block"><div class="profile-name">'+profile.name+'</div><div class="profile-email">'+profile.email+'</div><button class="profile-edit-btn" onclick="openProfileEditModal()">Edit profile</button></div></div>';
+  var profile=loadProfile();var vehicles=loadLocalVehicles();var av=getActiveVehicle();
+  var isCloud=!!currentUser;
+  var heroHTML='<div class="profile-avatar-row"><div class="avatar-circle" onclick="openProfileEditModal()">'+profile.emoji+'</div><div class="profile-name-block"><div class="profile-name">'+profile.name+'</div>';
+  if(isCloud){heroHTML+='<div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px;">'+currentUser.email+'</div><span class="profile-badge">☁️ Cloud synced</span>';}
+  else{heroHTML+='<span class="profile-badge">📱 Local only</span>';}
+  heroHTML+='<button class="profile-edit-btn" style="margin-top:8px;" onclick="openProfileEditModal()">Edit profile</button></div></div>';
   if(av){var lvl=av.level||50;var fc=fuelColor(lvl);heroHTML+='<div class="active-vehicle-chip"><div><div class="avc-label">Active vehicle</div><div class="avc-name">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div><div class="avc-fuel">'+av.fuelType.charAt(0).toUpperCase()+av.fuelType.slice(1)+'</div></div><div class="avc-level"><div class="fuel-level-bar"><div class="fuel-level-fill" style="width:'+lvl+'%;background:'+fc+';"></div></div><div class="fuel-level-txt" style="color:'+fc+';">'+lvl+'%</div></div></div>';}
   document.getElementById('profile-hero').innerHTML=heroHTML;
-  var bodyHTML='<div class="profile-section"><div class="profile-section-title">My vehicles ('+vehicles.length+'/5)</div>';
+
+  var bodyHTML='';
+  if(isCloud){bodyHTML+='<div style="margin-bottom:12px;"><span class="sync-badge">☁️ Profile synced to cloud · restores on any device</span></div>';}
+
+  bodyHTML+='<div class="profile-section"><div class="profile-section-title">My vehicles ('+vehicles.length+'/5)</div>';
   vehicles.forEach(function(v){var lvl=v.level||50;var fc=fuelColor(lvl);bodyHTML+='<div class="vehicle-card'+(v.active?' active-v':'')+'" onclick="setActiveVehicle(\''+v.id+'\')"><div class="vehicle-emoji">'+v.emoji+'</div><div class="vehicle-info"><div class="vehicle-name">'+v.year+' '+v.make+' '+v.model+'</div><div class="vehicle-detail">'+v.fuelType.charAt(0).toUpperCase()+v.fuelType.slice(1)+(v.tankSize?' · '+v.tankSize+(v.fuelType==='electric'?' mi range':' gal'):'')+'</div><div class="vehicle-fuel-row"><div class="vehicle-fuel-bar"><div class="vehicle-fuel-fill" style="width:'+lvl+'%;background:'+fc+';height:100%;border-radius:3px;"></div></div><div class="vehicle-fuel-txt" style="color:'+fc+';">'+lvl+'%</div></div></div>'+(v.active?'<div class="vehicle-active-badge">Active</div>':'')+'<div style="display:flex;flex-direction:column;gap:4px;margin-left:4px;"><div onclick="event.stopPropagation();openEditVehicle(\''+v.id+'\')" style="font-size:11px;color:#1667d9;font-weight:700;cursor:pointer;">Edit</div><div onclick="event.stopPropagation();deleteVehicle(\''+v.id+'\')" style="font-size:11px;color:#dc2626;font-weight:700;cursor:pointer;">Delete</div></div></div>';});
   if(vehicles.length<5)bodyHTML+='<button class="add-vehicle-btn" onclick="openAddVehicle()">+ Add vehicle</button>';
   bodyHTML+='</div>';
-  bodyHTML+='<div class="profile-section"><div class="profile-section-title">Search preferences</div><div class="pref-row"><span class="pref-label">Max search radius</span><select class="pref-select" onchange="savePref()"><option value="2">2 miles</option><option value="5" selected>5 miles</option><option value="10">10 miles</option><option value="25">25 miles</option><option value="50">50 miles</option></select></div><div class="pref-row"><span class="pref-label">Default sort</span><select class="pref-select" onchange="savePref()"><option value="value" selected>Best value</option><option value="price">Lowest price</option><option value="distance">Closest</option><option value="wait">Least wait</option></select></div></div>';
+
+  bodyHTML+='<div class="profile-section"><div class="profile-section-title">Search preferences</div><div class="pref-row"><span class="pref-label">Max search radius</span><select class="pref-select"><option value="2">2 miles</option><option value="5" selected>5 miles</option><option value="10">10 miles</option><option value="25">25 miles</option><option value="50">50 miles</option></select></div></div>';
+
   var totalReports=0;try{Object.keys(localStorage).forEach(function(k){if(k.startsWith('reports_'))totalReports+=JSON.parse(localStorage.getItem(k)||'[]').length;});}catch(e){}
   bodyHTML+='<div class="profile-section"><div class="profile-section-title">Your contributions</div><div class="pref-row"><span class="pref-label">Price reports submitted</span><span style="font-size:14px;color:#1667d9;font-weight:600;">'+totalReports+'</span></div><div class="pref-row"><span class="pref-label">Vehicles saved</span><span style="font-size:14px;color:#1667d9;font-weight:600;">'+vehicles.length+'</span></div></div>';
-  bodyHTML+='<button class="signout-btn" onclick="clearAllData()">Clear all data</button><div style="height:20px;"></div>';
+
+  if(isCloud){bodyHTML+='<button class="signout-btn" onclick="signOut()">Sign out</button>';}
+  else{bodyHTML+='<button class="signout-btn" style="border-color:#1667d9;color:#1667d9;" onclick="showScreen(\'auth\');document.getElementById(\'tab-bar\').style.display=\'none\';">Sign in to sync profile</button>';}
+  bodyHTML+='<div style="height:20px;"></div>';
   document.getElementById('profile-body').innerHTML=bodyHTML;
 }
 
-function setActiveVehicle(id){var v=loadVehicles();v.forEach(function(x){x.active=x.id===id;});saveVehicles(v);renderProfile();updateLocationDisplay();allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});renderCards();}
-function deleteVehicle(id){var v=loadVehicles().filter(function(x){return x.id!==id;});if(v.length&&!v.some(function(x){return x.active;}))v[0].active=true;saveVehicles(v);renderProfile();}
-function savePref(){}
-function clearAllData(){if(confirm('Clear all FuelMap data?')){localStorage.clear();renderProfile();loadStations();}}
+function setActiveVehicle(id){
+  var v=loadLocalVehicles();v.forEach(function(x){x.active=x.id===id;});saveLocalVehicles(v);
+  if(currentUser){setAllVehiclesInactive().then(function(){var active=v.find(function(x){return x.id===id;});if(active)saveCloudVehicle(Object.assign({},active,{active:true}));});}
+  renderProfile();updateLocationDisplay();allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});renderCards();
+}
+
+function deleteVehicle(id){
+  var v=loadLocalVehicles().filter(function(x){return x.id!==id;});
+  if(v.length&&!v.some(function(x){return x.active;}))v[0].active=true;
+  saveLocalVehicles(v);deleteCloudVehicle(id);renderProfile();
+}
+
 function openAddVehicle(){editingVehicleId=null;selectedVehicleEmoji='🚗';selectedFuelType='gas';document.getElementById('vmodal-title').textContent='Add vehicle';document.getElementById('v-year').value='';document.getElementById('v-make').value='';document.getElementById('v-model').value='';document.getElementById('v-tank').value='';document.getElementById('v-level').value=50;document.getElementById('level-display').textContent='50%';buildVehicleEmojiGrid();buildFuelTypeGrid();document.getElementById('vehicle-modal').classList.remove('hidden');}
-function openEditVehicle(id){var v=loadVehicles().find(function(x){return x.id===id;});if(!v)return;editingVehicleId=id;selectedVehicleEmoji=v.emoji;selectedFuelType=v.fuelType;document.getElementById('vmodal-title').textContent='Edit vehicle';document.getElementById('v-year').value=v.year;document.getElementById('v-make').value=v.make;document.getElementById('v-model').value=v.model;document.getElementById('v-tank').value=v.tankSize||'';document.getElementById('v-level').value=v.level||50;document.getElementById('level-display').textContent=(v.level||50)+'%';buildVehicleEmojiGrid();buildFuelTypeGrid();updateTankLabel();document.getElementById('vehicle-modal').classList.remove('hidden');}
+function openEditVehicle(id){var v=loadLocalVehicles().find(function(x){return x.id===id;});if(!v)return;editingVehicleId=id;selectedVehicleEmoji=v.emoji;selectedFuelType=v.fuelType;document.getElementById('vmodal-title').textContent='Edit vehicle';document.getElementById('v-year').value=v.year;document.getElementById('v-make').value=v.make;document.getElementById('v-model').value=v.model;document.getElementById('v-tank').value=v.tankSize||'';document.getElementById('v-level').value=v.level||50;document.getElementById('level-display').textContent=(v.level||50)+'%';buildVehicleEmojiGrid();buildFuelTypeGrid();updateTankLabel();document.getElementById('vehicle-modal').classList.remove('hidden');}
 function buildVehicleEmojiGrid(){var el=document.getElementById('vehicle-emoji-grid');el.innerHTML='';VEHICLE_EMOJIS.forEach(function(e){var d=document.createElement('div');d.className='emoji-opt'+(e===selectedVehicleEmoji?' on':'');d.textContent=e;d.onclick=function(){selectedVehicleEmoji=e;buildVehicleEmojiGrid();};el.appendChild(d);});}
 function buildFuelTypeGrid(){var el=document.getElementById('fuel-type-grid');el.innerHTML='';FUEL_TYPES.forEach(function(ft){var d=document.createElement('div');d.className='ft-opt'+(ft.key===selectedFuelType?' on':'');d.textContent=ft.label;d.onclick=function(){selectedFuelType=ft.key;buildFuelTypeGrid();updateTankLabel();};el.appendChild(d);});}
 function updateTankLabel(){var ft=FUEL_TYPES.find(function(f){return f.key===selectedFuelType;})||FUEL_TYPES[0];document.getElementById('tank-label').textContent=ft.tankLabel;document.getElementById('v-tank').placeholder=String(ft.defaultTank);}
 function updateLevelDisplay(){var v=document.getElementById('v-level').value;document.getElementById('level-display').textContent=v+'%';document.getElementById('level-display').style.color=fuelColor(parseInt(v));}
-function saveVehicle(){var year=document.getElementById('v-year').value,make=document.getElementById('v-make').value.trim(),model=document.getElementById('v-model').value.trim();if(!year||!make||!model){alert('Please fill in year, make, and model.');return;}var ft=FUEL_TYPES.find(function(f){return f.key===selectedFuelType;})||FUEL_TYPES[0];var tankSize=parseFloat(document.getElementById('v-tank').value)||ft.defaultTank;var level=parseInt(document.getElementById('v-level').value)||50;var vehicles=loadVehicles();if(editingVehicleId){vehicles=vehicles.map(function(v){if(v.id!==editingVehicleId)return v;return Object.assign({},v,{emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level});});}else{vehicles.push({id:'v_'+Date.now(),emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level,active:vehicles.length===0});}saveVehicles(vehicles);closeVehicleModalDirect();renderProfile();updateLocationDisplay();}
+
+function saveVehicle(){
+  var year=document.getElementById('v-year').value,make=document.getElementById('v-make').value.trim(),model=document.getElementById('v-model').value.trim();
+  if(!year||!make||!model){alert('Please fill in year, make, and model.');return;}
+  var ft=FUEL_TYPES.find(function(f){return f.key===selectedFuelType;})||FUEL_TYPES[0];
+  var tankSize=parseFloat(document.getElementById('v-tank').value)||ft.defaultTank;
+  var level=parseInt(document.getElementById('v-level').value)||50;
+  var vehicles=loadLocalVehicles();
+  if(editingVehicleId){
+    vehicles=vehicles.map(function(v){if(v.id!==editingVehicleId)return v;return Object.assign({},v,{emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level});});
+    if(currentUser){var edited=vehicles.find(function(v){return v.id===editingVehicleId;});if(edited)saveCloudVehicle(edited);}
+  } else {
+    var newV={id:'v_'+Date.now(),emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level,active:vehicles.length===0};
+    vehicles.push(newV);
+    if(currentUser){saveCloudVehicle(newV).then(function(cloudId){if(cloudId&&cloudId!==newV.id){var vv=loadLocalVehicles();vv=vv.map(function(v){return v.id===newV.id?Object.assign({},v,{id:cloudId}):v;});saveLocalVehicles(vv);}});}
+  }
+  saveLocalVehicles(vehicles);closeVehicleModalDirect();renderProfile();updateLocationDisplay();
+}
+
 function closeVehicleModal(e){if(e.target.id==='vehicle-modal')closeVehicleModalDirect();}
 function closeVehicleModalDirect(){document.getElementById('vehicle-modal').classList.add('hidden');}
-function openProfileEditModal(){var p=loadProfile()||getDefaultProfile();selectedProfileEmoji=p.emoji;document.getElementById('edit-name').value=p.name;document.getElementById('edit-email').value=p.email;buildProfileEmojiGrid();document.getElementById('profile-edit-modal').classList.remove('hidden');}
+
+function openProfileEditModal(){
+  var p=loadProfile();selectedProfileEmoji=p.emoji||'😊';
+  document.getElementById('edit-name').value=p.name||'';
+  buildProfileEmojiGrid();
+  document.getElementById('profile-edit-modal').classList.remove('hidden');
+}
 function buildProfileEmojiGrid(){var el=document.getElementById('profile-emoji-grid');el.innerHTML='';PROFILE_EMOJIS.forEach(function(e){var d=document.createElement('div');d.className='emoji-opt'+(e===selectedProfileEmoji?' on':'');d.textContent=e;d.onclick=function(){selectedProfileEmoji=e;buildProfileEmojiGrid();};el.appendChild(d);});}
-function saveProfile(){var name=document.getElementById('edit-name').value.trim()||'Driver',email=document.getElementById('edit-email').value.trim();saveProfileData({name:name,email:email,emoji:selectedProfileEmoji});closeProfileEditModal();renderProfile();updateLocationDisplay();}
+function saveProfile(){
+  var name=document.getElementById('edit-name').value.trim()||'Driver';
+  var p={name:name,emoji:selectedProfileEmoji,email:currentUser?currentUser.email:''};
+  saveLocalProfile(p);
+  if(currentUser)saveCloudProfile(p);
+  closeProfileEditModal();renderProfile();updateLocationDisplay();
+}
 function closeProfileEditModal(e){if(e&&e.target&&e.target.id==='profile-edit-modal')document.getElementById('profile-edit-modal').classList.add('hidden');else if(!e)document.getElementById('profile-edit-modal').classList.add('hidden');}
 
 // ── Alerts ────────────────────────────────────────────────────────────────────
@@ -915,8 +1109,50 @@ function renderCarbon(){var el=document.getElementById('carbon-body');var touDat
 function showScreen(name){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById('screen-'+name).classList.add('active');}
 function showTab(name){if(['map','trip','alerts','carbon','profile'].indexOf(name)>-1){showScreen(name);document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tab-'+name).classList.add('active');if(name==='profile')renderProfile();if(name==='trip')renderTripPlanner();}else{showScreen(name);}}
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-renderAlerts();renderCarbon();loadStations();
+// ── Init: check for existing session ─────────────────────────────────────────
+(function init(){
+  // Check skip
+  if(localStorage.getItem('fm_skip_auth')==='1'){
+    document.getElementById('auth-loading').style.display='none';
+    document.getElementById('auth-form-wrap').style.display='block';
+    onSignedIn();return;
+  }
+  // Try to restore session
+  var saved=localStorage.getItem('fm_session');
+  if(saved){
+    try{
+      var s=JSON.parse(saved);
+      if(s&&s.refresh_token){
+        refreshSession(s.refresh_token).then(function(ok){
+          if(ok){
+            document.getElementById('auth-loading').style.display='none';
+            // Load cloud profile into local
+            loadCloudProfile().then(function(p){
+              if(p){saveLocalProfile({name:p.name||'Driver',emoji:p.emoji||'😊',email:currentUser?currentUser.email:''});}
+              return loadCloudVehicles();
+            }).then(function(vehicles){
+              if(vehicles&&vehicles.length>0)saveLocalVehicles(vehicles);
+              onSignedIn();
+            });
+          } else {
+            localStorage.removeItem('fm_session');
+            document.getElementById('auth-loading').style.display='none';
+            document.getElementById('auth-form-wrap').style.display='block';
+          }
+        });
+      } else {
+        document.getElementById('auth-loading').style.display='none';
+        document.getElementById('auth-form-wrap').style.display='block';
+      }
+    }catch(e){
+      document.getElementById('auth-loading').style.display='none';
+      document.getElementById('auth-form-wrap').style.display='block';
+    }
+  } else {
+    document.getElementById('auth-loading').style.display='none';
+    document.getElementById('auth-form-wrap').style.display='block';
+  }
+})();
 </script>
 </body>
 </html>
