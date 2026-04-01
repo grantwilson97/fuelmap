@@ -1271,50 +1271,33 @@ function showTab(name){if(['map','trip','alerts','carbon','profile'].indexOf(nam
 
 // ── Init: check for existing session ─────────────────────────────────────────
 (function init(){
-  // Always show form immediately, restore session in background
+  // Always show auth form immediately — never spin
   document.getElementById('auth-loading').style.display='none';
   document.getElementById('auth-form-wrap').style.display='block';
 
-  // Check skip
+  // Check guest mode
   if(localStorage.getItem('fm_skip_auth')==='1'){
     onSignedIn();return;
   }
-  // Try to restore session
-  var saved=localStorage.getItem('fm_session');
-  if(saved){
-    try{
-      var s=JSON.parse(saved);
-      if(s&&s.refresh_token){
-        var authTimeout=setTimeout(function(){document.getElementById('auth-loading').style.display='none';document.getElementById('auth-form-wrap').style.display='block';},5000);
-        refreshSession(s.refresh_token).then(function(ok){clearTimeout(authTimeout);
-          if(ok){
-            document.getElementById('auth-loading').style.display='none';
-            // Load cloud profile into local
-            loadCloudProfile().then(function(p){
-              if(p){saveLocalProfile({name:p.name||'Driver',emoji:p.emoji||'😊',email:currentUser?currentUser.email:''});}
-              return loadCloudVehicles();
-            }).then(function(vehicles){
-              if(vehicles&&vehicles.length>0)saveLocalVehicles(vehicles);
-              onSignedIn();
-            });
-          } else {
-            localStorage.removeItem('fm_session');
-            document.getElementById('auth-loading').style.display='none';
-            document.getElementById('auth-form-wrap').style.display='block';
-          }
-        });
-      } else {
-        document.getElementById('auth-loading').style.display='none';
-        document.getElementById('auth-form-wrap').style.display='block';
-      }
-    }catch(e){
-      document.getElementById('auth-loading').style.display='none';
-      document.getElementById('auth-form-wrap').style.display='block';
-    }
-  } else {
-    document.getElementById('auth-loading').style.display='none';
-    document.getElementById('auth-form-wrap').style.display='block';
-  }
+
+  // Try silent session restore in background
+  try{
+    var saved=localStorage.getItem('fm_session');
+    if(!saved)return;
+    var s=JSON.parse(saved);
+    if(!s||!s.refresh_token)return;
+    refreshSession(s.refresh_token).then(function(ok){
+      if(!ok){localStorage.removeItem('fm_session');return;}
+      // Session restored — load cloud data then enter app
+      loadCloudProfile().then(function(p){
+        if(p)saveLocalProfile({name:p.name||'Driver',emoji:p.emoji||'😊',email:currentUser?currentUser.email:''});
+        return loadCloudVehicles();
+      }).then(function(vehicles){
+        if(vehicles&&vehicles.length>0)saveLocalVehicles(vehicles);
+        onSignedIn();
+      }).catch(function(){onSignedIn();});
+    }).catch(function(){localStorage.removeItem('fm_session');});
+  }catch(e){localStorage.removeItem('fm_session');}
 })();
 </script>
 </body>
