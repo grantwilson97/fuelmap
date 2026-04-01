@@ -670,10 +670,46 @@ function onSignedIn(){
   showScreen('map');
   document.getElementById('tab-map').classList.add('active');
   renderAlerts();renderCarbon();
-// Initialize map as soon as Google Maps is ready
-if(typeof google!=='undefined'&&google.maps){initMap();}
-else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
-loadStations();
+  // Initialize map as soon as Google Maps is ready
+  if(typeof google!=='undefined'&&google.maps){initMap();}
+  else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
+  loadStations();
+  // Sync local data to cloud if needed
+  if(currentUser)syncLocalToCloud();
+}
+
+function syncLocalToCloud(){
+  // Merge local profile into cloud
+  loadCloudProfile().then(function(cloudProfile){
+    var localProfile=loadLocalProfile();
+    // If cloud has no real name but local does, push local up
+    if(localProfile&&localProfile.name&&localProfile.name!=='Driver'){
+      var needsUpdate=!cloudProfile||!cloudProfile.name||cloudProfile.name==='Driver';
+      if(needsUpdate){
+        saveCloudProfile(localProfile);
+        // Also save locally with email
+        saveLocalProfile(Object.assign({},localProfile,{email:currentUser?currentUser.email:''}));
+      } else {
+        // Cloud has a real name — use it locally
+        saveLocalProfile({name:cloudProfile.name,emoji:cloudProfile.emoji||localProfile.emoji||'😊',email:currentUser?currentUser.email:''});
+      }
+    } else if(cloudProfile&&cloudProfile.name&&cloudProfile.name!=='Driver'){
+      // Cloud has name, local doesn't — pull down
+      saveLocalProfile({name:cloudProfile.name,emoji:cloudProfile.emoji||'😊',email:currentUser?currentUser.email:''});
+    }
+  });
+
+  // Sync vehicles: if cloud empty but local has vehicles, push local up
+  loadCloudVehicles().then(function(cloudVehicles){
+    var localVehicles=loadLocalVehicles();
+    if(cloudVehicles&&cloudVehicles.length>0){
+      // Cloud has vehicles — use them
+      saveLocalVehicles(cloudVehicles);
+    } else if(localVehicles&&localVehicles.length>0){
+      // Local has vehicles, cloud is empty — push to cloud
+      syncAllVehiclesToCloud(localVehicles);
+    }
+  });
 }
 
 function signOut(){
