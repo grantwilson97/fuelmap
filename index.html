@@ -1283,7 +1283,8 @@ function showTab(name){if(['map','trip','alerts','carbon','profile'].indexOf(nam
     try{
       var s=JSON.parse(saved);
       if(s&&s.refresh_token){
-        refreshSession(s.refresh_token).then(function(ok){
+        var authTimeout=setTimeout(function(){document.getElementById('auth-loading').style.display='none';document.getElementById('auth-form-wrap').style.display='block';},5000);
+        refreshSession(s.refresh_token).then(function(ok){clearTimeout(authTimeout);
           if(ok){
             document.getElementById('auth-loading').style.display='none';
             // Load cloud profile into local
