@@ -212,6 +212,8 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .ft-opt.on{background:#1667d9;border-color:#1667d9;color:#fff;}
 .level-display{font-size:24px;font-weight:800;color:#1667d9;text-align:center;margin-bottom:4px;}
 .level-sub{font-size:11px;color:#888;text-align:center;margin-bottom:8px;}
+
+/* ── TRIP PLANNER ── */
 .trip-hero{background:linear-gradient(135deg,#0f4c81,#1667d9);padding:20px 18px;}
 .trip-title{font-size:24px;font-weight:800;color:#fff;margin-bottom:4px;}
 .trip-sub{font-size:13px;color:rgba(255,255,255,0.75);}
@@ -219,14 +221,13 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .tvc-name{font-size:13px;font-weight:700;color:#fff;}
 .tvc-level{font-size:12px;}
 .trip-body{padding:14px;}
-.trip-form-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;position:relative;}
+.trip-form-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
 .trip-form-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
 .trip-input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;outline:none;margin-bottom:4px;}
 .trip-input:focus{border-color:#1667d9;}
 .autocomplete-dropdown{background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;overflow:hidden;margin-bottom:10px;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
 .autocomplete-item{padding:11px 14px;font-size:14px;color:#1a1a2e;border-bottom:0.5px solid #f0f0f0;cursor:pointer;}
 .autocomplete-item:last-child{border-bottom:none;}
-.autocomplete-item:active{background:#f0f4ff;}
 .trip-type-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
 .tt-opt{padding:8px 12px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;color:#555;cursor:pointer;display:flex;align-items:center;gap:4px;}
 .tt-opt.on{background:#1667d9;border-color:#1667d9;color:#fff;}
@@ -235,24 +236,31 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .trip-planning{display:flex;flex-direction:column;align-items:center;padding:30px 20px;gap:12px;}
 .trip-planning-spinner{width:36px;height:36px;border:3px solid #e0e7ff;border-top-color:#1667d9;border-radius:50%;animation:spin 0.8s linear infinite;}
 .trip-planning-txt{font-size:14px;color:#1667d9;font-weight:600;text-align:center;}
-.trip-result{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
-.trip-result-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:14px;}
+
+/* Route timeline */
+.route-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
+.route-card-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:14px;}
 .route-stop{display:flex;gap:12px;align-items:flex-start;}
-.route-dot{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
-.rdot{width:16px;height:16px;border-radius:50%;flex-shrink:0;margin-top:2px;}
+.route-dot-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:20px;}
+.rdot{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700;}
 .rdot-start{background:#16a34a;}
 .rdot-fuel{background:#1667d9;}
 .rdot-end{background:#dc2626;}
-.rline{width:2px;flex:1;background:#e0e0e0;min-height:24px;margin:2px auto;}
-.route-content{flex:1;padding-bottom:16px;}
-.route-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:2px;}
-.route-name{font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:2px;}
-.route-detail{font-size:12px;color:#888;}
+.rline{width:2px;height:28px;background:#e0e0e0;margin:2px auto;}
+.route-content{flex:1;padding-bottom:4px;}
+.route-label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:2px;}
+.route-name{font-size:14px;font-weight:700;color:#1a1a2e;line-height:1.3;margin-bottom:2px;}
+.route-detail{font-size:12px;color:#888;margin-bottom:2px;}
+.route-eta{font-size:12px;font-weight:700;color:#1667d9;}
 .route-badge{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+
+/* Trip stats */
 .trip-stats-row{display:flex;gap:8px;margin-top:12px;}
 .trip-stat{flex:1;background:#f7f7f9;border-radius:10px;padding:10px;text-align:center;}
-.trip-stat-val{font-size:18px;font-weight:800;color:#1667d9;}
-.trip-stat-lbl{font-size:10px;color:#888;font-weight:600;margin-top:2px;}
+.trip-stat-val{font-size:16px;font-weight:800;color:#1667d9;}
+.trip-stat-lbl{font-size:9px;color:#888;font-weight:600;margin-top:2px;text-transform:uppercase;}
+
+/* Fuel stop card */
 .no-stop-card{background:#EAF3DE;border-radius:14px;padding:16px;margin-bottom:12px;border:1.5px solid #C0DD97;text-align:center;}
 .no-stop-icon{font-size:36px;margin-bottom:8px;}
 .no-stop-title{font-size:16px;font-weight:700;color:#27500A;margin-bottom:4px;}
@@ -260,7 +268,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .fuel-stop-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:2px solid #1667d9;}
 .fsc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
 .fsc-label{font-size:10px;font-weight:700;color:#1667d9;text-transform:uppercase;margin-bottom:2px;}
-.fsc-name{font-size:16px;font-weight:700;color:#1a1a2e;}
+.fsc-name{font-size:16px;font-weight:700;color:#1a1a2e;line-height:1.3;}
 .fsc-addr{font-size:11px;color:#888;margin-top:2px;}
 .fsc-score{width:44px;height:44px;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .fsc-score-txt{font-size:14px;font-weight:800;}
@@ -268,8 +276,23 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .fsc-detail-box{flex:1;background:#f7f7f9;border-radius:8px;padding:8px;text-align:center;}
 .fsc-detail-val{font-size:15px;font-weight:700;color:#1667d9;}
 .fsc-detail-lbl{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;margin-top:1px;}
-.trip-nav-btn{width:100%;padding:13px;background:#1667d9;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;}
-.new-trip-btn{width:100%;padding:11px;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;font-weight:700;color:#555;cursor:pointer;margin-top:8px;}
+
+/* Savings card */
+.savings-card{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #86efac;}
+.savings-title{font-size:12px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;}
+.savings-row{display:flex;gap:8px;}
+.savings-item{flex:1;text-align:center;}
+.savings-val{font-size:20px;font-weight:800;color:#15803d;}
+.savings-lbl{font-size:10px;color:#166534;font-weight:600;margin-top:2px;}
+
+/* Navigate buttons */
+.nav-choice-row{display:flex;gap:8px;margin-bottom:8px;}
+.nav-apple{flex:1;padding:13px;background:#000;border:none;border-radius:12px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.nav-google{flex:1;padding:13px;background:#fff;border:2px solid #e0e0e0;border-radius:12px;font-size:13px;font-weight:700;color:#1a1a2e;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.new-trip-btn{width:100%;padding:11px;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;font-weight:700;color:#555;cursor:pointer;margin-top:4px;}
+.direct-nav-row{display:flex;gap:8px;margin-bottom:8px;}
+.direct-nav-apple{flex:1;padding:10px;background:#f7f7f9;border:1px solid #e0e0e0;border-radius:10px;font-size:12px;font-weight:600;color:#555;cursor:pointer;text-align:center;}
+.direct-nav-google{flex:1;padding:10px;background:#f7f7f9;border:1px solid #e0e0e0;border-radius:10px;font-size:12px;font-weight:600;color:#555;cursor:pointer;text-align:center;}
 </style>
 </head>
 <body>
@@ -360,6 +383,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="scroll"><div class="profile-body" id="profile-body"></div></div>
 </div>
 
+<!-- REPORT PRICE MODAL -->
 <div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">Report a price</div>
@@ -379,6 +403,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- VEHICLE MODAL -->
 <div class="modal-overlay hidden" id="vehicle-modal" onclick="closeVehicleModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="vmodal-title">Add vehicle</div>
@@ -404,6 +429,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- PROFILE EDIT MODAL -->
 <div class="modal-overlay hidden" id="profile-edit-modal" onclick="closeProfileEditModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">Edit profile</div>
@@ -418,6 +444,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   </div>
 </div>
 
+<!-- TAB BAR -->
 <div class="tab-bar">
   <button class="tab active" onclick="showTab('map')" id="tab-map"><span class="tab-icon">📍</span><span class="tab-label">Map</span></button>
   <button class="tab" onclick="showTab('trip')" id="tab-trip"><span class="tab-icon">🗺️</span><span class="tab-label">Trip</span></button>
@@ -484,6 +511,8 @@ function crowdLabel(b){return b<35?'Light':b<65?'Moderate':'Busy';}
 function waitMin(b){return Math.max(0,Math.round((b-20)/20));}
 function fuelColor(p){return p>50?'#16a34a':p>20?'#d97706':'#dc2626';}
 function distMiles(a,b,c,d){var R=3958.8,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function formatTime(minutesFromNow){var d=new Date(Date.now()+minutesFromNow*60000);var h=d.getHours();var m=d.getMinutes();var ampm=h>=12?'PM':'AM';h=h%12||12;return h+':'+(m<10?'0':'')+m+' '+ampm;}
+function formatDuration(min){if(min<60)return min+' min';var h=Math.floor(min/60);var m=min%60;return h+'h'+(m>0?' '+m+'m':'');}
 
 function calcScore(station){
   var price=getLatestPrice(station).price;
@@ -509,26 +538,14 @@ function getLatestPrice(station){
 function setLoading(msg){document.getElementById('loading-overlay').style.display='flex';document.getElementById('loading-txt').textContent=msg;document.getElementById('refresh-btn').style.display='none';}
 function clearLoading(){document.getElementById('loading-overlay').style.display='none';document.getElementById('refresh-btn').style.display='block';}
 
-// ── Location with robust fallback ─────────────────────────────────────────────
 function loadStations(){
   setLoading('Getting your location…');
   var done=false;
-  var fallbackTimer=setTimeout(function(){
-    if(!done){done=true;useFallbackLocation();}
-  },6000);
-  if(!navigator.geolocation){
-    clearTimeout(fallbackTimer);done=true;useFallbackLocation();return;
-  }
+  var fallbackTimer=setTimeout(function(){if(!done){done=true;useFallbackLocation();}},6000);
+  if(!navigator.geolocation){clearTimeout(fallbackTimer);done=true;useFallbackLocation();return;}
   navigator.geolocation.getCurrentPosition(
-    function(pos){
-      if(done)return;done=true;clearTimeout(fallbackTimer);
-      userLat=pos.coords.latitude;userLng=pos.coords.longitude;
-      updateLocationDisplay();fetchOCM(userLat,userLng);
-    },
-    function(){
-      if(done)return;done=true;clearTimeout(fallbackTimer);
-      useFallbackLocation();
-    },
+    function(pos){if(done)return;done=true;clearTimeout(fallbackTimer);userLat=pos.coords.latitude;userLng=pos.coords.longitude;updateLocationDisplay();fetchOCM(userLat,userLng);},
+    function(){if(done)return;done=true;clearTimeout(fallbackTimer);useFallbackLocation();},
     {timeout:5000,enableHighAccuracy:false,maximumAge:60000}
   );
 }
@@ -539,12 +556,7 @@ function updateLocationDisplay(){
   document.getElementById('map-title').textContent='Hi '+profile.name+'! Near you';
 }
 
-function useFallbackLocation(){
-  userLat=37.7749;userLng=-122.4194;
-  document.getElementById('map-title').textContent='SoMa, San Francisco';
-  document.getElementById('location-txt').textContent='SF Bay Area';
-  fetchOCM(userLat,userLng);
-}
+function useFallbackLocation(){userLat=37.7749;userLng=-122.4194;document.getElementById('map-title').textContent='SoMa, San Francisco';document.getElementById('location-txt').textContent='SF Bay Area';fetchOCM(userLat,userLng);}
 
 function fetchOCM(lat,lng){
   setLoading('Finding live EV chargers…');
@@ -554,15 +566,7 @@ function fetchOCM(lat,lng){
   fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius=5')
     .then(function(r){return r.json();})
     .then(function(data){
-      var live=(data.stations||[]).map(function(s){
-        return{id:'ocm_'+s.id,name:s.name,address:s.address,type:'ev',
-          basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,
-          latitude:s.latitude,longitude:s.longitude,
-          distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),
-          busy:30,isLive:true,network:s.network,l2Connectors:s.l2Connectors||0,
-          dcConnectors:s.dcConnectors||0,connectorTypes:s.connectorTypes||[],
-          open24h:s.open24h||false,pricing:s.pricing||null,isOpen:s.isOpen};
-      });
+      var live=(data.stations||[]).map(function(s){return{id:'ocm_'+s.id,name:s.name,address:s.address,type:'ev',basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:30,isLive:true,network:s.network,l2Connectors:s.l2Connectors||0,dcConnectors:s.dcConnectors||0,connectorTypes:s.connectorTypes||[],open24h:s.open24h||false,pricing:s.pricing||null,isOpen:s.isOpen};});
       buildStationList(lat,lng,live);
     })
     .catch(function(){buildStationList(lat,lng,[]);});
@@ -624,8 +628,7 @@ function showDetail(station){
 // ── Autocomplete ──────────────────────────────────────────────────────────────
 function handleDestinationInput(val){
   clearTimeout(autocompleteTimer);
-  var dd=document.getElementById('ac-dropdown');
-  if(!dd)return;
+  var dd=document.getElementById('ac-dropdown');if(!dd)return;
   if(val.length<3){dd.style.display='none';dd.innerHTML='';return;}
   autocompleteTimer=setTimeout(function(){
     fetch(AUTOCOMPLETE_API+'?input='+encodeURIComponent(val))
@@ -644,7 +647,6 @@ function handleDestinationInput(val){
       .catch(function(){dd.style.display='none';});
   },350);
 }
-
 function selectPlace(description){
   var input=document.getElementById('trip-destination');
   var dd=document.getElementById('ac-dropdown');
@@ -682,7 +684,7 @@ function renderTripPlanner(){
       '<div class="body-txt" style="font-size:13px;color:#185FA5;margin-bottom:4px;">1. Search and select your destination</div>'+
       '<div class="body-txt" style="font-size:13px;color:#185FA5;margin-bottom:4px;">2. FuelMap checks your vehicle\'s range</div>'+
       '<div class="body-txt" style="font-size:13px;color:#185FA5;margin-bottom:4px;">3. Finds the best fuel stop along the route</div>'+
-      '<div class="body-txt" style="font-size:13px;color:#185FA5;">4. Navigate with one tap — stop included</div>'+
+      '<div class="body-txt" style="font-size:13px;color:#185FA5;">4. Open in Apple Maps or Google Maps — stop included</div>'+
     '</div>'+
     '<div style="height:20px;"></div>';
 }
@@ -725,6 +727,7 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
   var stopFraction=stopPoint?stopPoint/totalMiles:null;
   var stopLat=stopFraction?userLat+(destLat-userLat)*stopFraction:null;
   var stopLng=stopFraction?userLng+(destLng-userLng)*stopFraction:null;
+
   if(!needsStop){
     tripResult={needsStop:false,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,currentRange:Math.round(currentRange),av:av,ft:ft};
     renderTripResult();return;
@@ -739,8 +742,11 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
       candidates.sort(function(a,b){return b.score-a.score;});
       var best=candidates[0]||null;
       var detour=best?Math.round(distMiles(stopLat,stopLng,best.latitude||stopLat,best.longitude||stopLng)*10)/10:0;
+      var stopMinFromStart=Math.round(durationMin*(stopPoint/totalMiles));
       var fuelCost=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*(best?getLatestPrice(best).price:EIA_GAS_AVG)*100)/100;
-      tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,stopLat:stopLat,stopLng:stopLng,bestStop:best,detourMiles:detour,currentRange:Math.round(currentRange),stopPoint:Math.round(stopPoint),fuelCost:fuelCost,av:av,ft:ft};
+      var fuelCostAvg=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*EIA_GAS_AVG*100)/100;
+      var savings=fuelCost&&fuelCostAvg?Math.round((fuelCostAvg-fuelCost)*100)/100:null;
+      tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,stopLat:stopLat,stopLng:stopLng,bestStop:best,detourMiles:detour,currentRange:Math.round(currentRange),stopPoint:Math.round(stopPoint),stopMinFromStart:stopMinFromStart,fuelCost:fuelCost,savings:savings,av:av,ft:ft};
       renderTripResult();
     })
     .catch(function(){
@@ -751,32 +757,104 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
 
 function renderTripResult(){
   var r=tripResult;var av=r.av;var html='';
+  var now=new Date();
+
   if(!r.needsStop){
     html+='<div class="no-stop-card"><div class="no-stop-icon">✅</div><div class="no-stop-title">You can make it without stopping!</div><div class="no-stop-body">Your '+(av?av.emoji+' '+av.year+' '+av.make+' '+av.model:'vehicle')+' has ~'+r.currentRange+' miles of range. The trip is '+Math.round(r.totalMiles)+' miles — you\'re good to go.</div></div>';
-  } else if(r.bestStop){
-    var sc=scoreColor(r.bestStop.score);var pi=getLatestPrice(r.bestStop);
-    var pd=r.bestStop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
-    html+='<div class="fuel-stop-card"><div class="fsc-header"><div><div class="fsc-label">Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div>'+(r.fuelCost?'<div class="body-txt" style="font-size:12px;color:#888;margin-bottom:10px;">Est. fuel cost: <strong style="color:#1667d9;">$'+r.fuelCost+'</strong></div>':'')+'<button class="trip-nav-btn" onclick="navigateWithStop()">Navigate with fuel stop</button></div>';
+
+    // Route timeline — no stop
+    var etaDest=formatTime(r.durationMin);
+    html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
+    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
+    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA '+etaDest+'</div></div></div>';
+    html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">'+etaDest+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
+
+    // Navigate buttons — no stop needed, direct route
+    html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div>';
+    html+='<div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()"> 🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
+
   } else {
-    html+='<div class="trip-result"><div class="trip-result-title">No stops found near route</div><div class="body-txt">Try navigating directly and watching for stations along the way.</div></div>';
+
+    // Fuel stop card
+    if(r.bestStop){
+      var sc=scoreColor(r.bestStop.score);var pi=getLatestPrice(r.bestStop);
+      var pd=r.bestStop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
+      html+='<div class="fuel-stop-card"><div class="fsc-header"><div><div class="fsc-label">⛽ Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div></div>';
+    } else {
+      html+='<div class="trip-form-card" style="border-color:#fecaca;background:#fef2f2;"><div class="trip-form-title" style="color:#dc2626;">No fuel stops found near route</div><div class="body-txt" style="color:#dc2626;font-size:13px;">Try navigating directly and watching for stations along the way.</div></div>';
+    }
+
+    // Savings card
+    if(r.savings&&r.savings>0){
+      html+='<div class="savings-card"><div class="savings-title">💰 Savings vs. SF average</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">Fuel savings</div></div><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Value score</div></div></div></div>';
+    } else if(r.fuelCost){
+      html+='<div class="savings-card"><div class="savings-title">⛽ Trip fuel estimate</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((r.ft&&r.ft.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';
+    }
+
+    // Route timeline with stop
+    var etaStop=formatTime(r.stopMinFromStart||Math.round(r.durationMin*0.5));
+    var etaDest=formatTime(r.durationMin+(r.detourMiles?Math.round(r.detourMiles*2):0));
+    html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
+    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
+    if(r.bestStop){
+      html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-fuel">⛽</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Fuel stop · ~'+Math.round(r.stopPoint||r.totalMiles*0.5)+' mi in</div><div class="route-name">'+r.bestStop.name+'</div><div class="route-detail">'+r.bestStop.address+'</div><div class="route-eta">ETA '+etaStop+'</div><span class="route-badge" style="background:#dbeafe;color:#1d4ed8;">Score '+r.bestStop.score+'</span></div></div>';
+    }
+    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi total · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA ~'+etaDest+'</div></div></div>';
+    html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">~'+etaDest+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
+
+    // Navigate buttons
+    if(r.bestStop){
+      html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate with fuel stop</div>';
+      html+='<div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMaps()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMaps()">🗺 Google Maps</button></div>';
+      html+='<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">Or navigate direct (no stop)</div>';
+      html+='<div class="direct-nav-row"><button class="direct-nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Direct via Apple</button><button class="direct-nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Direct via Google</button></div></div>';
+    } else {
+      html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div>';
+      html+='<div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
+    }
   }
-  html+='<div class="trip-result"><div class="trip-result-title">Route summary</div><div style="display:flex;flex-direction:column;gap:0;">';
-  html+='<div class="route-stop"><div class="route-dot"><div class="rdot rdot-start"></div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'~'+r.currentRange+' mi range')+'</div></div></div>';
-  if(r.needsStop&&r.bestStop){html+='<div class="route-stop"><div class="route-dot"><div class="rdot rdot-fuel"></div><div class="rline"></div></div><div class="route-content"><div class="route-label">Fuel stop · ~'+Math.round(r.totalMiles*0.5)+' mi in</div><div class="route-name">'+r.bestStop.name+'</div><div class="route-detail">'+r.bestStop.address+'</div><span class="route-badge" style="background:#dbeafe;color:#1d4ed8;">Score '+r.bestStop.score+'</span></div></div>';}
-  html+='<div class="route-stop"><div class="route-dot"><div class="rdot rdot-end"></div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · ~'+r.durationMin+' min</div></div></div>';
-  html+='</div>';
-  html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+r.durationMin+' min</div><div class="trip-stat-lbl">Drive time</div></div>'+(r.fuelCost?'<div class="trip-stat"><div class="trip-stat-val">$'+r.fuelCost+'</div><div class="trip-stat-lbl">Fuel cost</div></div>':'')+'</div></div>';
-  html+='<button class="new-trip-btn" onclick="newTrip()">Plan another trip</button><div style="height:20px;"></div>';
+
+  html+='<button class="new-trip-btn" onclick="newTrip()">← Plan another trip</button><div style="height:20px;"></div>';
   document.getElementById('trip-body').innerHTML=html;
 }
 
-function navigateWithStop(){
+// ── Navigation functions ───────────────────────────────────────────────────────
+function openAppleMaps(){
   if(!tripResult||!tripResult.bestStop)return;
+  var origin=encodeURIComponent(userLat+','+userLng);
   var stop=encodeURIComponent(tripResult.bestStop.address);
   var dest=encodeURIComponent(tripResult.destInput);
-  var origin=userLat+','+userLng;
-  window.location.href='maps:?saddr='+encodeURIComponent(origin)+'&daddr='+stop+'+to:'+dest;
-  setTimeout(function(){window.location.href='https://maps.google.com/maps?saddr='+encodeURIComponent(origin)+'&daddr='+stop+'+to:'+dest;},500);
+  // Apple Maps multi-stop: saddr → first daddr → second daddr via +to: syntax
+  window.location.href='maps:?saddr='+origin+'&daddr='+stop+'+to:'+dest;
+}
+
+function openGoogleMaps(){
+  if(!tripResult||!tripResult.bestStop)return;
+  var origin=encodeURIComponent(userLat+','+userLng);
+  var stop=encodeURIComponent(tripResult.bestStop.address);
+  var dest=encodeURIComponent(tripResult.destInput);
+  // Try Google Maps app first, fall back to web
+  var appUrl='comgooglemaps://?saddr='+origin+'&daddr='+stop+'+to:'+dest+'&directionsmode=driving';
+  var webUrl='https://www.google.com/maps/dir/?api=1&origin='+origin+'&destination='+dest+'&waypoints='+stop;
+  var appWindow=window.open(appUrl,'_blank');
+  setTimeout(function(){if(!appWindow||appWindow.closed)window.open(webUrl,'_blank');},500);
+}
+
+function openAppleMapsDirectOnly(){
+  if(!tripResult)return;
+  var origin=encodeURIComponent(userLat+','+userLng);
+  var dest=encodeURIComponent(tripResult.destInput);
+  window.location.href='maps:?saddr='+origin+'&daddr='+dest;
+}
+
+function openGoogleMapsDirectOnly(){
+  if(!tripResult)return;
+  var origin=encodeURIComponent(userLat+','+userLng);
+  var dest=encodeURIComponent(tripResult.destInput);
+  var appUrl='comgooglemaps://?saddr='+origin+'&daddr='+dest+'&directionsmode=driving';
+  var webUrl='https://www.google.com/maps/dir/?api=1&origin='+origin+'&destination='+dest;
+  var appWindow=window.open(appUrl,'_blank');
+  setTimeout(function(){if(!appWindow||appWindow.closed)window.open(webUrl,'_blank');},500);
 }
 
 function newTrip(){tripResult=null;renderTripPlanner();}
