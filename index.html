@@ -344,6 +344,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
         <input class="auth-input" type="text" id="auth-name" placeholder="Grant Wilson"/>
       </div>
       <button class="auth-btn" id="auth-submit-btn" onclick="handleAuth()">Sign in</button>
+      <div style="text-align:center;margin-top:10px;"><button onclick="showForgotPassword()" style="background:none;border:none;color:#1667d9;font-size:13px;font-weight:600;cursor:pointer;">Forgot password?</button></div>
       <div class="auth-divider">or</div>
       <button class="auth-skip" onclick="skipAuth()">Continue without account</button>
     </div>
@@ -706,25 +707,63 @@ function loadCloudVehicles(){
 }
 
 function saveCloudVehicle(vehicle){
-  if(!currentUser)return Promise.resolve();
+  if(!currentUser)return Promise.resolve(vehicle.id);
   var row={user_id:currentUser.id,emoji:vehicle.emoji,year:vehicle.year,make:vehicle.make,model:vehicle.model,fuel_type:vehicle.fuelType,tank_size:vehicle.tankSize,fuel_level:vehicle.level,is_active:vehicle.active||false};
-  if(vehicle.id&&!vehicle.id.startsWith('v_')){
-    return sbFetch('/rest/v1/vehicles?id=eq.'+vehicle.id,{method:'PATCH',body:JSON.stringify(row)}).then(function(){return vehicle.id;});
+  // If id is a real UUID (not our local v_timestamp format), update existing row
+  var isCloudId=vehicle.id&&!/^v_\d+$/.test(String(vehicle.id));
+  if(isCloudId){
+    return sbFetch('/rest/v1/vehicles?id=eq.'+vehicle.id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(row)})
+      .then(function(){return vehicle.id;})
+      .catch(function(){return vehicle.id;});
   } else {
+    // Insert new row and get back the cloud UUID
     return sbFetch('/rest/v1/vehicles',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(row)})
       .then(function(r){return r.json();})
-      .then(function(data){return data&&data[0]?data[0].id:vehicle.id;});
+      .then(function(data){return data&&data[0]?data[0].id:vehicle.id;})
+      .catch(function(){return vehicle.id;});
   }
 }
 
+function syncAllVehiclesToCloud(vehicles){
+  // Full sync: delete all cloud vehicles and re-insert from local
+  // Used after bulk changes like setActiveVehicle
+  if(!currentUser)return;
+  sbFetch('/rest/v1/vehicles?user_id=eq.'+currentUser.id,{method:'DELETE'})
+    .then(function(){
+      var rows=vehicles.map(function(v){return{user_id:currentUser.id,emoji:v.emoji,year:v.year,make:v.make,model:v.model,fuel_type:v.fuelType,tank_size:v.tankSize,fuel_level:v.level,is_active:v.active||false};});
+      if(rows.length===0)return;
+      return sbFetch('/rest/v1/vehicles',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(rows)})
+        .then(function(r){return r.json();})
+        .then(function(data){
+          // Update local IDs with cloud UUIDs
+          if(Array.isArray(data)&&data.length>0){
+            var updated=vehicles.map(function(v,i){return Object.assign({},v,{id:data[i]?data[i].id:v.id});});
+            saveLocalVehicles(updated);
+          }
+        });
+    })
+    .catch(function(){});
+}
+
 function deleteCloudVehicle(id){
-  if(!currentUser||!id||String(id).startsWith('v_'))return;
-  sbFetch('/rest/v1/vehicles?id=eq.'+id,{method:'DELETE'}).catch(function(){});
+  if(!currentUser||!id)return;
+  var isCloudId=!/^v_\d+$/.test(String(id));
+  if(isCloudId)sbFetch('/rest/v1/vehicles?id=eq.'+id,{method:'DELETE'}).catch(function(){});
 }
 
 function setAllVehiclesInactive(){
   if(!currentUser)return Promise.resolve();
   return sbFetch('/rest/v1/vehicles?user_id=eq.'+currentUser.id,{method:'PATCH',body:JSON.stringify({is_active:false})}).catch(function(){});
+}
+
+// ── Password reset ────────────────────────────────────────────────────────────
+function showForgotPassword(){
+  var email=document.getElementById('auth-email').value.trim();
+  var input=prompt('Enter your email address to receive a password reset link:',email||'');
+  if(!input)return;
+  sbFetch('/auth/v1/recover',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:input})})
+    .then(function(){showAuthSuccess('Password reset email sent! Check your inbox and follow the link to reset your password.');})
+    .catch(function(){showAuthError('Could not send reset email. Please try again.');});
 }
 
 // ── Local fallback profile (no account) ──────────────────────────────────────
@@ -1044,7 +1083,7 @@ function renderProfile(){
 
 function setActiveVehicle(id){
   var v=loadLocalVehicles();v.forEach(function(x){x.active=x.id===id;});saveLocalVehicles(v);
-  if(currentUser){setAllVehiclesInactive().then(function(){var active=v.find(function(x){return x.id===id;});if(active)saveCloudVehicle(Object.assign({},active,{active:true}));});}
+  if(currentUser)syncAllVehiclesToCloud(v);
   renderProfile();updateLocationDisplay();allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});renderCards();
 }
 
@@ -1070,13 +1109,16 @@ function saveVehicle(){
   var vehicles=loadLocalVehicles();
   if(editingVehicleId){
     vehicles=vehicles.map(function(v){if(v.id!==editingVehicleId)return v;return Object.assign({},v,{emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level});});
+    saveLocalVehicles(vehicles);
     if(currentUser){var edited=vehicles.find(function(v){return v.id===editingVehicleId;});if(edited)saveCloudVehicle(edited);}
   } else {
-    var newV={id:'v_'+Date.now(),emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level,active:vehicles.length===0};
+    var localId='v_'+Date.now();
+    var newV={id:localId,emoji:selectedVehicleEmoji,year:year,make:make,model:model,fuelType:selectedFuelType,tankSize:tankSize,level:level,active:vehicles.length===0};
     vehicles.push(newV);
-    if(currentUser){saveCloudVehicle(newV).then(function(cloudId){if(cloudId&&cloudId!==newV.id){var vv=loadLocalVehicles();vv=vv.map(function(v){return v.id===newV.id?Object.assign({},v,{id:cloudId}):v;});saveLocalVehicles(vv);}});}
+    saveLocalVehicles(vehicles);
+    if(currentUser){saveCloudVehicle(newV).then(function(cloudId){if(cloudId&&cloudId!==localId){var vv=loadLocalVehicles();vv=vv.map(function(v){return v.id===localId?Object.assign({},v,{id:cloudId}):v;});saveLocalVehicles(vv);}});}
   }
-  saveLocalVehicles(vehicles);closeVehicleModalDirect();renderProfile();updateLocationDisplay();
+  closeVehicleModalDirect();renderProfile();updateLocationDisplay();
 }
 
 function closeVehicleModal(e){if(e.target.id==='vehicle-modal')closeVehicleModalDirect();}
