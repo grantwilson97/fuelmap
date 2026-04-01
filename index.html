@@ -622,7 +622,7 @@ function updateStationDistances(stations,userLat,userLng){
           }
         });
       })
-      .catch(function(){});
+      .catch(function(e){console.error('Distance Matrix batch error:',e);});
   });
   return Promise.all(fetches).then(function(){return stations;});
 }
@@ -1251,12 +1251,14 @@ function buildStationList(lat,lng,liveEV,liveGas){
   }
   // Update with real driving distances in background
   if(userLat&&userLng){
+    var dmStart=Date.now();
     updateStationDistances(allStations,userLat,userLng).then(function(){
-      // Update scores in place — do NOT create new objects or driveDuration is lost
+      var withDrive=allStations.filter(function(s){return s.driveDuration;}).length;
+      console.log('Distance Matrix done in '+(Date.now()-dmStart)+'ms, '+withDrive+' stations with drive time');
       allStations.forEach(function(s){s.score=calcScore(s);});
       allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
       renderAll();
-    });
+    }).catch(function(e){console.error('Distance Matrix error:',e);});
   }
 }
 
