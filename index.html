@@ -1254,10 +1254,15 @@ function buildStationList(lat,lng,liveEV,liveGas){
     var dmStart=Date.now();
     updateStationDistances(allStations,userLat,userLng).then(function(){
       var withDrive=allStations.filter(function(s){return s.driveDuration;}).length;
-      console.log('Distance Matrix done in '+(Date.now()-dmStart)+'ms, '+withDrive+' stations with drive time');
-      allStations.forEach(function(s){s.score=calcScore(s);});
-      allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
-      renderAll();
+      console.log('Distance Matrix done in '+(Date.now()-dmStart)+'ms, '+withDrive+'/'+allStations.length+' stations updated');
+      if(withDrive>0){
+        // Success — re-render with drive times
+        allStations.forEach(function(s){s.score=calcScore(s);});
+        allStations.sort(function(a,b){
+          var aT=a.driveDuration||999;var bT=b.driveDuration||999;return aT-bT;
+        });
+        renderAll();
+      }
     }).catch(function(e){console.error('Distance Matrix error:',e);});
   }
 }
@@ -1279,8 +1284,9 @@ function renderCards(){
     var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
     var card=document.createElement('div');card.className='card'+(st.isLive?' live':'');
     var ratingStr=st.rating?'⭐ '+st.rating:'';
-    var driveStr=st.driveDuration?st.driveDuration+' min drive':'';
-    var distLabel=st.distanceMiles.toFixed(1)+' mi'+(driveStr?' · '+driveStr:'')+' · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
+    // Show drive time if available, otherwise straight-line distance
+    var distPart=st.driveDuration?'🚗 '+st.driveDuration+' min':st.distanceMiles.toFixed(1)+' mi';
+    var distLabel=distPart+' · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
     // Build grade prices row for gas stations
     var gradesHTML='';
     if(st.type==='gas'){
