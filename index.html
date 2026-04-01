@@ -555,10 +555,10 @@ var FUEL_TYPES=[
   {key:'phev',label:'Plug-in Hybrid',tankLabel:'Tank size (gallons)',defaultTank:10,mpg:38},
 ];
 var GAS_GRADES=[
-  {key:'regular',label:'Regular',suffix:''},
-  {key:'midgrade',label:'Midgrade',premium:0.20},
-  {key:'premium',label:'Premium',premium:0.40},
-  {key:'diesel',label:'Diesel',premium:0.05},
+  {key:'regular',label:'Regular',short:'REG',suffix:''},
+  {key:'midgrade',label:'Midgrade',short:'MID',premium:0.20},
+  {key:'premium',label:'Premium',short:'PREM',premium:0.40},
+  {key:'diesel',label:'Diesel',short:'DIES',premium:0.05},
 ];
 var DEMO_STATIONS=[
   {id:'demo_1',name:'Volta · Metreon',address:'101 4th St, SoMa, San Francisco, CA',type:'ev',basePrice:0.34,latitude:37.7847,longitude:-122.4029,busy:25,isLive:false,network:'Volta',l2Connectors:4,dcConnectors:0,open24h:true,pricing:'Free'},
@@ -1117,7 +1117,7 @@ function renderCards(){
         var isPref=g.key===prefGrade3;
         var srcLabel=gp[g.key].source==='community'?'reported':'EIA est.';
         return'<div class="grade-pill'+(isPref?' pref':'')+'">'+
-          '<div class="grade-pill-name">'+g.label+'</div>'+
+          '<div class="grade-pill-name">'+(g.short||g.label)+'</div>'+
           '<div class="grade-pill-price">$'+gp[g.key].price.toFixed(2)+'</div>'+
           '<div class="grade-pill-src">'+srcLabel+'</div>'+
           '</div>';
