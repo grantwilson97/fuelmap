@@ -1271,10 +1271,12 @@ function showTab(name){if(['map','trip','alerts','carbon','profile'].indexOf(nam
 
 // ── Init: check for existing session ─────────────────────────────────────────
 (function init(){
+  // Always show form immediately, restore session in background
+  document.getElementById('auth-loading').style.display='none';
+  document.getElementById('auth-form-wrap').style.display='block';
+
   // Check skip
   if(localStorage.getItem('fm_skip_auth')==='1'){
-    document.getElementById('auth-loading').style.display='none';
-    document.getElementById('auth-form-wrap').style.display='block';
     onSignedIn();return;
   }
   // Try to restore session
