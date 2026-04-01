@@ -595,10 +595,11 @@ function getPolylinePoint(points,fraction){
 // Batches into groups of 25 (API limit) and updates station distanceMiles
 function updateStationDistances(stations,userLat,userLng){
   if(!stations||stations.length===0)return Promise.resolve(stations);
-  // Only update stations missing real drive distance (all of them initially)
   var gasStations=stations.filter(function(s){return s.type==='gas'&&s.id&&s.id.startsWith('gpl_');});
   if(gasStations.length===0)return Promise.resolve(stations);
-  // Batch into groups of 25
+  // Build a lookup map by id so we can update the original objects in allStations
+  var stationMap={};
+  stations.forEach(function(s){stationMap[s.id]=s;});
   var batches=[];
   for(var i=0;i<Math.min(gasStations.length,50);i+=25){
     batches.push(gasStations.slice(i,i+25));
@@ -613,8 +614,11 @@ function updateStationDistances(stations,userLat,userLng){
         var elements=data.rows[0].elements;
         elements.forEach(function(el,idx){
           if(el.status==='OK'&&el.distance){
-            batch[idx].distanceMiles=Math.round(el.distance.value/1609.34*10)/10;
-            batch[idx].driveDuration=el.duration?Math.round(el.duration.value/60):null;
+            var s=stationMap[batch[idx].id];
+            if(s){
+              s.distanceMiles=Math.round(el.distance.value/1609.34*10)/10;
+              s.driveDuration=el.duration?Math.round(el.duration.value/60):null;
+            }
           }
         });
       })
@@ -1272,7 +1276,8 @@ function renderCards(){
     var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
     var card=document.createElement('div');card.className='card'+(st.isLive?' live':'');
     var ratingStr=st.rating?'⭐ '+st.rating:'';
-    var driveStr=st.driveDuration?st.driveDuration+' min drive':'';    var distLabel=st.distanceMiles.toFixed(1)+' mi'+(driveStr?' · '+driveStr:'')+' · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
+    var driveStr=st.driveDuration?st.driveDuration+' min drive':'';
+    var distLabel=st.distanceMiles.toFixed(1)+' mi'+(driveStr?' · '+driveStr:'')+' · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
     // Build grade prices row for gas stations
     var gradesHTML='';
     if(st.type==='gas'){
