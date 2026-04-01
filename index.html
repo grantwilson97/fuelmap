@@ -915,7 +915,10 @@ function updateMapPins(stations){
   stations.forEach(function(st){
     var color=pinColor(st.score);
     var isEV=st.type==='ev';
+    // If filter is active, show that filter's icon; otherwise use station type
     var label=isEV?'⚡':'⛽';
+    if(currentFilter==='ev')label='⚡';
+    else if(currentFilter==='gas')label='⛽';
     var pi=getLatestPrice(st);
     var priceStr=isEV?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
 
@@ -1050,7 +1053,17 @@ function renderCards(){
     card.onclick=function(){showDetail(st);};el.appendChild(card);
   });
 }
-function renderAll(){renderFilters();renderSorts();renderCards();}
+function renderAll(){
+  renderFilters();renderSorts();renderCards();
+  // Sync map pins with current filter
+  var mappable=allStations.filter(function(s){
+    if(!s.latitude||!s.longitude)return false;
+    if(currentFilter==='gas')return s.type==='gas';
+    if(currentFilter==='ev')return s.type==='ev';
+    return true;
+  });
+  updateMapPins(mappable);
+}
 
 function showDetail(station){
   currentStation=station;
