@@ -765,14 +765,14 @@ function loadCloudVehicles(){
     .then(function(r){return r.json();})
     .then(function(data){
       if(!Array.isArray(data))return[];
-      return data.map(function(v){return{id:v.id,emoji:v.emoji||'🚗',year:v.year,make:v.make,model:v.model,fuelType:v.fuel_type||'gas',tankSize:v.tank_size,level:v.fuel_level||50,active:v.is_active};});
+      return data.map(function(v){return{id:v.id,emoji:v.emoji||'🚗',year:v.year,make:v.make,model:v.model,fuelType:v.fuel_type||'gas',tankSize:v.tank_size,level:v.fuel_level||50,active:v.is_active,mpg:v.mpg||null,gasGrade:v.gas_grade||'regular'};});
     })
     .catch(function(){return[];});
 }
 
 function saveCloudVehicle(vehicle){
   if(!currentUser)return Promise.resolve(vehicle.id);
-  var row={user_id:currentUser.id,emoji:vehicle.emoji,year:vehicle.year,make:vehicle.make,model:vehicle.model,fuel_type:vehicle.fuelType,tank_size:vehicle.tankSize,fuel_level:vehicle.level,is_active:vehicle.active||false};
+  var row={user_id:currentUser.id,emoji:vehicle.emoji,year:vehicle.year,make:vehicle.make,model:vehicle.model,fuel_type:vehicle.fuelType,tank_size:vehicle.tankSize,fuel_level:vehicle.level,is_active:vehicle.active||false,mpg:vehicle.mpg||null,gas_grade:vehicle.gasGrade||'regular'};
   // If id is a real UUID (not our local v_timestamp format), update existing row
   var isCloudId=vehicle.id&&!/^v_\d+$/.test(String(vehicle.id));
   if(isCloudId){
@@ -1249,7 +1249,8 @@ function renderTripResult(){
   } else {
     if(r.bestStop){
       var sc=scoreColor(r.bestStop.score);var pi=getLatestPrice(r.bestStop);var pd=r.bestStop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
-      html+='<div class="fuel-stop-card"><div class="fsc-header"><div><div class="fsc-label">⛽ Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div></div>';
+      var stopId=r.bestStop.id;
+      html+='<div class="fuel-stop-card" onclick="openTripStopDetail(\"'+stopId+'\")"\ style="cursor:pointer;"><div class="fsc-header"><div><div class="fsc-label">⛽ Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div><div style="text-align:center;padding-top:6px;font-size:11px;color:#1667d9;font-weight:600;">Tap to view full station details →</div></div>';
     }
     if(r.savings&&r.savings>0){html+='<div class="savings-card"><div class="savings-title">💰 Savings vs. SF average</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">You save</div></div><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
     else if(r.fuelCost){html+='<div class="savings-card"><div class="savings-title">⛽ Trip fuel estimate</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. cost</div></div><div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((r.ft&&r.ft.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
@@ -1271,6 +1272,26 @@ function openAppleMaps(){if(!tripResult||!tripResult.bestStop)return;window.loca
 function openGoogleMaps(){if(!tripResult||!tripResult.bestStop)return;var appUrl='comgooglemaps://?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.bestStop.address)+'+to:'+encodeURIComponent(tripResult.destInput)+'&directionsmode=driving';var webUrl='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(tripResult.destInput)+'&waypoints='+encodeURIComponent(tripResult.bestStop.address);var w=window.open(appUrl,'_blank');setTimeout(function(){if(!w||w.closed)window.open(webUrl,'_blank');},500);}
 function openAppleMapsDirectOnly(){if(!tripResult)return;window.location.href='maps:?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.destInput);}
 function openGoogleMapsDirectOnly(){if(!tripResult)return;var appUrl='comgooglemaps://?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.destInput)+'&directionsmode=driving';var webUrl='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(tripResult.destInput);var w=window.open(appUrl,'_blank');setTimeout(function(){if(!w||w.closed)window.open(webUrl,'_blank');},500);}
+function openTripStopDetail(stationId){
+  // Find the station in allStations — it may be an OCM or Google Places station
+  var st=allStations.find(function(s){return s.id===stationId;});
+  if(!st&&tripResult&&tripResult.bestStop){st=tripResult.bestStop;}
+  if(!st)return;
+  // Make sure it has distanceMiles set
+  if(!st.distanceMiles&&userLat&&userLng){
+    st=Object.assign({},st,{distanceMiles:Math.round(distMiles(userLat,userLng,st.latitude||userLat,st.longitude||userLng)*10)/10});
+  }
+  if(!st.score)st=Object.assign({},st,{score:calcScore(st)});
+  currentStation=st;
+  showDetail(st);
+  // Override back button to return to trip tab instead of map
+  var heroWrap=document.getElementById('hero-wrap');
+  var backBtn=heroWrap?heroWrap.querySelector('.back-btn'):null;
+  if(backBtn){
+    backBtn.textContent='← Trip';
+    backBtn.onclick=function(){showTab('trip');};
+  }
+}
 function newTrip(){tripResult=null;renderTripPlanner();}
 function showTripError(msg){document.getElementById('trip-body').innerHTML='<div class="trip-form-card" style="border-color:#fecaca;background:#fef2f2;"><div class="trip-form-title" style="color:#dc2626;">Could not plan trip</div><div class="body-txt" style="color:#dc2626;">'+msg+'</div><button class="plan-btn" style="background:#dc2626;margin-top:10px;" onclick="newTrip()">Try again</button></div>';}
 
