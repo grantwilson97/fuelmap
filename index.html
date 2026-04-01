@@ -546,6 +546,82 @@ var DIRECTIONS_API='https://fuelmap-api-sf.vercel.app/api/directions';
 var AUTOCOMPLETE_API='https://fuelmap-api-sf.vercel.app/api/autocomplete';
 var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35;
 var FUEL_PRICES_API='https://fuelmap-api-sf.vercel.app/api/fuelprices';
+var DISTANCE_MATRIX_API='https://fuelmap-api-sf.vercel.app/api/distancematrix';
+
+// ── Polyline decoder ─────────────────────────────────────────────────────────
+// Decodes a Google encoded polyline string into array of {lat,lng} points
+function decodePolyline(encoded){
+  var points=[];var index=0,len=encoded.length;var lat=0,lng=0;
+  while(index<len){
+    var b,shift=0,result=0;
+    do{b=encoded.charCodeAt(index++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    var dlat=result&1?~(result>>1):(result>>1);lat+=dlat;
+    shift=0;result=0;
+    do{b=encoded.charCodeAt(index++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    var dlng=result&1?~(result>>1):(result>>1);lng+=dlng;
+    points.push({lat:lat/1e5,lng:lng/1e5});
+  }
+  return points;
+}
+
+// Gets a point at a given fraction along a decoded polyline
+function getPolylinePoint(points,fraction){
+  if(!points||points.length===0)return null;
+  if(fraction<=0)return points[0];
+  if(fraction>=1)return points[points.length-1];
+  // Calculate total polyline length
+  var totalDist=0;var segDists=[];
+  for(var i=1;i<points.length;i++){
+    var d=distMiles(points[i-1].lat,points[i-1].lng,points[i].lat,points[i].lng);
+    segDists.push(d);totalDist+=d;
+  }
+  var target=totalDist*fraction;var accumulated=0;
+  for(var i=0;i<segDists.length;i++){
+    accumulated+=segDists[i];
+    if(accumulated>=target){
+      // Interpolate within this segment
+      var overshoot=accumulated-target;
+      var t=segDists[i]>0?1-(overshoot/segDists[i]):0;
+      return{
+        lat:points[i].lat+(points[i+1].lat-points[i].lat)*t,
+        lng:points[i].lng+(points[i+1].lng-points[i].lng)*t
+      };
+    }
+  }
+  return points[points.length-1];
+}
+
+// Distance Matrix: get real driving distances from user to a batch of stations
+// Batches into groups of 25 (API limit) and updates station distanceMiles
+function updateStationDistances(stations,userLat,userLng){
+  if(!stations||stations.length===0)return Promise.resolve(stations);
+  // Only update stations missing real drive distance (all of them initially)
+  var gasStations=stations.filter(function(s){return s.type==='gas'&&s.id&&s.id.startsWith('gpl_');});
+  if(gasStations.length===0)return Promise.resolve(stations);
+  // Batch into groups of 25
+  var batches=[];
+  for(var i=0;i<Math.min(gasStations.length,50);i+=25){
+    batches.push(gasStations.slice(i,i+25));
+  }
+  var origin=userLat+','+userLng;
+  var fetches=batches.map(function(batch){
+    var dests=batch.map(function(s){return s.latitude+','+s.longitude;}).join('|');
+    return fetch(DISTANCE_MATRIX_API+'?origins='+encodeURIComponent(origin)+'&destinations='+encodeURIComponent(dests))
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if(!data.rows||!data.rows[0])return;
+        var elements=data.rows[0].elements;
+        elements.forEach(function(el,idx){
+          if(el.status==='OK'&&el.distance){
+            batch[idx].distanceMiles=Math.round(el.distance.value/1609.34*10)/10;
+            batch[idx].driveDuration=el.duration?Math.round(el.duration.value/60):null;
+          }
+        });
+      })
+      .catch(function(){});
+  });
+  return Promise.all(fetches).then(function(){return stations;});
+}
 // Live price cache — updated on app load, refreshed every hour
 var livePrices={regular:6.02,midgrade:6.22,premium:6.42,diesel:6.07,source:'EIA',updated:null};
 
@@ -1165,10 +1241,17 @@ function buildStationList(lat,lng,liveEV,liveGas){
   var priceNote=livePrices.source==='AAA'?' · AAA daily':' · EIA avg';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV'+priceNote;
   clearLoading();renderAll();
-  // Apply smart zoom based on station density
   if(gMap&&userLat&&userLng){
     var zoom=getSmartZoom(userLat,userLng,allStations.length);
     gMap.setZoom(zoom);
+  }
+  // Update with real driving distances in background
+  if(userLat&&userLng){
+    updateStationDistances(allStations,userLat,userLng).then(function(){
+      allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});
+      allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
+      renderAll();
+    });
   }
 }
 
@@ -1189,7 +1272,7 @@ function renderCards(){
     var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
     var card=document.createElement('div');card.className='card'+(st.isLive?' live':'');
     var ratingStr=st.rating?'⭐ '+st.rating:'';
-    var distLabel=st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
+    var driveStr=st.driveDuration?st.driveDuration+' min drive':'';    var distLabel=st.distanceMiles.toFixed(1)+' mi'+(driveStr?' · '+driveStr:'')+' · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
     // Build grade prices row for gas stations
     var gradesHTML='';
     if(st.type==='gas'){
@@ -1314,14 +1397,22 @@ function planTrip(){
     .then(function(data){
       if(data.status!=='OK'||!data.routes||!data.routes.length){showTripError('Could not find a route. Please try a different address.');return;}
       var route=data.routes[0].legs[0];
-      processTripRoute(route.distance.value/1609.34,Math.round(route.duration.value/60),dest,route.end_address,route.end_location.lat,route.end_location.lng,route.steps||[]);
+      // Decode full polyline for accurate corridor sampling
+      var polylinePoints=null;
+      try{
+        var overviewPolyline=data.routes[0].overview_polyline;
+        if(overviewPolyline&&overviewPolyline.points){
+          polylinePoints=decodePolyline(overviewPolyline.points);
+        }
+      }catch(e){polylinePoints=null;}
+      processTripRoute(route.distance.value/1609.34,Math.round(route.duration.value/60),dest,route.end_address,route.end_location.lat,route.end_location.lng,route.steps||[],polylinePoints);
     })
     .catch(function(){
       processTripRoute(20,25,dest,dest,userLat+0.15,userLng+0.15);
     });
 }
 
-function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,destLng,routeSteps){
+function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,destLng,routeSteps,polylinePoints){
   var av=getActiveVehicle();
   var ft=av?FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||FUEL_TYPES[0]:FUEL_TYPES[0];
   var tankSize=av?(av.tankSize||ft.defaultTank):ft.defaultTank;
@@ -1349,13 +1440,20 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     searchWindowEnd=totalMiles*0.70;
   }
 
-  // Sample 3 evenly spaced waypoints within the search window along the route
+  // Sample waypoints within the search window along the actual route
+  // Use decoded polyline if available (most accurate), fall back to route steps
   var samplePoints=[];
-  var numSamples=3;
+  var numSamples=4;
   for(var i=0;i<numSamples;i++){
     var fraction=(searchWindowStart+(searchWindowEnd-searchWindowStart)*(i/(numSamples-1)))/totalMiles;
     fraction=Math.max(0.05,Math.min(0.95,fraction));
-    var pt=getRoutePoint(routeSteps,fraction,userLat,userLng,destLat,destLng);
+    var pt;
+    if(polylinePoints&&polylinePoints.length>10){
+      // Use decoded polyline for precise road-following coordinates
+      pt=getPolylinePoint(polylinePoints,fraction)||{lat:userLat+(destLat-userLat)*fraction,lng:userLng+(destLng-userLng)*fraction};
+    } else {
+      pt=getRoutePoint(routeSteps,fraction,userLat,userLng,destLat,destLng);
+    }
     samplePoints.push({lat:pt.lat,lng:pt.lng,milesIn:Math.round(fraction*totalMiles)});
   }
 
