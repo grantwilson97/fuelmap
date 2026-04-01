@@ -1252,7 +1252,8 @@ function buildStationList(lat,lng,liveEV,liveGas){
   // Update with real driving distances in background
   if(userLat&&userLng){
     updateStationDistances(allStations,userLat,userLng).then(function(){
-      allStations=allStations.map(function(s){return Object.assign({},s,{score:calcScore(s)});});
+      // Update scores in place — do NOT create new objects or driveDuration is lost
+      allStations.forEach(function(s){s.score=calcScore(s);});
       allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
       renderAll();
     });
