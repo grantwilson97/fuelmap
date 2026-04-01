@@ -847,7 +847,18 @@ function crowdLabel(b){return b<35?'Light':b<65?'Moderate':'Busy';}
 function waitMin(b){return Math.max(0,Math.round((b-20)/20));}
 function fuelColor(p){return p>50?'#16a34a':p>20?'#d97706':'#dc2626';}
 function distMiles(a,b,c,d){var R=3958.8,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
-function formatTime(min){var d=new Date(Date.now()+min*60000);var h=d.getHours();var m=d.getMinutes();var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+(m<10?'0':'')+m+' '+ap;}
+function formatTime(min,showTz){
+  var d=new Date(Date.now()+min*60000);
+  var h=d.getHours();var m=d.getMinutes();
+  var ap=h>=12?'PM':'AM';h=h%12||12;
+  var timeStr=h+':'+(m<10?'0':'')+m+' '+ap;
+  if(showTz){
+    // Get short timezone abbreviation from device locale
+    var tz=d.toLocaleTimeString('en-US',{timeZoneName:'short'}).split(' ').pop();
+    return timeStr+' '+tz;
+  }
+  return timeStr;
+}
 function formatDuration(min){if(min<60)return min+' min';var h=Math.floor(min/60);var m=min%60;return h+'h'+(m>0?' '+m+'m':'');}
 
 function calcScore(station){
@@ -1228,7 +1239,7 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
 function renderTripResult(){
   var r=tripResult;var av=r.av;var html='';
   if(!r.needsStop){
-    var etaDest=formatTime(r.durationMin);
+    var etaDest=formatTime(r.durationMin,true);
     html+='<div class="no-stop-card"><div class="no-stop-icon">✅</div><div class="no-stop-title">You can make it without stopping!</div><div class="no-stop-body">Your '+(av?av.emoji+' '+av.year+' '+av.make+' '+av.model:'vehicle')+' has ~'+r.currentRange+' miles of range. The trip is '+Math.round(r.totalMiles)+' miles.</div></div>';
     html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
     html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
@@ -1242,8 +1253,8 @@ function renderTripResult(){
     }
     if(r.savings&&r.savings>0){html+='<div class="savings-card"><div class="savings-title">💰 Savings vs. SF average</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">You save</div></div><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
     else if(r.fuelCost){html+='<div class="savings-card"><div class="savings-title">⛽ Trip fuel estimate</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. cost</div></div><div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((r.ft&&r.ft.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
-    var etaStop=formatTime(r.stopMinFromStart||Math.round(r.durationMin*0.5));
-    var etaDest2=formatTime(r.durationMin+(r.detourMiles?Math.round(r.detourMiles*2):0));
+    var etaStop=formatTime(r.stopMinFromStart||Math.round(r.durationMin*0.5),false);
+    var etaDest2=formatTime(r.durationMin+(r.detourMiles?Math.round(r.detourMiles*2):0),true);
     html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
     html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
     if(r.bestStop){html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-fuel">⛽</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Fuel stop · ~'+Math.round(r.stopPoint||r.totalMiles*0.5)+' mi in</div><div class="route-name">'+r.bestStop.name+'</div><div class="route-detail">'+r.bestStop.address+'</div><div class="route-eta">ETA '+etaStop+'</div><span class="route-badge" style="background:#dbeafe;color:#1d4ed8;">Score '+r.bestStop.score+'</span></div></div>';}
