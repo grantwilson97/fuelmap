@@ -569,7 +569,7 @@ var TRIP_TYPES=[
 // ── App state ─────────────────────────────────────────────────────────────────
 var currentUser=null;
 var currentSession=null;
-var allStations=[],currentFilter='all',currentSort='value',currentStation=null;
+var allStations=[],currentFilter='gas',currentSort='value',currentStation=null;
 var alerts=ALERTS_DATA.slice(),userLat=null,userLng=null,modalFuelType='regular';
 var editingVehicleId=null,selectedVehicleEmoji='🚗',selectedFuelType='gas',selectedProfileEmoji='😊';
 var selectedTripType='commute',tripResult=null,autocompleteTimer=null;
@@ -993,8 +993,9 @@ function useFallbackLocation(){userLat=37.7749;userLng=-122.4194;document.getEle
 function fetchOCM(lat,lng){
   setLoading('Finding nearby stations…');
   var av=getActiveVehicle();
+  // Set filter based on active vehicle before fetching
   if(av&&av.fuelType==='electric')currentFilter='ev';
-  else if(av&&(av.fuelType==='gas'||av.fuelType==='diesel'))currentFilter='gas';
+  else currentFilter='gas';
   // Fetch EV chargers and gas stations in parallel
   var evPromise=fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius=5')
     .then(function(r){return r.json();})
