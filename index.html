@@ -702,16 +702,15 @@ function syncLocalToCloud(){
       var needsUpdate=!cloudProfile||!cloudProfile.name||cloudProfile.name==='Driver';
       if(needsUpdate){
         saveCloudProfile(localProfile);
-        // Also save locally with email
         saveLocalProfile(Object.assign({},localProfile,{email:currentUser?currentUser.email:''}));
       } else {
-        // Cloud has a real name — use it locally
         saveLocalProfile({name:cloudProfile.name,emoji:cloudProfile.emoji||localProfile.emoji||'😊',email:currentUser?currentUser.email:''});
       }
     } else if(cloudProfile&&cloudProfile.name&&cloudProfile.name!=='Driver'){
-      // Cloud has name, local doesn't — pull down
       saveLocalProfile({name:cloudProfile.name,emoji:cloudProfile.emoji||'😊',email:currentUser?currentUser.email:''});
     }
+    // Always re-render the map header after profile loads
+    updateLocationDisplay();
   });
 
   // Sync vehicles intelligently — merge cloud structure with local mpg/grade data
@@ -1462,11 +1461,15 @@ function showTab(name){if(['map','trip','alerts','carbon','profile'].indexOf(nam
       if(!ok){localStorage.removeItem('fm_session');return;}
       // Session restored — load cloud data then enter app
       loadCloudProfile().then(function(p){
-        if(p)saveLocalProfile({name:p.name||'Driver',emoji:p.emoji||'😊',email:currentUser?currentUser.email:''});
+        if(p&&p.name&&p.name!=='Driver'){
+          saveLocalProfile({name:p.name,emoji:p.emoji||'😊',email:currentUser?currentUser.email:''});
+        }
         return loadCloudVehicles();
       }).then(function(vehicles){
         if(vehicles&&vehicles.length>0)saveLocalVehicles(vehicles);
         onSignedIn();
+        // Re-render map header now that profile is loaded
+        updateLocationDisplay();
       }).catch(function(){onSignedIn();});
     }).catch(function(){localStorage.removeItem('fm_session');});
   }catch(e){localStorage.removeItem('fm_session');}
