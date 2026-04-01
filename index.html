@@ -365,7 +365,6 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
       <div class="wordmark">fuel<span>map</span></div>
       <div class="subtitle" id="location-txt">Getting location…</div>
     </div>
-    <div class="pge-chip"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh</span></div>
     <div class="filter-row" id="filters"></div>
   </div>
   <div class="map-box" id="map-box" style="position:relative;padding:0;">
@@ -394,6 +393,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
       <div class="sort-row" id="sorts"></div>
     </div>
     <div class="cards" id="cards"></div>
+    <div class="pge-chip" id="pge-ribbon" style="margin:0 14px 10px;display:none;"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh · Charge off-peak to save 54%</span></div>
   </div>
 </div>
 
@@ -1272,7 +1272,19 @@ function getFiltered(){
     .sort(function(a,b){if(currentSort==='value')return b.score-a.score;if(currentSort==='price')return getLatestPrice(a).price-getLatestPrice(b).price;if(currentSort==='wait')return(a.busy||30)-(b.busy||30);if(currentSort==='distance')return a.distanceMiles-b.distanceMiles;return 0;});
 }
 
-function renderFilters(){var el=document.getElementById('filters');el.innerHTML='';[['all','All'],['gas','Gas'],['ev','EV']].forEach(function(p){var c=document.createElement('div');c.className='chip'+(currentFilter===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentFilter=p[0];renderAll();};el.appendChild(c);});}
+function renderFilters(){
+  var el=document.getElementById('filters');el.innerHTML='';
+  [['all','All'],['gas','Gas'],['ev','EV']].forEach(function(p){
+    var c=document.createElement('div');
+    c.className='chip'+(currentFilter===p[0]?' on':'');
+    c.textContent=p[1];
+    c.onclick=function(){currentFilter=p[0];renderAll();};
+    el.appendChild(c);
+  });
+  // Show PGE ribbon only for EV and All filters
+  var ribbon=document.getElementById('pge-ribbon');
+  if(ribbon)ribbon.style.display=(currentFilter==='ev'||currentFilter==='all')?'block':'none';
+}
 function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp'+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];renderAll();};el.appendChild(c);});}
 function renderCards(){
   var el=document.getElementById('cards');el.innerHTML='';var filtered=getFiltered();
