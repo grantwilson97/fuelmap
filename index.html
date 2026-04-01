@@ -56,7 +56,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .grade-pill{flex:1;min-width:0;background:#f7f7f9;border-radius:7px;padding:4px 3px;text-align:center;border:1px solid #eee;}
 .grade-pill.pref{background:#eff6ff;border-color:#1667d9;}
 .grade-pill-name{font-size:8px;font-weight:700;color:#888;text-transform:uppercase;white-space:nowrap;}
-.grade-pill-price{font-size:12px;font-weight:800;color:#1667d9;margin-top:1px;}
+.grade-pill-price{font-size:10px;font-weight:800;color:#1667d9;margin-top:1px;letter-spacing:-0.3px;}
 .grade-pill-src{font-size:7px;color:#aaa;margin-top:1px;}
 .card-price-source{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:6px;}
 .src-live{background:#dcfce7;color:#15803d;}
@@ -550,8 +550,32 @@ var FUEL_PRICES_API='https://fuelmap-api-sf.vercel.app/api/fuelprices';
 var livePrices={regular:6.02,midgrade:6.22,premium:6.42,diesel:6.07,source:'EIA',updated:null};
 
 // Price level adjustments based on Google Places price_level (0-4)
-// Maps relative station cost to a price delta vs city average
 var PRICE_LEVEL_DELTA={0:-0.20,1:-0.15,2:0,3:0.20,4:0.35};
+
+// Brand-based price delta when Google Places price_level is unavailable
+// Based on typical SF Bay Area pricing patterns
+var BRAND_DELTA={
+  'arco':-0.18,'costco':-0.20,'sams':-0.20,'walmart':-0.18,
+  'chevron':0.05,'shell':0.05,'bp':0.03,'mobil':0.03,
+  '76':0,'valero':-0.05,'circle k':-0.05,'speedway':-0.05,
+  'safeway':-0.08,'grocery':-0.08,'loop':-0.05,'extramile':0,
+  'standard':0.10,'getty':0.05,'independent':0
+};
+
+function getPriceDelta(priceLevel, brand){
+  // Use Google price_level if available
+  if(priceLevel!==null&&priceLevel!==undefined&&PRICE_LEVEL_DELTA[priceLevel]!==undefined){
+    return PRICE_LEVEL_DELTA[priceLevel];
+  }
+  // Fall back to brand-based delta
+  if(brand){
+    var b=brand.toLowerCase();
+    for(var key in BRAND_DELTA){
+      if(b.indexOf(key)>-1)return BRAND_DELTA[key];
+    }
+  }
+  return 0; // unknown brand — use city average
+}
 
 function fetchLivePrices(){
   return fetch(FUEL_PRICES_API)
@@ -576,9 +600,9 @@ function fetchLivePrices(){
 }
 
 // Estimate per-station price for a given grade using city average + price_level delta
-function estimateStationPrice(grade,priceLevel){
+function estimateStationPrice(grade,priceLevel,brand){
   var base=livePrices[grade]||livePrices.regular||EIA_GAS_AVG;
-  var delta=priceLevel!==null&&priceLevel!==undefined?PRICE_LEVEL_DELTA[priceLevel]||0:0;
+  var delta=getPriceDelta(priceLevel,brand);
   return Math.round((base+delta)*100)/100;
 }
 var VEHICLE_EMOJIS=['🚗','🚙','🛻','🏎️','🚐','🚕','🚌','🏍️','🛵','⚡'];
@@ -937,10 +961,9 @@ function getGradePrices(station){
       grades[g.key]={price:rep.price,source:'community',ago:timeAgo(rep.ts),estimated:false};
     } else {
       // Estimate using live city average + price_level delta + grade differential
-      var pl=station.priceLevel!==null&&station.priceLevel!==undefined?station.priceLevel:null;
       var gradeKey=g.key==='regular'?'regular':g.key==='midgrade'?'midgrade':g.key==='premium'?'premium':'diesel';
       var cityAvg=livePrices[gradeKey]||livePrices.regular||EIA_GAS_AVG;
-      var delta=pl!==null?PRICE_LEVEL_DELTA[pl]||0:0;
+      var delta=getPriceDelta(station.priceLevel,station.brand||station.network);
       var estimated=Math.round((cityAvg+delta)*100)/100;
       grades[g.key]={price:estimated,source:livePrices.source||'AAA',estimated:true};
     }
@@ -954,9 +977,7 @@ function getLatestPrice(station){
   var r=getReports(station.id);var rep=r.find(function(x){return x.fuelType==='regular'||x.fuelType==='ev_l2';});
   if(rep)return{price:rep.price,source:'community',ago:timeAgo(rep.ts),estimated:false};
   if(station.type==='gas'){
-    // Use price_level adjusted estimate from live city average
-    var pl=station.priceLevel!==null&&station.priceLevel!==undefined?station.priceLevel:null;
-    var delta=pl!==null?PRICE_LEVEL_DELTA[pl]||0:0;
+    var delta=getPriceDelta(station.priceLevel,station.brand||station.network);
     var estimated=Math.round((livePrices.regular+delta)*100)/100;
     return{price:estimated,source:livePrices.source||'AAA',estimated:true};
   }
@@ -1119,7 +1140,7 @@ function fetchOCM(lat,lng){
   var gasPromise=fetch(GAS_API+'?latitude='+lat+'&longitude='+lng+'&radius='+searchRadius)
     .then(function(r){return r.json();})
     .then(function(data){
-      return(data.stations||[]).map(function(s){var pl=s.priceLevel!==null&&s.priceLevel!==undefined?s.priceLevel:null;var estPrice=estimateStationPrice('regular',pl);return{id:'gpl_'+s.id,name:s.name,address:s.address,type:'gas',basePrice:estPrice,priceLevel:pl,priceEstimated:true,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:40,isLive:true,network:s.brand||'Gas',brand:s.brand,rating:s.rating,open24h:false,isOpen:s.isOpen!==false};});
+      return(data.stations||[]).map(function(s){var pl=s.priceLevel!==null&&s.priceLevel!==undefined?s.priceLevel:null;var estPrice=estimateStationPrice('regular',pl,s.brand);return{id:'gpl_'+s.id,name:s.name,address:s.address,type:'gas',basePrice:estPrice,priceLevel:pl,priceEstimated:true,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:40,isLive:true,network:s.brand||'Gas',brand:s.brand,rating:s.rating,open24h:false,isOpen:s.isOpen!==false};});
     })
     .catch(function(){return[];});
   Promise.all([evPromise,gasPromise]).then(function(results){
