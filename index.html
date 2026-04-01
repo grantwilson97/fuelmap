@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
 <title>FuelMap</title>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -24,7 +25,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .filter-row::-webkit-scrollbar{display:none;}
 .chip{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;color:#555;background:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .chip.on{background:#1667d9;border-color:#1667d9;color:#fff;}
-.map-box{flex:1;background:#f0f4ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;position:relative;}
+.map-box{flex:1;background:#f0f4ff;display:flex;flex-direction:column;position:relative;overflow:hidden;}
 .map-icon{font-size:48px;}
 .map-title{font-size:20px;font-weight:700;color:#1667d9;}
 .map-sub{font-size:12px;color:#888;}
@@ -361,16 +362,24 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
     <div class="pge-chip"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh</span></div>
     <div class="filter-row" id="filters"></div>
   </div>
-  <div class="map-box">
-    <div class="map-icon">📍</div>
-    <div class="map-title" id="map-title">Finding your location…</div>
-    <div class="map-sub" id="station-count">Loading stations…</div>
-    <div class="live-badge"><span class="live-badge-txt" id="data-source-txt">🔌 Live data loading…</span></div>
+  <div class="map-box" id="map-box" style="position:relative;padding:0;">
+    <div id="google-map" style="width:100%;height:100%;"></div>
     <div class="loading-overlay" id="loading-overlay">
       <div class="loading-spinner"></div>
       <div class="loading-txt" id="loading-txt">Getting your location…</div>
     </div>
-    <button class="refresh-btn" onclick="loadStations()" id="refresh-btn" style="display:none;">↻ Refresh</button>
+    <div style="position:absolute;top:10px;left:10px;right:10px;pointer-events:none;z-index:5;">
+      <div style="background:rgba(255,255,255,0.95);border-radius:10px;padding:6px 12px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+        <div>
+          <div class="map-title" id="map-title" style="font-size:13px;margin:0;"></div>
+          <div class="map-sub" id="station-count" style="font-size:10px;margin:0;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="live-badge-txt" id="data-source-txt" style="font-size:9px;color:#15803d;font-weight:700;"></span>
+          <button class="refresh-btn" onclick="loadStations()" id="refresh-btn" style="display:none;position:static;padding:4px 8px;font-size:10px;">↻</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="sheet">
     <div class="drag"></div>
@@ -660,7 +669,11 @@ function onSignedIn(){
   document.getElementById('tab-bar').style.display='flex';
   showScreen('map');
   document.getElementById('tab-map').classList.add('active');
-  renderAlerts();renderCarbon();loadStations();
+  renderAlerts();renderCarbon();
+// Initialize map as soon as Google Maps is ready
+if(typeof google!=='undefined'&&google.maps){initMap();}
+else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
+loadStations();
 }
 
 function signOut(){
@@ -808,6 +821,108 @@ function getLatestPrice(station){
 }
 
 // ── Location + stations ───────────────────────────────────────────────────────
+// ── Google Maps ───────────────────────────────────────────────────────────────
+var gMap=null;
+var gMarkers=[];
+var userMarker=null;
+var selectedInfoWindow=null;
+
+function initMap(){
+  var defaultCenter={lat:37.7749,lng:-122.4194};
+  gMap=new google.maps.Map(document.getElementById('google-map'),{
+    zoom:14,
+    center:defaultCenter,
+    disableDefaultUI:true,
+    zoomControl:true,
+    zoomControlOptions:{position:google.maps.ControlPosition.RIGHT_CENTER},
+    styles:[
+      {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
+      {featureType:'transit',elementType:'labels',stylers:[{visibility:'off'}]}
+    ]
+  });
+}
+
+function ensureMap(){
+  if(!gMap&&typeof google!=='undefined'&&google.maps){initMap();}
+}
+
+function updateMapCenter(lat,lng){
+  ensureMap();
+  if(!gMap)return;
+  gMap.setCenter({lat:lat,lng:lng});
+  // User location dot
+  if(userMarker)userMarker.setMap(null);
+  userMarker=new google.maps.Marker({
+    position:{lat:lat,lng:lng},
+    map:gMap,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#1667d9',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+    zIndex:1000,
+    title:'Your location'
+  });
+}
+
+function pinColor(score){return score>=80?'#16a34a':score>=65?'#d97706':'#dc2626';}
+
+function updateMapPins(stations){
+  ensureMap();
+  if(!gMap)return;
+  // Clear old markers
+  gMarkers.forEach(function(m){m.setMap(null);});
+  gMarkers=[];
+  if(selectedInfoWindow){selectedInfoWindow.close();selectedInfoWindow=null;}
+
+  stations.forEach(function(st){
+    var color=pinColor(st.score);
+    var isEV=st.type==='ev';
+    var label=isEV?'⚡':'⛽';
+    var pi=getLatestPrice(st);
+    var priceStr=isEV?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
+
+    var marker=new google.maps.Marker({
+      position:{lat:st.latitude||userLat,lng:st.longitude||userLng},
+      map:gMap,
+      title:st.name,
+      icon:{
+        path:google.maps.SymbolPath.CIRCLE,
+        scale:14,
+        fillColor:color,
+        fillOpacity:0.95,
+        strokeColor:'#fff',
+        strokeWeight:2
+      },
+      label:{text:label,color:'#fff',fontSize:'11px',fontWeight:'700'},
+      zIndex:100
+    });
+
+    var infoContent='<div style="font-family:-apple-system,sans-serif;padding:4px;min-width:160px;">'
+      +'<div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:2px;">'+st.name+'</div>'
+      +'<div style="font-size:11px;color:#888;margin-bottom:6px;">'+st.distanceMiles.toFixed(1)+' mi away</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+      +'<span style="font-size:16px;font-weight:800;color:#1667d9;">'+priceStr+'</span>'
+      +'<span style="background:'+color+'22;color:'+color+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+st.score+'</span>'
+      +'</div>'
+      +'<button onclick="showDetailFromMap(''+st.id+'')" style="width:100%;margin-top:8px;padding:7px;background:#1667d9;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">View details</button>'
+      +'</div>';
+
+    var infoWindow=new google.maps.InfoWindow({content:infoContent,maxWidth:200});
+
+    marker.addListener('click',function(){
+      if(selectedInfoWindow)selectedInfoWindow.close();
+      infoWindow.open(gMap,marker);
+      selectedInfoWindow=infoWindow;
+      gMap.panTo(marker.getPosition());
+    });
+
+    gMarkers.push(marker);
+  });
+}
+
+function showDetailFromMap(stationId){
+  if(selectedInfoWindow){selectedInfoWindow.close();selectedInfoWindow=null;}
+  var st=allStations.find(function(s){return s.id===stationId;});
+  if(st)showDetail(st);
+}
+
 function setLoading(msg){document.getElementById('loading-overlay').style.display='flex';document.getElementById('loading-txt').textContent=msg;document.getElementById('refresh-btn').style.display='none';}
 function clearLoading(){document.getElementById('loading-overlay').style.display='none';document.getElementById('refresh-btn').style.display='block';}
 
@@ -817,7 +932,7 @@ function loadStations(){
   var fallbackTimer=setTimeout(function(){if(!done){done=true;useFallbackLocation();}},6000);
   if(!navigator.geolocation){clearTimeout(fallbackTimer);done=true;useFallbackLocation();return;}
   navigator.geolocation.getCurrentPosition(
-    function(pos){if(done)return;done=true;clearTimeout(fallbackTimer);userLat=pos.coords.latitude;userLng=pos.coords.longitude;updateLocationDisplay();fetchOCM(userLat,userLng);},
+    function(pos){if(done)return;done=true;clearTimeout(fallbackTimer);userLat=pos.coords.latitude;userLng=pos.coords.longitude;updateLocationDisplay();ensureMap();updateMapCenter(userLat,userLng);fetchOCM(userLat,userLng);},
     function(){if(done)return;done=true;clearTimeout(fallbackTimer);useFallbackLocation();},
     {timeout:5000,enableHighAccuracy:false,maximumAge:60000}
   );
@@ -829,7 +944,7 @@ function updateLocationDisplay(){
   document.getElementById('map-title').textContent='Hi '+(profile.name||'there')+'! Near you';
 }
 
-function useFallbackLocation(){userLat=37.7749;userLng=-122.4194;document.getElementById('map-title').textContent='SoMa, San Francisco';document.getElementById('location-txt').textContent='SF Bay Area';fetchOCM(userLat,userLng);}
+function useFallbackLocation(){userLat=37.7749;userLng=-122.4194;document.getElementById('map-title').textContent='SoMa, San Francisco';document.getElementById('location-txt').textContent='SF Bay Area';ensureMap();updateMapCenter(userLat,userLng);fetchOCM(userLat,userLng);}
 
 function fetchOCM(lat,lng){
   setLoading('Finding live EV chargers…');
@@ -853,6 +968,9 @@ function buildStationList(lat,lng,live){
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='🔌 '+live.length+' live OCM + '+(allStations.length-live.length)+' SF stations';
   clearLoading();renderAll();
+  // Update map pins with all stations that have coordinates
+  var mappable=allStations.filter(function(s){return s.latitude&&s.longitude;});
+  updateMapPins(mappable);
 }
 
 function getFiltered(){
