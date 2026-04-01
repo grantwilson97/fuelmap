@@ -44,7 +44,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .sp.on{background:#1667d9;border-color:#1667d9;color:#fff;}
 .cards{display:flex;gap:10px;padding:0 14px 14px;overflow-x:auto;scrollbar-width:none;}
 .cards::-webkit-scrollbar{display:none;}
-.card{flex-shrink:0;width:175px;background:#fff;border-radius:16px;border:1.5px solid #eee;padding:12px;cursor:pointer;}
+.card{flex-shrink:0;width:200px;background:#fff;border-radius:16px;border:1.5px solid #eee;padding:12px;cursor:pointer;}
 .card.live{border-color:#16a34a;}
 .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
 .card-name{font-size:13px;font-weight:700;color:#1a1a2e;line-height:1.3;}
@@ -52,6 +52,12 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .ring{width:36px;height:36px;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .ring-txt{font-size:12px;font-weight:800;}
 .card-price{font-size:18px;font-weight:800;color:#1667d9;margin-bottom:2px;}
+.card-grades{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;}
+.grade-pill{flex:1;min-width:0;background:#f7f7f9;border-radius:7px;padding:4px 3px;text-align:center;border:1px solid #eee;}
+.grade-pill.pref{background:#eff6ff;border-color:#1667d9;}
+.grade-pill-name{font-size:8px;font-weight:700;color:#888;text-transform:uppercase;white-space:nowrap;}
+.grade-pill-price{font-size:12px;font-weight:800;color:#1667d9;margin-top:1px;}
+.grade-pill-src{font-size:7px;color:#aaa;margin-top:1px;}
 .card-price-source{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:6px;}
 .src-live{background:#dcfce7;color:#15803d;}
 .src-community{background:#dbeafe;color:#1d4ed8;}
@@ -1100,7 +1106,24 @@ function renderCards(){
     var sl=pi.source==='community'?'👤 Community':pi.source==='live'?'🔌 Live':'📊 EIA avg';
     var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
     var card=document.createElement('div');card.className='card'+(st.isLive?' live':'');
-    var ratingStr=st.rating?'⭐ '+st.rating:'';var distLabel=st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div><div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div><div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
+    var ratingStr=st.rating?'⭐ '+st.rating:'';
+    var distLabel=st.distanceMiles.toFixed(1)+' mi · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
+    // Build grade prices row for gas stations
+    var gradesHTML='';
+    if(st.type==='gas'){
+      var av3=getActiveVehicle();var prefGrade3=av3&&av3.gasGrade?av3.gasGrade:'regular';
+      var gp=getGradePrices(st);
+      gradesHTML='<div class="card-grades">'+GAS_GRADES.map(function(g){
+        var isPref=g.key===prefGrade3;
+        var srcLabel=gp[g.key].source==='community'?'reported':'EIA est.';
+        return'<div class="grade-pill'+(isPref?' pref':'')+'">'+
+          '<div class="grade-pill-name">'+g.label+'</div>'+
+          '<div class="grade-pill-price">$'+gp[g.key].price.toFixed(2)+'</div>'+
+          '<div class="grade-pill-src">'+srcLabel+'</div>'+
+          '</div>';
+      }).join('')+'</div>';
+    }
+    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div>'+gradesHTML+(st.type!=='gas'?'<div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div>':'')+'<div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
     card.onclick=function(){showDetail(st);};el.appendChild(card);
   });
 }
