@@ -16,7 +16,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .topbar{padding:14px 14px 8px;background:#fff;border-bottom:0.5px solid #e5e5e5;}
 .title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.wordmark{font-size:26px;font-weight:800;letter-spacing:-0.5px;}
+.wordmark{font-size:26px;font-weight:800;letter-spacing:-1px;font-style:italic;display:inline-flex;flex-direction:column;line-height:1;gap:3px;}
 .wordmark span{color:#FCD34D;}
 .subtitle{font-size:11px;color:#888;max-width:160px;text-align:right;line-height:1.3;}
 .pge-chip{background:#fff7e6;border:1px solid #fbbf24;border-radius:8px;padding:5px 10px;margin-bottom:8px;}
@@ -176,7 +176,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 /* ── AUTH SCREEN ── */
 .auth-screen{flex:1;display:flex;flex-direction:column;background:#fff;}
 .auth-hero{background:#374151;padding:40px 24px 32px;text-align:center;}
-.auth-logo{font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:4px;}
+.auth-logo{font-size:40px;font-weight:800;letter-spacing:-1.5px;font-style:italic;display:inline-flex;flex-direction:column;line-height:1;gap:5px;margin-bottom:4px;}
 .auth-logo span{color:#FCD34D;}
 .auth-tagline{font-size:14px;color:rgba(255,255,255,0.8);}
 .auth-body{flex:1;padding:24px;overflow-y:auto;}
@@ -324,7 +324,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 <!-- AUTH SCREEN -->
 <div class="screen active" id="screen-auth">
   <div class="auth-hero">
-    <div class="auth-logo"><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div>
+    <div class="auth-logo"><div><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div><div style="height:3.5px;background:#FCD34D;border-radius:2px;width:100%;"></div></div>
     <div class="auth-tagline">SF Bay Area · Live fuel prices</div>
   </div>
   <div class="auth-body">
@@ -362,7 +362,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 <div class="screen" id="screen-map">
   <div class="topbar">
     <div class="title-row">
-      <div class="wordmark"><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div>
+      <div class="wordmark"><div><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div><div style="height:2.5px;background:#FCD34D;border-radius:2px;width:100%;"></div></div>
       <div class="subtitle" id="location-txt">Getting location…</div>
     </div>
     <div class="filter-row" id="filters"></div>
