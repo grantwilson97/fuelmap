@@ -1428,7 +1428,7 @@ function renderCards(){
       var gp=getGradePrices(st);
       gradesHTML='<div class="card-grades">'+GAS_GRADES.map(function(g){
         var isPref=g.key===prefGrade3;
-        var srcLabel=gp[g.key].source==='community'?'reported':(gp[g.key].estimated?'~ est.':gp[g.key].source||'EIA');
+        var srcLabel=gp[g.key].source==='community'?'✓ Reported':(gp[g.key].estimated?'~ est.':gp[g.key].source||'EIA');
         return'<div class="grade-pill'+(isPref?' pref':'')+'">'+
           '<div class="grade-pill-name">'+(g.short||g.label)+'</div>'+
           '<div class="grade-pill-price">'+(gp[g.key].estimated?'~':'')+'$'+gp[g.key].price.toFixed(2)+'</div>'+
@@ -1448,13 +1448,18 @@ function renderCards(){
           var gpPrefix=gp3[g.key].estimated?'~':'';
           return'<div class="grade-pill'+(isPref?' pref':'')+'">'
             +'<div class="grade-pill-name">'+(g.short||g.label)+'</div>'
-            +'<div class="grade-pill-price">'+gpPrefix+'$'+gp3[g.key].price.toFixed(2)+'</div>'
+            +'<div class="grade-pill-price">$'+gp3[g.key].price.toFixed(2)+'</div>'
+            +(gp3[g.key].estimated
+              ?'<div class="grade-pill-src">~ est.</div>'
+              :'<div class="grade-pill-src" style="color:#16a34a;">reported</div>'
+            )
             +'</div>';
         }).join('')
-        // Score in the 4th slot where DIES was
-        +'<div class="grade-pill" style="border-color:'+sc+';background:'+sc+'22;">'
-          +'<div class="grade-pill-name" style="color:'+sc+';">SCORE</div>'
-          +'<div class="grade-pill-price" style="color:'+sc+';">'+st.score+'</div>'
+        // Score ring in the 4th slot where DIES was
+        +'<div style="flex:0;display:flex;align-items:center;justify-content:center;padding:0 2px;">'
+          +'<div class="ring" style="border-color:'+sc+';background:'+sc+'22;width:32px;height:32px;">'
+            +'<span class="ring-txt" style="color:'+sc+';">'+st.score+'</span>'
+          +'</div>'
         +'</div>'
         +'</div>';
     }
@@ -1496,7 +1501,7 @@ function showDetail(station){
   var prefGrade=av2&&av2.gasGrade?av2.gasGrade:'regular';
   var gradePrices=station.type==='gas'?getGradePrices(station):null;
   // Update preferred grade display price
-  if(gradePrices&&gradePrices[prefGrade]){var gp2=gradePrices[prefGrade];pi={price:gp2.price,source:gp2.source,ago:gp2.ago,estimated:gp2.estimated};pd=(gp2.estimated?'~':'')+'$'+gp2.price.toFixed(2)+'/gal';}
+  if(gradePrices&&gradePrices[prefGrade]){var gp2=gradePrices[prefGrade];pi={price:gp2.price,source:gp2.source,ago:gp2.ago,estimated:gp2.estimated};pd='$'+gp2.price.toFixed(2)+'/gal';}
   // Build full grade table for detail screen
   var gradeTableHTML='';
   if(gradePrices){
@@ -1505,12 +1510,12 @@ function showDetail(station){
       +GAS_GRADES.map(function(g){
         var gp=gradePrices[g.key];
         var isPref=g.key===prefGrade;
-        var gpPrefix=gp.estimated?'~':'';
-        var srcLbl=gp.source==='community'?'👤 reported':(gp.estimated?'~ est.':'EIA');
+        var srcLbl=gp.source==='community'?'✓ Reported':(gp.estimated?'~ Est.':'EIA');
+        var srcColor=gp.source==='community'?'#15803d':(gp.estimated?'#888':'#888');
         return'<div style="flex:1;background:'+(isPref?'#fff5f5':'#f7f7f9')+';border:1.5px solid '+(isPref?'#DC2626':'#eee')+';border-radius:10px;padding:10px 6px;text-align:center;">'
           +'<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:4px;">'+g.label+'</div>'
-          +'<div style="font-size:16px;font-weight:800;color:#DC2626;">'+gpPrefix+'$'+gp.price.toFixed(2)+'</div>'
-          +'<div style="font-size:9px;color:#aaa;margin-top:2px;">'+srcLbl+'</div>'
+          +'<div style="font-size:16px;font-weight:800;color:#DC2626;">$'+gp.price.toFixed(2)+'</div>'
+          +'<div style="font-size:9px;color:'+srcColor+';font-weight:600;margin-top:2px;">'+srcLbl+'</div>'
           +(isPref?'<div style="font-size:8px;font-weight:700;color:#DC2626;margin-top:3px;">YOUR GRADE</div>':'')
           +'</div>';
       }).join('')
@@ -2182,7 +2187,7 @@ function renderSearchResults(results,query){
   el.innerHTML='<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">'+results.length+' stations found · '+query+'</div>'+
   results.slice(0,20).map(function(st){
     var sc=scoreColor(st.score||70);var pi=getLatestPrice(st);
-    var pd=(pi.estimated?'~':'')+'$'+pi.price.toFixed(2)+(st.type==='ev'?'/kWh':'/gal');
+    var pd='$'+pi.price.toFixed(2)+(st.type==='ev'?'/kWh':'/gal');
     var isFav=isFavorite(st.id);
     return '<div class="fav-card" onclick="openSearchResult(\''+ st.id +'\')">'+
       '<div style="font-size:20px;cursor:pointer;" onclick="event.stopPropagation();toggleFavorite('+JSON.stringify({id:st.id,name:st.name,address:st.address,type:st.type,brand:st.brand||st.network,basePrice:st.basePrice,priceLevel:st.priceLevel,latitude:st.latitude,longitude:st.longitude,rating:st.rating})+')">'+(isFav?'⭐':'☆')+'</div>'+
