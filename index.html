@@ -1258,60 +1258,131 @@ function updateMapCenter(lat,lng){
 
 function pinColor(score){return score>=80?'#16a34a':score>=65?'#d97706':'#dc2626';}
 
+// ── Price pin overlay (Zillow-style) ─────────────────────────────────────────
+function PricePinOverlay(station,map){
+  this.station=station;
+  this.div=null;
+  this.setMap(map);
+}
+
+function initPricePinOverlay(){
+  PricePinOverlay.prototype=Object.create(google.maps.OverlayView.prototype);
+
+  PricePinOverlay.prototype.onAdd=function(){
+    var st=this.station;
+    var color=pinColor(st.score);
+    var pi=getLatestPrice(st);
+    var isEV=st.type==='ev';
+    var priceLabel=isEV?'$'+pi.price.toFixed(2)+'/k':'$'+pi.price.toFixed(2);
+    var typeIcon=isEV?'⚡':'⛽';
+
+    var div=document.createElement('div');
+    div.style.cssText='position:absolute;cursor:pointer;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.25));transition:transform 0.15s;';
+
+    // Pill shape with pointer triangle underneath
+    div.innerHTML=
+      '<div style="background:'+color+';border-radius:20px;padding:4px 8px 4px 6px;display:flex;align-items:center;gap:3px;white-space:nowrap;border:2px solid #fff;">'+
+        '<span style="font-size:10px;line-height:1;">'+typeIcon+'</span>'+
+        '<span style="font-size:11px;font-weight:800;color:#fff;letter-spacing:-0.3px;">'+priceLabel+'</span>'+
+      '</div>'+
+      '<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+color+';margin:0 auto;"></div>';
+
+    div.addEventListener('click',function(e){
+      e.stopPropagation();
+      openPricePin(st);
+    });
+    div.addEventListener('mouseenter',function(){div.style.transform='translate(-50%,-100%) scale(1.1)';div.style.zIndex='999';});
+    div.addEventListener('mouseleave',function(){div.style.transform='translate(-50%,-100%) scale(1)';div.style.zIndex='100';});
+
+    this.div=div;
+    var panes=this.getPanes();
+    panes.overlayMouseTarget.appendChild(div);
+  };
+
+  PricePinOverlay.prototype.draw=function(){
+    var proj=this.getProjection();
+    if(!proj)return;
+    var pos=proj.fromLatLngToDivPixel(new google.maps.LatLng(this.station.latitude,this.station.longitude));
+    if(!pos)return;
+    this.div.style.left=pos.x+'px';
+    this.div.style.top=pos.y+'px';
+  };
+
+  PricePinOverlay.prototype.onRemove=function(){
+    if(this.div&&this.div.parentNode)this.div.parentNode.removeChild(this.div);
+    this.div=null;
+  };
+
+  PricePinOverlay.prototype.hide=function(){if(this.div)this.div.style.display='none';};
+  PricePinOverlay.prototype.show=function(){if(this.div)this.div.style.display='';};
+}
+
+var pricePinOverlayReady=false;
+
+function openPricePin(st){
+  // Close any open info window
+  if(selectedInfoWindow){selectedInfoWindow.close();selectedInfoWindow=null;}
+  var color=pinColor(st.score);
+  var pi=getLatestPrice(st);
+  var isEV=st.type==='ev';
+  var priceStr=isEV?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
+  var infoContent='<div style="font-family:-apple-system,sans-serif;padding:4px;min-width:160px;">'+
+    '<div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:2px;">'+st.name+'</div>'+
+    '<div style="font-size:11px;color:#888;margin-bottom:6px;">'+st.distanceMiles.toFixed(1)+' mi away</div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;">'+
+    '<span style="font-size:16px;font-weight:800;color:#DC2626;">'+priceStr+'</span>'+
+    '<span style="background:'+color+'22;color:'+color+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+st.score+'</span>'+
+    '</div>'+
+    '<button onclick="showDetailFromMap(\''+st.id+'\')" style="width:100%;margin-top:8px;padding:7px;background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">View details</button>'+
+    '</div>';
+  var iw=new google.maps.InfoWindow({content:infoContent,maxWidth:200});
+  // Use a tiny invisible marker as anchor
+  var anchor=new google.maps.Marker({
+    position:{lat:st.latitude,lng:st.longitude},
+    map:gMap,opacity:0,clickable:false
+  });
+  iw.open(gMap,anchor);
+  selectedInfoWindow=iw;
+  gMap.panTo({lat:st.latitude,lng:st.longitude});
+  google.maps.event.addListenerOnce(iw,'closeclick',function(){anchor.setMap(null);});
+}
+
 function updateMapPins(stations){
   ensureMap();
   if(!gMap)return;
-  // Clear old markers
-  gMarkers.forEach(function(m){m.setMap(null);});
+  // Clear old markers/overlays
+  gMarkers.forEach(function(m){
+    if(m.setMap)m.setMap(null);
+  });
   gMarkers=[];
   if(selectedInfoWindow){selectedInfoWindow.close();selectedInfoWindow=null;}
 
+  // Init overlay prototype once
+  if(!pricePinOverlayReady&&typeof google!=='undefined'&&google.maps){
+    initPricePinOverlay();
+    pricePinOverlayReady=true;
+  }
+
   stations.forEach(function(st){
-    var color=pinColor(st.score);
-    var isEV=st.type==='ev';
-    // If filter is active, show that filter's icon; otherwise use station type
-    var label=isEV?'⚡':'⛽';
-    if(currentFilter==='ev')label='⚡';
-    else if(currentFilter==='gas')label='⛽';
-    var pi=getLatestPrice(st);
-    var priceStr=isEV?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
-
-    var marker=new google.maps.Marker({
-      position:{lat:st.latitude||userLat,lng:st.longitude||userLng},
-      map:gMap,
-      title:st.name,
-      icon:{
-        path:google.maps.SymbolPath.CIRCLE,
-        scale:14,
-        fillColor:color,
-        fillOpacity:0.95,
-        strokeColor:'#fff',
-        strokeWeight:2
-      },
-      label:{text:label,color:'#fff',fontSize:'11px',fontWeight:'700'},
-      zIndex:100
-    });
-
-    var infoContent='<div style="font-family:-apple-system,sans-serif;padding:4px;min-width:160px;">'
-      +'<div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:2px;">'+st.name+'</div>'
-      +'<div style="font-size:11px;color:#888;margin-bottom:6px;">'+st.distanceMiles.toFixed(1)+' mi away</div>'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;">'
-      +'<span style="font-size:16px;font-weight:800;color:#1667d9;">'+priceStr+'</span>'
-      +'<span style="background:'+color+'22;color:'+color+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+st.score+'</span>'
-      +'</div>'
-      +'<button onclick="showDetailFromMap(\"'+st.id+'\")"\ style="width:100%;margin-top:8px;padding:7px;background:#1667d9;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">View details</button>'
-      +'</div>';
-
-    var infoWindow=new google.maps.InfoWindow({content:infoContent,maxWidth:200});
-
-    marker.addListener('click',function(){
-      if(selectedInfoWindow)selectedInfoWindow.close();
-      infoWindow.open(gMap,marker);
-      selectedInfoWindow=infoWindow;
-      gMap.panTo(marker.getPosition());
-    });
-
-    gMarkers.push(marker);
+    if(!st.latitude||!st.longitude)return;
+    if(pricePinOverlayReady){
+      var overlay=new PricePinOverlay(st,gMap);
+      gMarkers.push(overlay);
+    } else {
+      // Fallback to standard marker if overlay not ready
+      var color=pinColor(st.score);
+      var pi=getLatestPrice(st);
+      var isEV=st.type==='ev';
+      var priceLabel=isEV?'$'+pi.price.toFixed(2)+'/k':'$'+pi.price.toFixed(2);
+      var m=new google.maps.Marker({
+        position:{lat:st.latitude,lng:st.longitude},
+        map:gMap,title:st.name,
+        label:{text:priceLabel,color:'#fff',fontSize:'9px',fontWeight:'700'},
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:16,fillColor:color,fillOpacity:0.95,strokeColor:'#fff',strokeWeight:2}
+      });
+      m.addListener('click',function(){openPricePin(st);});
+      gMarkers.push(m);
+    }
   });
 }
 
