@@ -344,6 +344,25 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .direct-nav-row{display:flex;gap:8px;margin-bottom:8px;}
 .direct-nav-apple{flex:1;padding:10px;background:#f7f7f9;border:1px solid #e0e0e0;border-radius:10px;font-size:12px;font-weight:600;color:#555;cursor:pointer;text-align:center;}
 .direct-nav-google{flex:1;padding:10px;background:#f7f7f9;border:1px solid #e0e0e0;border-radius:10px;font-size:12px;font-weight:600;color:#555;cursor:pointer;text-align:center;}
+/* ── Vehicle toggle ── */
+.vehicle-toggle-btn{background:#fff5f5;border:2px solid #DC2626;border-radius:20px;padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;max-width:150px;}
+.vehicle-toggle-txt{font-size:11px;font-weight:700;color:#DC2626;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
+.vehicle-toggle-arrow{font-size:9px;color:#DC2626;flex-shrink:0;}
+.vehicle-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+.vehicle-picker-overlay.hidden{display:none;}
+.vehicle-picker{background:#fff;border-radius:20px 20px 0 0;padding:16px;width:100%;max-width:430px;max-height:60vh;overflow-y:auto;}
+.vehicle-picker-title{font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:14px;text-align:center;}
+.vehicle-picker-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:6px;border:2px solid transparent;}
+.vehicle-picker-item.active{border-color:#DC2626;background:#fff5f5;}
+.vehicle-picker-item:not(.active){background:#f7f7f9;}
+.vehicle-picker-emoji{font-size:26px;flex-shrink:0;}
+.vehicle-picker-info{flex:1;}
+.vehicle-picker-name{font-size:14px;font-weight:700;color:#1a1a2e;}
+.vehicle-picker-detail{font-size:11px;color:#888;margin-top:2px;}
+.vehicle-picker-fuel{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.vehicle-picker-bar{flex:1;height:4px;background:#e0e0e0;border-radius:2px;}
+.vehicle-picker-fill{height:100%;border-radius:2px;}
+.vehicle-picker-pct{font-size:10px;font-weight:700;}
 /* ── Bell notification ── */
 .bell-btn{background:none;border:none;cursor:pointer;position:relative;padding:2px;display:flex;align-items:center;justify-content:center;line-height:1;}
 .bell-icon{font-size:26px;line-height:1;display:block;}
@@ -395,7 +414,12 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   <div class="topbar">
     <div class="title-row" style="display:flex;align-items:center;justify-content:space-between;">
       <div class="wordmark"><div><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div><div style="height:2.5px;background:linear-gradient(90deg,#DC2626,#FCD34D);border-radius:2px;width:100%;"></div></div>
-      <div class="subtitle" id="location-txt" style="text-align:center;flex:1;margin:0 8px;font-size:11px;color:#888;"></div>
+      <div style="flex:1;display:flex;justify-content:center;margin:0 6px;">
+        <button class="vehicle-toggle-btn" onclick="openVehiclePicker()" id="vehicle-toggle-btn">
+          <span class="vehicle-toggle-txt" id="location-txt">Loading…</span>
+          <span class="vehicle-toggle-arrow">▼</span>
+        </button>
+      </div>
       <button class="bell-btn" onclick="showTab('alerts')" id="bell-btn">
         <span class="bell-icon">🔔</span>
         <span class="bell-badge hidden" id="bell-badge">0</span>
@@ -597,6 +621,15 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
       <button class="modal-cancel" onclick="closeProfileEditModal()">Cancel</button>
       <button class="modal-submit" onclick="saveProfile()">Save profile</button>
     </div>
+  </div>
+</div>
+
+<!-- VEHICLE PICKER MODAL -->
+<div class="vehicle-picker-overlay hidden" id="vehicle-picker-overlay" onclick="closeVehiclePicker(event)">
+  <div class="vehicle-picker" onclick="event.stopPropagation()">
+    <div class="vehicle-picker-title">Switch vehicle</div>
+    <div id="vehicle-picker-list"></div>
+    <button onclick="closeVehiclePickerDirect()" style="width:100%;padding:12px;border-radius:12px;background:#f7f7f9;border:1.5px solid #e0e0e0;font-size:14px;font-weight:700;color:#555;cursor:pointer;margin-top:4px;">Cancel</button>
   </div>
 </div>
 
@@ -1325,8 +1358,16 @@ function loadStations(){
 
 function updateLocationDisplay(){
   var av=getActiveVehicle();var profile=loadProfile();
-  document.getElementById('location-txt').textContent=av?av.year+' '+av.make+' '+av.model:'SF Bay Area';
+  var vehicleTxt=av?av.emoji+' '+av.make+' '+av.model:'Add a vehicle';
+  document.getElementById('location-txt').textContent=vehicleTxt;
   document.getElementById('map-title').textContent='Hi '+(profile.name||'there')+'! Near you';
+  // Show/hide toggle arrow depending on vehicle count
+  var vehicles=loadVehicles();
+  var btn=document.getElementById('vehicle-toggle-btn');
+  if(btn){
+    var arrow=btn.querySelector('.vehicle-toggle-arrow');
+    if(arrow)arrow.style.display=vehicles.length>1?'inline':'none';
+  }
 }
 
 function useFallbackLocation(){userLat=37.8044;userLng=-122.2712;document.getElementById('map-title').textContent='SF Bay Area';document.getElementById('location-txt').textContent='SF Bay Area';ensureMap();updateMapCenter(userLat,userLng);if(gMap)gMap.setZoom(10);fetchOCM(userLat,userLng);}
@@ -1905,6 +1946,49 @@ function savePref(){
   // Reload stations with new radius
   if(userLat&&userLng)fetchOCM(userLat,userLng);
 }
+function openVehiclePicker(){
+  var vehicles=loadVehicles();
+  if(vehicles.length<=1){
+    // Only one vehicle — go straight to profile to add more
+    showTab('profile');return;
+  }
+  var av=getActiveVehicle();
+  var list=document.getElementById('vehicle-picker-list');
+  if(!list)return;
+  list.innerHTML=vehicles.map(function(v){
+    var isActive=v.active||(av&&v.id===av.id);
+    var lvl=v.level||50;var fc=fuelColor(lvl);
+    var detail=v.fuelType.charAt(0).toUpperCase()+v.fuelType.slice(1)+(v.mpg&&v.fuelType!=='electric'?' · '+v.mpg+' mpg':'');
+    return'<div class="vehicle-picker-item'+(isActive?' active':'')+'" onclick="switchVehicleFromPicker(this.dataset.vid)" data-vid='+v.id+'>'
+      +'<div class="vehicle-picker-emoji">'+v.emoji+'</div>'
+      +'<div class="vehicle-picker-info">'
+        +'<div class="vehicle-picker-name">'+v.make+' '+v.model+'</div>'
+        +'<div class="vehicle-picker-detail">'+detail+'</div>'
+        +'<div class="vehicle-picker-fuel">'
+          +'<div class="vehicle-picker-bar"><div class="vehicle-picker-fill" style="width:'+lvl+'%;background:'+fc+';"></div></div>'
+          +'<span class="vehicle-picker-pct" style="color:'+fc+';">'+lvl+'%</span>'
+        +'</div>'
+      +'</div>'
+      +(isActive?'<div style="font-size:18px;">✓</div>':'')
+    +'</div>';
+  }).join('');
+  document.getElementById('vehicle-picker-overlay').classList.remove('hidden');
+}
+
+function switchVehicleFromPicker(id){
+  closeVehiclePickerDirect();
+  setActiveVehicle(id);
+  // Reload stations with new vehicle preferences
+  if(userLat&&userLng)fetchOCM(userLat,userLng);
+}
+
+function closeVehiclePicker(e){
+  if(e.target.id==='vehicle-picker-overlay')closeVehiclePickerDirect();
+}
+function closeVehiclePickerDirect(){
+  document.getElementById('vehicle-picker-overlay').classList.add('hidden');
+}
+
 function setActiveVehicle(id){
   var v=loadLocalVehicles();v.forEach(function(x){x.active=x.id===id;});saveLocalVehicles(v);
   if(currentUser)syncAllVehiclesToCloud(v);
