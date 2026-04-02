@@ -483,7 +483,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 </div>
 
 <!-- SEARCH SCREEN -->
-<div class="screen" id="screen-search" style="background:#f7f7f9;display:none;flex-direction:column;">
+<div class="screen" id="screen-search" style="background:#f7f7f9;">
   <div class="search-hero">
     <div class="search-title">Find a station</div>
     <div class="search-input-wrap">
@@ -1436,7 +1436,35 @@ function renderCards(){
           '</div>';
       }).join('')+'</div>';
     }
-    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:6px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div><div class="ring" style="border-color:'+sc+';background:'+sc+'22;"><span class="ring-txt" style="color:'+sc+';">'+st.score+'</span></div></div>'+gradesHTML+(st.type!=='gas'?'<div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div>':'')+'<div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
+    // Build grade pills - REG, MID, PREM only (no DIES) + score in DIES slot
+    var gradesRowHTML='';
+    if(st.type==='gas'){
+      var av3=getActiveVehicle();var prefGrade3=av3&&av3.gasGrade?av3.gasGrade:'regular';
+      var gp3=getGradePrices(st);
+      var threGrades=GAS_GRADES.filter(function(g){return g.key!=='diesel';});
+      gradesRowHTML='<div class="card-grades">'
+        +threGrades.map(function(g){
+          var isPref=g.key===prefGrade3;
+          var gpPrefix=gp3[g.key].estimated?'~':'';
+          return'<div class="grade-pill'+(isPref?' pref':'')+'">'
+            +'<div class="grade-pill-name">'+(g.short||g.label)+'</div>'
+            +'<div class="grade-pill-price">'+gpPrefix+'$'+gp3[g.key].price.toFixed(2)+'</div>'
+            +'</div>';
+        }).join('')
+        // Score in the 4th slot where DIES was
+        +'<div class="grade-pill" style="border-color:'+sc+';background:'+sc+'22;">'
+          +'<div class="grade-pill-name" style="color:'+sc+';">SCORE</div>'
+          +'<div class="grade-pill-price" style="color:'+sc+';">'+st.score+'</div>'
+        +'</div>'
+        +'</div>';
+    }
+    var favStar=isFavorite(st.id)?'⭐':'☆';
+    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:4px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div>'
+      +'<div onclick="event.stopPropagation();toggleFavFromCard(this.dataset.sid)" style="font-size:16px;cursor:pointer;padding:2px 0 2px 4px;" id=\"fav-card-'+st.id+'\" data-sid='+JSON.stringify(st.id)+'>'+favStar+'</div>'
+      +'</div>'
+      +gradesRowHTML
+      +(st.type!=='gas'?'<div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div>':'')
+      +'<div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
     card.onclick=function(){showDetail(st);};el.appendChild(card);
   });
 }
@@ -1469,6 +1497,25 @@ function showDetail(station){
   var gradePrices=station.type==='gas'?getGradePrices(station):null;
   // Update preferred grade display price
   if(gradePrices&&gradePrices[prefGrade]){var gp2=gradePrices[prefGrade];pi={price:gp2.price,source:gp2.source,ago:gp2.ago,estimated:gp2.estimated};pd=(gp2.estimated?'~':'')+'$'+gp2.price.toFixed(2)+'/gal';}
+  // Build full grade table for detail screen
+  var gradeTableHTML='';
+  if(gradePrices){
+    gradeTableHTML='<div class="section"><div class="sec-title">Fuel prices by grade</div>'
+      +'<div style="display:flex;gap:8px;">'
+      +GAS_GRADES.map(function(g){
+        var gp=gradePrices[g.key];
+        var isPref=g.key===prefGrade;
+        var gpPrefix=gp.estimated?'~':'';
+        var srcLbl=gp.source==='community'?'👤 reported':(gp.estimated?'~ est.':'EIA');
+        return'<div style="flex:1;background:'+(isPref?'#fff5f5':'#f7f7f9')+';border:1.5px solid '+(isPref?'#DC2626':'#eee')+';border-radius:10px;padding:10px 6px;text-align:center;">'
+          +'<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:4px;">'+g.label+'</div>'
+          +'<div style="font-size:16px;font-weight:800;color:#DC2626;">'+gpPrefix+'$'+gp.price.toFixed(2)+'</div>'
+          +'<div style="font-size:9px;color:#aaa;margin-top:2px;">'+srcLbl+'</div>'
+          +(isPref?'<div style="font-size:8px;font-weight:700;color:#DC2626;margin-top:3px;">YOUR GRADE</div>':'')
+          +'</div>';
+      }).join('')
+      +'</div></div>';
+  }
   var sl=pi.source==='community'?'👤 Community reported':pi.source==='live'?'🔌 Live data':'📊 EIA weekly average';
   var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
   var pgeMsg=station.type==='ev'?'Off-peak charging (9 PM–3 PM): $0.26/kWh vs. peak $0.57/kWh — a 54% saving.':pi.price<EIA_GAS_AVG?(EIA_GAS_AVG-pi.price).toFixed(2)+' below SF average — good value.':(pi.price-EIA_GAS_AVG).toFixed(2)+' above SF average.';
@@ -1488,7 +1535,7 @@ function showDetail(station){
   var driveMins2=station.driveDuration||Math.round(station.distanceMiles*2.5);
   var ds=Math.round(Math.min(100,Math.max(0,100-(driveMins2/20)*100)));
   var as2=60;if(station.open24h)as2+=15;if(station.rating&&station.rating>=4.0)as2+=15;else if(station.rating&&station.rating>=3.5)as2+=8;as2=Math.min(100,as2);
-  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big" style="color:#DC2626;">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price (55%)',ps],['Wait (25%)',ws],['Distance (10%)',ds],['Amenities (10%)',as2]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
+  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big" style="color:#DC2626;">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+gradeTableHTML+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price (55%)',ps],['Wait (25%)',ws],['Distance (10%)',ds],['Amenities (10%)',as2]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
   showScreen('detail');
   updateFavButtonForStation(station);
 }
@@ -1765,6 +1812,15 @@ function openTripStopDetail(stationId){
     backBtn.onclick=function(){showTab('trip');};
   }
 }
+function toggleFavFromCard(stationId){
+  var st=allStations.find(function(s){return s.id===stationId;});
+  if(!st)return;
+  toggleFavorite(st);
+  // Update star on all cards with this id
+  var el=document.getElementById('fav-card-'+stationId);
+  if(el)el.textContent=isFavorite(stationId)?'⭐':'☆';
+}
+
 function toggleFavoriteFromDetail(){
   if(!currentStation)return;
   toggleFavorite(currentStation);
