@@ -1021,13 +1021,46 @@ function formatDuration(min){if(min<60)return min+' min';var h=Math.floor(min/60
 
 function calcScore(station){
   var price=getLatestPrice(station).price;
-  var median=station.type==='ev'?EIA_EV_L2_AVG:EIA_GAS_AVG;
-  var ps=Math.min(100,Math.max(0,50+((median-price)/median)*300));
-  var ws=Math.min(100,Math.max(0,100*Math.exp(-0.1733*waitMin(station.busy||30))));
-  var ds=Math.min(100,Math.max(0,100-(station.distanceMiles/5)*80));
-  var as=65;if(station.open24h)as+=10;if((station.l2Connectors||0)+(station.dcConnectors||0)>2)as+=10;as=Math.min(100,as);
-  var av=getActiveVehicle();var wp=0.40,ww=0.35,wd=0.15,wa=0.10;
-  if(av){if(av.fuelType==='electric'){wp=0.35;ww=0.40;}else if(av.fuelType==='diesel'){wp=0.45;ww=0.30;}}
+  var median=station.type==='ev'?EIA_EV_L2_AVG:livePrices.regular||EIA_GAS_AVG;
+
+  // ── Price score (0-100) ───────────────────────────────────────────────────
+  // More aggressive curve: every $0.10 below average = +8 pts, above = -8 pts
+  // A station $0.20 cheaper scores ~66 vs baseline 50; $0.40 cheaper scores ~82
+  var priceDiff=median-price;
+  var ps=Math.min(100,Math.max(0,50+(priceDiff/median)*400));
+
+  // ── Wait score (0-100) with hard penalty for long waits ───────────────────
+  var wm=waitMin(station.busy||30);
+  var ws;
+  if(wm<=1)ws=100;           // No wait — full marks
+  else if(wm<=3)ws=80;       // Short wait — good
+  else if(wm<=6)ws=55;       // Moderate wait — acceptable
+  else if(wm<=10)ws=30;      // Long wait — penalised heavily
+  else ws=10;                 // Very long wait — near-disqualifying
+
+  // ── Distance score (0-100) — softer penalty, capped at 15 miles ──────────
+  // Distance matters but shouldn't dominate — a cheap station 3 miles away
+  // should still beat an expensive one 0.2 miles away
+  var driveMins=station.driveDuration||Math.round(station.distanceMiles*2.5);
+  var ds=Math.min(100,Math.max(0,100-(driveMins/20)*100));
+
+  // ── Amenity score ─────────────────────────────────────────────────────────
+  var as=60;
+  if(station.open24h)as+=15;
+  if(station.rating&&station.rating>=4.0)as+=15;
+  else if(station.rating&&station.rating>=3.5)as+=8;
+  if((station.l2Connectors||0)+(station.dcConnectors||0)>2)as+=10;
+  as=Math.min(100,as);
+
+  // ── Weights by fuel type ──────────────────────────────────────────────────
+  // Price is the dominant factor — that's the point of the app
+  var av=getActiveVehicle();
+  var wp=0.55,ww=0.25,wd=0.10,wa=0.10;
+  if(av){
+    if(av.fuelType==='electric'){wp=0.45;ww=0.35;wd=0.10;wa=0.10;}
+    else if(av.fuelType==='diesel'){wp=0.60;ww=0.20;wd=0.10;wa=0.10;}
+  }
+
   return Math.round(wp*ps+ww*ws+wd*ds+wa*as);
 }
 
@@ -1377,8 +1410,16 @@ function showDetail(station){
   var av=getActiveVehicle();var vehicleTip='';
   if(av){var lvl=av.level||50;var rem=av.fuelType==='electric'?Math.round(lvl/100*(av.tankSize||300))+' miles range left':Math.round(lvl/100*(av.tankSize||15)*10)/10+' gal remaining';vehicleTip='<div class="section" style="border-left:3px solid #7c3aed;background:#faf5ff;"><div class="sec-title" style="color:#6d28d9;">'+av.emoji+' Your '+av.year+' '+av.make+' '+av.model+'</div><div class="body-txt" style="color:#6d28d9;">'+rem+' · '+lvl+'% full</div></div>';}
   document.getElementById('hero-wrap').innerHTML='<div class="hero" style="background:'+heroBg+';"><button class="back-btn" onclick="showTab(\'map\')">← Map</button><div class="score-box" style="border-color:'+sc+';"><div class="score-val" style="color:'+sc+';">'+station.score+'</div><div class="score-lbl">Score</div></div><div class="hero-name">'+station.name+'</div><div class="hero-addr">'+station.address+' · '+station.distanceMiles.toFixed(1)+' mi</div></div>';
-  var ps=station.score,ws=Math.round(100-(station.busy||30)),ds=Math.round(100-(station.distanceMiles/5)*80);
-  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price',ps],['Wait time',ws],['Distance',ds],['Amenities',72]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
+  // Recalculate component scores for breakdown display
+  var priceD=getLatestPrice(station);
+  var medianD=station.type==='ev'?EIA_EV_L2_AVG:livePrices.regular||EIA_GAS_AVG;
+  var ps=Math.round(Math.min(100,Math.max(0,50+((medianD-priceD.price)/medianD)*400)));
+  var wm2=waitMin(station.busy||30);
+  var ws=wm2<=1?100:wm2<=3?80:wm2<=6?55:wm2<=10?30:10;
+  var driveMins2=station.driveDuration||Math.round(station.distanceMiles*2.5);
+  var ds=Math.round(Math.min(100,Math.max(0,100-(driveMins2/20)*100)));
+  var as2=60;if(station.open24h)as2+=15;if(station.rating&&station.rating>=4.0)as2+=15;else if(station.rating&&station.rating>=3.5)as2+=8;as2=Math.min(100,as2);
+  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price (55%)',ps],['Wait (25%)',ws],['Distance (10%)',ds],['Amenities (10%)',as2]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
   showScreen('detail');
 }
 
