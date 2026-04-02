@@ -750,18 +750,19 @@ var BRAND_DELTA={
 };
 
 function getPriceDelta(priceLevel, brand){
-  // Use Google price_level if available
-  if(priceLevel!==null&&priceLevel!==undefined&&PRICE_LEVEL_DELTA[priceLevel]!==undefined){
-    return PRICE_LEVEL_DELTA[priceLevel];
-  }
-  // Fall back to brand-based delta
+  // Brand ALWAYS wins — same brand = same price regardless of priceLevel
+  // This ensures all Costcos, all ARCOs, all Shells show consistent estimates
   if(brand){
     var b=brand.toLowerCase();
     for(var key in BRAND_DELTA){
       if(b.indexOf(key)>-1)return BRAND_DELTA[key];
     }
   }
-  return 0; // unknown brand — use city average
+  // Only use priceLevel if brand is completely unknown
+  if(priceLevel!==null&&priceLevel!==undefined&&PRICE_LEVEL_DELTA[priceLevel]!==undefined){
+    return PRICE_LEVEL_DELTA[priceLevel];
+  }
+  return 0;
 }
 
 function fetchLivePrices(){
@@ -769,6 +770,7 @@ function fetchLivePrices(){
     .then(function(r){return r.json();})
     .then(function(data){
       if(data&&data.regular){
+        var prevRegular=livePrices.regular;
         livePrices={
           regular:data.regular,
           midgrade:data.midgrade||Math.round((data.regular+0.20)*100)/100,
@@ -778,13 +780,61 @@ function fetchLivePrices(){
           metro:data.metro||'San Francisco',
           updated:data.updated||null
         };
-        // Update global baseline to match live regular price
         EIA_GAS_AVG=livePrices.regular;
+        // If price changed, refresh all station scores and pins silently
+        if(prevRegular!==data.regular&&allStations.length>0){
+          allStations.forEach(function(s){s.score=calcScore(s);});
+          renderAll();
+          showPriceUpdateFlash(data.source,data.regular);
+        }
       }
       return livePrices;
     })
     .catch(function(){return livePrices;});
 }
+
+function showPriceUpdateFlash(source, price){
+  var el=document.getElementById('data-source-txt');
+  if(!el)return;
+  var prev=el.textContent;
+  el.style.color='#DC2626';
+  el.style.fontWeight='800';
+  el.textContent='↑ Prices refreshed · $'+price.toFixed(2)+' avg';
+  setTimeout(function(){
+    el.style.color='#15803d';
+    el.style.fontWeight='700';
+    el.textContent=prev;
+  },3000);
+}
+
+// Auto-refresh prices every 60 minutes while app is open
+var priceRefreshInterval=null;
+function startPriceAutoRefresh(){
+  if(priceRefreshInterval)clearInterval(priceRefreshInterval);
+  priceRefreshInterval=setInterval(function(){
+    fetchLivePrices().then(function(){
+      // Silently recalculate station scores with fresh baseline
+      if(allStations.length>0){
+        allStations.forEach(function(s){s.score=calcScore(s);});
+        renderAll();
+      }
+    });
+  },60*60*1000); // 60 minutes
+}
+
+// Also refresh when tab becomes visible after being backgrounded
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden){
+    // App came back to foreground — check if price data is stale (>1 hour old)
+    var lastUpdated=livePrices.updated;
+    if(lastUpdated){
+      var hoursSince=(Date.now()-new Date(lastUpdated+'T00:00:00').getTime())/(1000*60*60);
+      if(hoursSince>1){fetchLivePrices();}
+    } else {
+      fetchLivePrices();
+    }
+  }
+});
 
 // Estimate per-station price for a given grade using city average + price_level delta
 function estimateStationPrice(grade,priceLevel,brand){
@@ -943,6 +993,7 @@ function onSignedIn(){
   else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
   // Fetch live prices first, then load stations so ribbon shows correct source
   fetchLivePrices().then(function(){loadStations();}).catch(function(){loadStations();});
+  startPriceAutoRefresh();
   // Sync local data to cloud if needed
   if(currentUser)syncLocalToCloud();
 }
