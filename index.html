@@ -388,15 +388,13 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 <!-- MAP SCREEN -->
 <div class="screen" id="screen-map">
   <div class="topbar">
-    <div class="title-row">
+    <div class="title-row" style="display:flex;align-items:center;justify-content:space-between;">
       <div class="wordmark"><div><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div><div style="height:2.5px;background:linear-gradient(90deg,#DC2626,#FCD34D);border-radius:2px;width:100%;"></div></div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="subtitle" id="location-txt">Getting location…</div>
-        <button class="bell-btn" onclick="showTab('alerts')" id="bell-btn">
-          <span class="bell-icon">🔔</span>
-          <span class="bell-badge hidden" id="bell-badge">0</span>
-        </button>
-      </div>
+      <div class="subtitle" id="location-txt" style="text-align:center;flex:1;margin:0 8px;font-size:11px;color:#888;"></div>
+      <button class="bell-btn" onclick="showTab('alerts')" id="bell-btn">
+        <span class="bell-icon">🔔</span>
+        <span class="bell-badge hidden" id="bell-badge">0</span>
+      </button>
     </div>
     <div class="filter-row" id="filters"></div>
   </div>
@@ -601,8 +599,8 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 <div class="tab-bar" id="tab-bar" style="display:none;">
   <button class="tab active" onclick="showTab('map')" id="tab-map"><span class="tab-icon">📍</span><span class="tab-label">Map</span></button>
   <button class="tab" onclick="showTab('trip')" id="tab-trip"><span class="tab-icon">🗺️</span><span class="tab-label">Trip</span></button>
-  <button class="tab" onclick="showTab('alerts')" id="tab-alerts"><span class="tab-icon">🔔</span><span class="tab-label">Alerts</span></button>
-  <button class="tab" onclick="showTab('carbon')" id="tab-carbon"><span class="tab-icon">🌿</span><span class="tab-label">Carbon</span></button>
+  <button class="tab" onclick="showTab('favorites')" id="tab-favorites"><span class="tab-icon">⭐</span><span class="tab-label">Favorites</span></button>
+  <button class="tab" onclick="showTab('search')" id="tab-search"><span class="tab-icon">🔍</span><span class="tab-label">Search</span></button>
   <button class="tab" onclick="showTab('profile')" id="tab-profile"><span class="tab-icon">👤</span><span class="tab-label">Profile</span></button>
 </div>
 
