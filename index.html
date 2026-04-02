@@ -441,7 +441,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span class="live-badge-txt" id="data-source-txt" style="font-size:9px;color:#15803d;font-weight:700;"></span>
-          <button class="refresh-btn" onclick="loadStations()" id="refresh-btn" style="display:none;position:static;padding:4px 8px;font-size:10px;">↻</button>
+          <button class="refresh-btn" onclick="loadStations()" id="refresh-btn" style="display:none;position:static;padding:3px 8px;font-size:10px;background:#fff5f5;border-color:#DC2626;color:#DC2626;">↻ Refresh</button>
         </div>
       </div>
     </div>
@@ -941,7 +941,8 @@ function onSignedIn(){
   // Initialize map as soon as Google Maps is ready
   if(typeof google!=='undefined'&&google.maps){initMap();}
   else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
-  loadStations();
+  // Fetch live prices first, then load stations so ribbon shows correct source
+  fetchLivePrices().then(function(){loadStations();}).catch(function(){loadStations();});
   // Sync local data to cloud if needed
   if(currentUser)syncLocalToCloud();
 }
@@ -1341,7 +1342,14 @@ function showDetailFromMap(stationId){
   if(st)showDetail(st);
 }
 
-function setLoading(msg){document.getElementById('loading-overlay').style.display='flex';document.getElementById('loading-txt').textContent=msg;document.getElementById('refresh-btn').style.display='none';}
+function setLoading(msg){
+  document.getElementById('loading-overlay').style.display='flex';
+  document.getElementById('loading-txt').textContent=msg;
+  document.getElementById('refresh-btn').style.display='none';
+  // Show loading state in ribbon
+  var dsTxt=document.getElementById('data-source-txt');
+  if(dsTxt&&!dsTxt.textContent)dsTxt.textContent='Loading stations…';
+}
 function clearLoading(){document.getElementById('loading-overlay').style.display='none';document.getElementById('refresh-btn').style.display='block';}
 
 function loadStations(){
@@ -1412,7 +1420,8 @@ function buildStationList(lat,lng,liveEV,liveGas){
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   var priceNote=livePrices.source==='AAA'?' · AAA daily':' · EIA avg';
-  document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV'+priceNote;
+  var avgPrice=livePrices&&livePrices.regular?'$'+livePrices.regular.toFixed(2)+' avg':'$'+EIA_GAS_AVG+' avg';
+  document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV · '+avgPrice;
   clearLoading();renderAll();
   if(gMap&&userLat&&userLng){
     var zoom=getSmartZoom(userLat,userLng,allStations.length);
