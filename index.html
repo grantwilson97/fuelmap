@@ -1271,16 +1271,18 @@ function onSignedIn(){
   // Initialize map as soon as Google Maps is ready
   if(typeof google!=='undefined'&&google.maps){initMap();}
   else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
-  // Fetch live prices AND market signals before loading stations
+  // Fetch live prices + oil market signal before loading stations
   Promise.all([
     fetchLivePrices().catch(function(){return livePrices;}),
-    fetchMarketSignals().catch(function(){return marketSignals;})
+    fetchOilPriceAdjustment().catch(function(){return 0;})
   ]).then(function(){
     loadStations();
   }).catch(function(){
     loadStations();
   });
   startPriceAutoRefresh();
+  // Refresh oil price every 2 hours
+  setInterval(function(){fetchOilPriceAdjustment();},2*60*60*1000);
   // Sync local data to cloud if needed
   if(currentUser)syncLocalToCloud();
 }
@@ -1512,19 +1514,26 @@ function calcScore(station){
 
 function getGradePrices(station){
   var grades={};
+  var brandDelta=getPriceDelta(station.priceLevel,station.brand||station.network);
+  var locDelta=getLocationDelta(station.latitude,station.longitude);
+  var locCapped=Math.max(-0.50,Math.min(0.50,locDelta));
+  var oilAdj=oilPriceAdjustment||0;
+  var realBase=station.realPrice||null;
   GAS_GRADES.forEach(function(g){
     var reports=getReports(station.id);
     var rep=reports.find(function(r){return r.fuelType===g.key;});
     if(rep){
-      // Real community-reported price — show exact
       grades[g.key]={price:rep.price,source:'community',ago:timeAgo(rep.ts),estimated:false};
+    } else if(realBase&&g.key==='regular'){
+      grades[g.key]={price:realBase,source:'GasBuddy',estimated:false};
+    } else if(realBase){
+      var gradeAdder=g.key==='midgrade'?0.20:g.key==='premium'?0.40:g.key==='diesel'?0.05:0;
+      grades[g.key]={price:Math.round((realBase+gradeAdder)*100)/100,source:'GasBuddy est.',estimated:true};
     } else {
-      // Estimate using live city average + price_level delta + grade differential
       var gradeKey=g.key==='regular'?'regular':g.key==='midgrade'?'midgrade':g.key==='premium'?'premium':'diesel';
       var cityAvg=livePrices[gradeKey]||livePrices.regular||EIA_GAS_AVG;
-      var delta=getPriceDelta(station.priceLevel,station.brand||station.network);
-      var estimated=Math.round((cityAvg+delta)*100)/100;
-      grades[g.key]={price:estimated,source:livePrices.source||'AAA',estimated:true};
+      var estimated=Math.round((cityAvg+brandDelta+locCapped+oilAdj)*100)/100;
+      grades[g.key]={price:estimated,source:livePrices.source||'EIA',estimated:true};
     }
   });
   return grades;
@@ -1533,12 +1542,21 @@ function getReports(id){try{return JSON.parse(localStorage.getItem('reports_'+id
 function saveReport(id,ft,price){var r=getReports(id);r.unshift({fuelType:ft,price:price,ts:Date.now()});if(r.length>5)r.pop();localStorage.setItem('reports_'+id,JSON.stringify(r));}
 function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
 function getLatestPrice(station){
-  var r=getReports(station.id);var rep=r.find(function(x){return x.fuelType==='regular'||x.fuelType==='ev_l2';});
+  var r=getReports(station.id);
+  var rep=r.find(function(x){return x.fuelType==='regular'||x.fuelType==='ev_l2';});
   if(rep)return{price:rep.price,source:'community',ago:timeAgo(rep.ts),estimated:false};
+  // Real GasBuddy price
+  if(station.realPrice){
+    var ago=station.realPricePostedTime?timeAgo(new Date(station.realPricePostedTime).getTime()):null;
+    return{price:station.realPrice,source:'GasBuddy',ago:ago,estimated:false};
+  }
   if(station.type==='gas'){
-    var delta=getPriceDelta(station.priceLevel,station.brand||station.network);
-    var estimated=Math.round((livePrices.regular+delta)*100)/100;
-    return{price:estimated,source:livePrices.source||'AAA',estimated:true};
+    var brandDelta=getPriceDelta(station.priceLevel,station.brand||station.network);
+    var locDelta=getLocationDelta(station.latitude,station.longitude);
+    var locCapped=Math.max(-0.50,Math.min(0.50,locDelta));
+    var oilAdj=oilPriceAdjustment||0;
+    var estimated=Math.round((livePrices.regular+brandDelta+locCapped+oilAdj)*100)/100;
+    return{price:estimated,source:livePrices.source||'EIA',estimated:true};
   }
   return{price:station.basePrice||station.price||EIA_EV_L2_AVG,source:station.isLive?'live':'eia',estimated:false};
 }
