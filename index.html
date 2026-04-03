@@ -861,6 +861,82 @@ var livePrices={regular:6.02,midgrade:6.22,premium:6.42,diesel:6.07,source:'EIA'
 // Price level adjustments based on Google Places price_level (0-4)
 var PRICE_LEVEL_DELTA={0:-0.20,1:-0.15,2:0,3:0.20,4:0.35};
 
+// ── Location-based price adjustment ──────────────────────────────────────────
+// Zones defined as {lat, lng, radius miles, delta, label}
+// Based on real SF pricing patterns observed in the field
+
+var LOCATION_PRICE_ZONES=[
+  // ── High premium zones (+$0.25 to +$0.45) ──────────────────────────────
+  // Tourist/downtown core
+  {lat:37.7875,lng:-122.4075,r:0.6,delta:0.40,label:'Financial District'},
+  {lat:37.7880,lng:-122.4080,r:0.5,delta:0.38,label:'Union Square'},
+  {lat:37.8087,lng:-122.4098,r:0.6,delta:0.35,label:'Fishermans Wharf'},
+  {lat:37.7955,lng:-122.3937,r:0.4,delta:0.35,label:'Embarcadero'},
+  {lat:37.7697,lng:-122.4269,r:0.5,delta:0.30,label:'Castro'},
+  {lat:37.7992,lng:-122.4379,r:0.5,delta:0.32,label:'Marina District'},
+  {lat:37.7931,lng:-122.4261,r:0.5,delta:0.35,label:'Pacific Heights'},
+  {lat:37.8044,lng:-122.4257,r:0.4,delta:0.30,label:'Russian Hill'},
+  {lat:37.7599,lng:-122.4148,r:0.5,delta:0.25,label:'Noe Valley'},
+  {lat:37.7706,lng:-122.4269,r:0.4,delta:0.28,label:'Eureka Valley'},
+
+  // ── Freeway interchange premiums (+$0.15 to +$0.25) ───────────────────
+  // US-101 / I-80 interchange SoMa
+  {lat:37.7751,lng:-122.3948,r:0.3,delta:0.22,label:'I-80 SoMa interchange'},
+  // US-101 / I-280 junction Potrero
+  {lat:37.7536,lng:-122.4060,r:0.3,delta:0.20,label:'I-280 junction'},
+  // 19th Ave / Junipero Serra
+  {lat:37.7234,lng:-122.4757,r:0.3,delta:0.18,label:'19th Ave freeway'},
+  // Bay Bridge approach
+  {lat:37.7880,lng:-122.3887,r:0.35,delta:0.22,label:'Bay Bridge approach'},
+  // Golden Gate approach
+  {lat:37.8085,lng:-122.4754,r:0.4,delta:0.20,label:'Golden Gate approach'},
+  // US-101 Lombard corridor
+  {lat:37.7998,lng:-122.4206,r:0.35,delta:0.18,label:'101 Lombard corridor'},
+
+  // ── Mid premium zones (+$0.10 to +$0.20) ─────────────────────────────
+  {lat:37.7749,lng:-122.4194,r:0.7,delta:0.15,label:'Central SF'},
+  {lat:37.7831,lng:-122.4523,r:0.5,delta:0.12,label:'Inner Sunset'},
+  {lat:37.7705,lng:-122.4469,r:0.5,delta:0.12,label:'Inner Richmond'},
+  {lat:37.7568,lng:-122.4431,r:0.5,delta:0.10,label:'Forest Hill'},
+  {lat:37.7694,lng:-122.4862,r:0.5,delta:0.10,label:'Outer Richmond'},
+  {lat:37.7431,lng:-122.4813,r:0.5,delta:0.08,label:'West Portal'},
+  {lat:37.7210,lng:-122.4452,r:0.6,delta:0.05,label:'Outer Sunset'},
+
+  // ── Near average or slight discount ───────────────────────────────────
+  {lat:37.7241,lng:-122.4016,r:0.7,delta:-0.05,label:'Excelsior'},
+  {lat:37.7082,lng:-122.4068,r:0.6,delta:-0.08,label:'Visitacion Valley'},
+  {lat:37.7199,lng:-122.4479,r:0.6,delta:-0.05,label:'Ingleside'},
+
+  // ── East Bay (generally cheaper) ──────────────────────────────────────
+  {lat:37.8044,lng:-122.2712,r:1.5,delta:-0.10,label:'Oakland'},
+  {lat:37.8716,lng:-122.2727,r:1.0,delta:-0.12,label:'Berkeley'},
+  {lat:37.6879,lng:-122.4702,r:1.0,delta:-0.08,label:'Daly City'},
+  {lat:37.6368,lng:-122.4086,r:1.5,delta:-0.15,label:'South SF / SFO area'},
+  {lat:37.6471,lng:-122.4630,r:1.0,delta:-0.10,label:'Colma'},
+  {lat:37.5855,lng:-122.3665,r:1.5,delta:-0.18,label:'Burlingame / San Mateo'},
+  {lat:37.9271,lng:-122.3650,r:1.5,delta:-0.20,label:'El Cerrito / Richmond'},
+  {lat:37.5485,lng:-122.0530,r:2.0,delta:-0.25,label:'Fremont / Union City'},
+];
+
+// Calculate location-based price adjustment for a station
+function getLocationDelta(lat, lng){
+  if(!lat||!lng)return 0;
+  var totalDelta=0;
+  var totalWeight=0;
+  LOCATION_PRICE_ZONES.forEach(function(zone){
+    var d=distMiles(lat,lng,zone.lat,zone.lng);
+    if(d<=zone.r){
+      // Weight by proximity — closer = stronger influence
+      var weight=1-(d/zone.r);
+      totalDelta+=zone.delta*weight;
+      totalWeight+=weight;
+    }
+  });
+  if(totalWeight===0)return 0;
+  // Weighted average of all overlapping zones
+  return Math.round((totalDelta/totalWeight)*100)/100;
+}
+
 // Brand-based price delta when Google Places price_level is unavailable
 // Based on typical SF Bay Area pricing patterns
 var BRAND_DELTA={
