@@ -1134,11 +1134,72 @@ var DEMO_STATIONS=[
   {id:'demo_4',name:'Shell · 4th & Bryant',address:'598 4th St, SoMa, San Francisco, CA',type:'gas',basePrice:6.09,latitude:37.7785,longitude:-122.3948,busy:80,isLive:false,network:'Shell',open24h:true},
   {id:'demo_5',name:'Electrify America · SOMA',address:'1 SOMA Grand, San Francisco, CA',type:'ev',basePrice:0.47,latitude:37.7793,longitude:-122.4103,busy:45,isLive:false,network:'Electrify America',l2Connectors:0,dcConnectors:6,open24h:true,pricing:'$0.47/kWh'},
 ];
-var ALERTS_DATA=[
-  {id:'1',name:'Regular gas · any SF station',threshold:5.70,current:6.02,unit:'/gal',status:'active',nearest:'Arco · Cesar Chavez · $5.84 · 19¢ from target'},
-  {id:'2',name:'EV DC Fast · Electrify America',threshold:0.45,current:0.43,unit:'/kWh',status:'triggered',nearest:'Serramonte Center, Daly City · 4.1 mi away'},
-  {id:'3',name:'Premium · Chevron Van Ness',threshold:6.30,current:6.49,unit:'/gal',status:'active',nearest:'19¢ above your target'},
-];
+// Alerts are now generated dynamically from real station data
+// User-defined alerts stored in localStorage
+function loadUserAlerts(){
+  try{return JSON.parse(localStorage.getItem('fm_user_alerts')||'[]');}
+  catch(e){return[];}
+}
+function saveUserAlerts(a){localStorage.setItem('fm_user_alerts',JSON.stringify(a));}
+
+// Auto-generated smart alerts from live station data
+function generateSmartAlerts(){
+  var smartAlerts=[];
+  if(!allStations||allStations.length===0)return smartAlerts;
+
+  var gasStations=allStations.filter(function(s){return s.type==='gas'&&s.latitude;});
+  if(gasStations.length===0)return smartAlerts;
+
+  // Calculate city average from loaded stations
+  var prices=gasStations.map(function(s){return getLatestPrice(s).price;});
+  var avg=prices.reduce(function(a,b){return a+b;},0)/prices.length;
+  var threshold=avg*0.94; // 6% below average = "great deal"
+
+  // Find stations significantly below average
+  var deals=gasStations
+    .map(function(s){
+      var pi=getLatestPrice(s);
+      return{station:s,price:pi.price,source:pi.source,estimated:pi.estimated,savings:avg-pi.price};
+    })
+    .filter(function(d){return d.price<=threshold&&d.savings>=0.10;})
+    .sort(function(a,b){return a.price-b.price;})
+    .slice(0,5);
+
+  deals.forEach(function(d,i){
+    var s=d.station;
+    var dist=s.driveDuration?s.driveDuration+' min drive':(s.distanceMiles?s.distanceMiles.toFixed(1)+' mi':'nearby');
+    var sourceLabel=d.source==='GasBuddy'?'✓ GasBuddy':d.estimated?'~ est.':'reported';
+    smartAlerts.push({
+      id:'smart_'+i,
+      type:'deal',
+      name:s.name+(s.address?' · '+s.address.split(',')[0]:''),
+      price:d.price,
+      avg:Math.round(avg*100)/100,
+      savings:Math.round(d.savings*100)/100,
+      dist:dist,
+      source:sourceLabel,
+      stationId:s.id,
+      lat:s.latitude,
+      lng:s.longitude,
+      status:'triggered'
+    });
+  });
+
+  // Alert for oil market spike if adjustment is significant
+  if(oilPriceAdjustment>=0.40){
+    smartAlerts.push({
+      id:'oil_spike',
+      type:'market',
+      name:'Oil market alert',
+      message:'WTI crude at $'+(oilPriceData?oilPriceData.wti_price.toFixed(2):'111+')+'/barrel due to geopolitical tensions. SF pump prices elevated by ~$'+oilPriceAdjustment.toFixed(2)+'/gal above seasonal average.',
+      status:'info'
+    });
+  }
+
+  return smartAlerts;
+}
+
+var ALERTS_DATA=[];
 var TIPS=[
   {title:'Charge before 3 PM — solar peaks at noon',body:'PG&E solar peaks midday, dropping grid carbon below 100 gCO₂/kWh.',impact:'−22 kg CO₂/mo',color:'#16a34a',bg:'#f0fdf4'},
   {title:'Skip 4th & Bryant Shell — priciest in SF',body:'At $6.09/gal it\'s 7¢ above average. Arco on Cesar Chavez is $5.84.',impact:'$1.25/fillup saved',color:'#dc2626',bg:'#fef2f2'},
@@ -1157,7 +1218,7 @@ var TRIP_TYPES=[
 var currentUser=null;
 var currentSession=null;
 var allStations=[],currentFilter='gas',currentSort='value',currentStation=null,autoFitMap=false;
-var alerts=ALERTS_DATA.slice(),userLat=null,userLng=null,modalFuelType='regular';
+var alerts=[],userLat=null,userLng=null,modalFuelType='regular';
 var editingVehicleId=null,selectedVehicleEmoji='🚗',selectedFuelType='gas',selectedProfileEmoji='😊',selectedGasGrade='regular';
 var selectedTripType='commute',tripResult=null,autocompleteTimer=null;
 var authMode='signin';
@@ -1837,7 +1898,7 @@ function buildStationList(lat,lng,liveEV,liveGas){
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV';
-  clearLoading();renderAll();
+  clearLoading();renderAll();renderAlerts();
   if(gMap&&userLat&&userLng){
     var zoom=getSmartZoom(userLat,userLng,allStations.length);
     gMap.setZoom(zoom);
@@ -2847,7 +2908,76 @@ function updateSearchMap(results){
 }
 
 // ── Alerts ────────────────────────────────────────────────────────────────────
-function renderAlerts(){var el=document.getElementById('alerts-body');el.innerHTML='';var triggered=alerts.filter(function(a){return a.status==='triggered';});var active=alerts.filter(function(a){return a.status==='active';});document.getElementById('triggered-count').textContent=triggered.length;document.getElementById('total-count').textContent=alerts.length;el.innerHTML+='<div class="pge-card"><div class="pge-card-title">⚡ Best EV charging window tonight</div><div class="pge-card-body">PG&E off-peak starts 9 PM. Charging 11 PM–6 AM cuts cost from $0.57 → $0.26/kWh and saves 28% CO₂.</div><button class="pge-cta">Set 11 PM charging reminder</button></div>';if(triggered.length>0){el.innerHTML+='<div class="alert-sec-title">Triggered — act now</div>';triggered.forEach(function(a){el.innerHTML+='<div class="alert-card alert-triggered"><div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div><div class="alert-loc">'+a.nearest+'</div></div><div class="alert-pill pill-triggered">Triggered!</div></div><div class="alert-price-row"><div class="alert-price-big">$'+a.current.toFixed(2)+'</div><div class="alert-price-unit">'+a.unit+' · target $'+a.threshold.toFixed(2)+'</div></div><div class="alert-btns"><div class="alert-btn btn-primary">Navigate ↗</div><div class="alert-btn btn-danger" onclick="dismissAlert(\''+a.id+'\')">Dismiss</div></div></div>';});}el.innerHTML+='<div class="alert-sec-title">Active alerts</div>';active.forEach(function(a){el.innerHTML+='<div class="alert-card"><div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div><div class="alert-loc">'+a.nearest+'</div></div><div class="alert-pill pill-active">Active</div></div><div class="alert-price-row"><div class="alert-price-big">$'+a.current.toFixed(2)+'</div><div class="alert-price-unit">'+a.unit+' · target $'+a.threshold.toFixed(2)+'</div></div><div class="alert-btns"><div class="alert-btn btn-danger" onclick="dismissAlert(\''+a.id+'\')">Remove</div></div></div>';});el.innerHTML+='<div style="height:20px;"></div>';}
+function renderAlerts(){
+  // Regenerate smart alerts from current station data
+  var smartAlerts=generateSmartAlerts();
+  var userAlerts=loadUserAlerts();
+  alerts=smartAlerts.concat(userAlerts);
+
+  var el=document.getElementById('alerts-body');
+  if(!el)return;
+  var deals=alerts.filter(function(a){return a.type==='deal';});
+  var market=alerts.filter(function(a){return a.type==='market';});
+  var triggered=alerts.filter(function(a){return a.status==='triggered';});
+
+  document.getElementById('triggered-count').textContent=triggered.length;
+  document.getElementById('total-count').textContent=alerts.length;
+
+  var html='';
+
+  // Market alerts first
+  if(market.length>0){
+    html+='<div class="alert-sec-title">Market conditions</div>';
+    market.forEach(function(a){
+      html+='<div class="alert-card" style="border-color:#f59e0b;background:#fffbeb;">'
+        +'<div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div></div>'
+        +'<div class="alert-pill" style="background:#fef3c7;color:#b45309;">Market</div></div>'
+        +'<div style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;">'+a.message+'</div>'
+        +'<div class="alert-btns"><div class="alert-btn btn-danger" onclick="dismissAlert(a.id)">Dismiss</div></div>'
+        +'</div>';
+    });
+  }
+
+  // Price deals
+  if(deals.length>0){
+    html+='<div class="alert-sec-title">Best prices near you</div>';
+    deals.forEach(function(a){
+      html+='<div class="alert-card alert-triggered">'
+        +'<div class="alert-top"><div style="flex:1;">'
+          +'<div class="alert-name">'+a.name+'</div>'
+          +'<div class="alert-loc">'+a.dist+' · '+a.source+'</div>'
+        +'</div><div class="alert-pill pill-triggered">Deal</div></div>'
+        +'<div class="alert-price-row">'
+          +'<div class="alert-price-big" style="color:#DC2626;">$'+a.price.toFixed(2)+'</div>'
+          +'<div class="alert-price-unit">/gal · saves $'+a.savings.toFixed(2)+' vs avg</div>'
+        +'</div>'
+        +'<div class="alert-btns">'
+          +'<div class="alert-btn btn-primary" onclick="navigateToAlertStation(a.stationId)">Navigate ↗</div>'
+          +'<div class="alert-btn btn-danger" onclick="dismissAlert(a.id)">Dismiss</div>'
+        +'</div>'
+        +'</div>';
+    });
+  }
+
+  if(alerts.length===0){
+    html='<div style="text-align:center;padding:40px 20px;">'
+      +'<div style="font-size:40px;margin-bottom:12px;">🔔</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">No alerts yet</div>'
+      +'<div style="font-size:13px;color:#888;line-height:1.5;">Alerts will appear here when stations near you are offering prices significantly below the SF average.</div>'
+      +'</div>';
+  }
+
+  html+='<div style="height:20px;"></div>';
+  el.innerHTML=html;
+  updateBellBadge();
+}
+
+function navigateToAlertStation(stationId){
+  var st=allStations.find(function(s){return s.id===stationId;});
+  if(!st)return;
+  currentStation=st;
+  showDetail(st);
+}
 function dismissAlert(id){alerts=alerts.filter(function(a){return a.id!==id;});renderAlerts();updateBellBadge();}
 
 // ── Carbon ────────────────────────────────────────────────────────────────────
