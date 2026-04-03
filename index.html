@@ -1336,7 +1336,11 @@ function onSignedIn(){
   // Refresh oil price every 2 hours
   setInterval(function(){fetchOilPriceAdjustment();},2*60*60*1000);
   // Sync local data to cloud if needed
-  if(currentUser)syncLocalToCloud();
+  if(currentUser){
+    syncLocalToCloud();
+    // Load favorites from cloud, then render favorites tab
+    loadCloudFavorites().then(function(){renderFavorites();});
+  }
 }
 
 function syncLocalToCloud(){
@@ -1389,6 +1393,7 @@ function signOut(){
   currentUser=null;currentSession=null;
   localStorage.removeItem('fm_session');
   localStorage.removeItem('fm_skip_auth');
+  // Keep favorites in localStorage so they reload on next sign in
   document.getElementById('tab-bar').style.display='none';
   document.getElementById('auth-email').value='';
   document.getElementById('auth-password').value='';
