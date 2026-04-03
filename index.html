@@ -1740,9 +1740,12 @@ function buildStationList(lat,lng,liveEV,liveGas){
           matched++;
         }
       });
-      // Show debug in ribbon
+      // Update ribbon with GasBuddy source note
       var dsTxt=document.getElementById('data-source-txt');
-      if(dsTxt)dsTxt.textContent='⛽ '+allStations.filter(function(s){return s.type==="gas";}).length+' gas · 🔌 '+allStations.filter(function(s){return s.type==="ev";}).length+' EV · $'+( livePrices.regular||5.77).toFixed(2)+' avg · GB:'+matched+'/'+cacheSize;
+      var gasCount=allStations.filter(function(s){return s.type==="gas";}).length;
+      var evCount=allStations.filter(function(s){return s.type==="ev";}).length;
+      var avgPrice='$'+(livePrices.regular||5.77).toFixed(2)+' avg';
+      if(dsTxt)dsTxt.textContent='⛽ '+gasCount+' gas · 🔌 '+evCount+' EV · '+avgPrice+(matched>0?' · '+matched+' live':' · EIA est.');
       if(matched>0){
         allStations.forEach(function(s){s.score=calcScore(s);});
         allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
