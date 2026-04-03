@@ -2669,6 +2669,9 @@ function openVehiclePicker(){
 function switchVehicleFromPicker(id){
   closeVehiclePickerDirect();
   setActiveVehicle(id);
+  // Update all displays immediately
+  updateLocationDisplay();
+  renderTripPlanner();
   // Reload stations with new vehicle preferences
   if(userLat&&userLng)fetchOCM(userLat,userLng);
 }
