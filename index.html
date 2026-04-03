@@ -2861,8 +2861,11 @@ function renderFavorites(){
   if(tripResult&&tripResult.bestStop)routeStationIds.push(tripResult.bestStop.id);
 
   el.innerHTML=favs.map(function(fav){
-    var pi=getLatestPrice(fav);
-    var priceStr=fav.type==='ev'?'~$'+pi.price.toFixed(2)+'/kWh':'~$'+pi.price.toFixed(2)+'/gal';
+    var liveSt=allStations.find(function(s){return s.id===fav.id;});
+    var pi=getLatestPrice(liveSt||fav);
+    var priceNum='$'+pi.price.toFixed(2)+(fav.type==='ev'?'/kWh':'/gal');
+    var isReported=pi.source==='GasBuddy'||pi.source==='community';
+    var srcBadge=isReported?'<span style="font-size:10px;font-weight:700;color:#15803d;margin-left:4px;">✓ Reported</span>':'<span style="font-size:10px;color:#888;margin-left:4px;">~ est.</span>';
     var onRoute=routeStationIds.indexOf(fav.id)>-1;
     var sc=scoreColor(fav.score||70);
     return '<div class="fav-card" onclick="openFavoriteDetail(\"\"+fav.id+"\")">'+
@@ -2871,7 +2874,7 @@ function renderFavorites(){
         '<div class="fav-name">'+fav.name+'</div>'+
         '<div class="fav-addr">'+fav.address+'</div>'+
         '<div class="fav-badge-row">'+
-          '<span class="fav-price">'+priceStr+'</span>'+
+          '<span class="fav-price">'+priceNum+'</span>'+srcBadge+
           (onRoute?'<span class="fav-on-route">📍 On your route</span>':'')+
           (fav.rating?'<span style="font-size:10px;color:#888;">⭐ '+fav.rating+'</span>':'')+
         '</div>'+
