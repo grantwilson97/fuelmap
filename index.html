@@ -655,6 +655,27 @@ var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35;
 var FUEL_PRICES_API='https://fuelmap-api-sf.vercel.app/api/fuelprices';
 var DISTANCE_MATRIX_API='https://fuelmap-api-sf.vercel.app/api/distancematrix';
 var APIFY_API='https://fuelmap-api-sf.vercel.app/api/apifyfuelprices';
+var APIFY_TOKEN='apify_api_9YWDtpqkrxPbfYuLqwBojUQfnhjZEX4urIBQ';
+
+// Call Apify directly from browser - bypasses Vercel 10s timeout
+function fetchApifyDirect(zip){
+  return fetch(
+    'https://api.apify.com/v2/acts/johnvc~fuelprices/run-sync-get-dataset-items?timeout=55',
+    {
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+APIFY_TOKEN,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({search:zip,fuel:1,maxAge:1})
+    }
+  ).then(function(r){return r.json();})
+  .then(function(results){
+    if(!Array.isArray(results))return[];
+    return results;
+  })
+  .catch(function(){return[];});
+}
 
 // Cache of Apify real prices keyed by station name (lowercase)
 var apifyPriceCache={};
@@ -1662,14 +1683,27 @@ function buildStationList(lat,lng,liveEV,liveGas){
         var zipMatch=(s.address||'').match(/(\d{5})/);
         if(zipMatch)stationZips[zipMatch[1]]=true;
       });
-      var zips=Object.keys(stationZips).slice(0,4); // max 4 ZIP calls
-      console.log('Fetching Apify prices for ZIPs:',zips);
-      // Fetch all ZIPs in parallel
-      return Promise.all(zips.map(function(zip){
-        return fetch(APIFY_API+'?zip='+zip)
-          .then(function(r){return r.json();})
-          .catch(function(){return{stations:[]};});
-      }));
+      var zips=Object.keys(stationZips).slice(0,3); // max 3 ZIP calls
+      console.log('Fetching Apify prices directly for ZIPs:',zips);
+      // Fetch sequentially to avoid overwhelming Apify
+      var allResults=[];
+      function fetchNext(i){
+        if(i>=zips.length)return Promise.resolve(allResults);
+        return fetchApifyDirect(zips[i]).then(function(results){
+          allResults=allResults.concat(results);
+          return fetchNext(i+1);
+        });
+      }
+      return fetchNext(0).then(function(combined){
+        return[{stations:combined.map(function(r){return{
+          price_cash:r.price_cash,price_credit:r.price_credit,
+          price_cash_postedTime:r.price_cash_postedTime,
+          price_credit_postedTime:r.price_credit_postedTime,
+          name:r.name,address_line1:r.address_line1,
+          address_locality:r.address_locality,address_region:r.address_region
+        };})
+        }];
+      });
     }).then(function(results){
       // Merge all station results into cache
       apifyPriceCache={};
