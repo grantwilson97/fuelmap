@@ -1846,9 +1846,7 @@ function buildStationList(lat,lng,liveEV,liveGas){
   allStations=allLive.concat(demo).concat(demoEV).map(function(s){return Object.assign({},s,{score:calcScore(s)});});
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
   document.getElementById('station-count').textContent=allStations.length+' stations found';
-  var priceNote=livePrices.source==='AAA'?' · AAA daily':' · EIA avg';
-  var avgPrice=livePrices&&livePrices.regular?'$'+livePrices.regular.toFixed(2)+' avg':'$'+EIA_GAS_AVG+' avg';
-  document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV · '+avgPrice;
+  document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV';
   clearLoading();renderAll();
   if(gMap&&userLat&&userLng){
     var zoom=getSmartZoom(userLat,userLng,allStations.length);
@@ -1928,11 +1926,7 @@ function buildStationList(lat,lng,liveEV,liveGas){
       var gasCount=allStations.filter(function(s){return s.type==="gas";}).length;
       var evCount=allStations.filter(function(s){return s.type==="ev";}).length;
       var avgPrice='$'+(livePrices.regular||5.77).toFixed(2)+' avg';
-      var oilNote='';
-      if(oilPriceData&&Math.abs(oilPriceAdjustment)>=0.10){
-        oilNote=' · '+(oilPriceAdjustment>0?'↑':'↓')+' oil mkt';
-      }
-      if(dsTxt)dsTxt.textContent='⛽ '+gasCount+' gas · 🔌 '+evCount+' EV · '+avgPrice+(matched>0?' · '+matched+' live':' · EIA est.')+oilNote;
+      if(dsTxt)dsTxt.textContent='⛽ '+gasCount+' gas · 🔌 '+evCount+' EV';
       if(matched>0){
         allStations.forEach(function(s){s.score=calcScore(s);});
         allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
