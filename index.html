@@ -655,6 +655,31 @@ var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35;
 var FUEL_PRICES_API='https://fuelmap-api-sf.vercel.app/api/fuelprices';
 var DISTANCE_MATRIX_API='https://fuelmap-api-sf.vercel.app/api/distancematrix';
 var APIFY_API='https://fuelmap-api-sf.vercel.app/api/apifyfuelprices';
+var OILPRICE_API='https://fuelmap-api-sf.vercel.app/api/oilprice';
+
+// Oil market adjustment — cached, updated every 2 hours
+var oilPriceAdjustment=0;
+var oilPriceData=null;
+
+function fetchOilPriceAdjustment(){
+  return fetch(OILPRICE_API)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data&&typeof data.pump_adjustment==='number'){
+        oilPriceAdjustment=data.pump_adjustment;
+        oilPriceData=data;
+        console.log('Oil price adjustment: $'+oilPriceAdjustment+' (WTI $'+data.wti_price+')');
+        // Update EIA baseline to include oil market signal
+        // Recalculate all station scores with new adjustment
+        if(allStations.length>0){
+          allStations.forEach(function(s){s.score=calcScore(s);});
+          renderAll();
+        }
+      }
+      return oilPriceAdjustment;
+    })
+    .catch(function(){return 0;});
+}
 var APIFY_TOKEN='apify_api_9YWDtpqkrxPbfYuLqwBojUQfnhjZEX4urIBQ';
 
 // Call Apify directly from browser - bypasses Vercel 10s timeout
@@ -865,6 +890,61 @@ var PRICE_LEVEL_DELTA={0:-0.20,1:-0.15,2:0,3:0.20,4:0.35};
 // Zones defined as {lat, lng, radius miles, delta, label}
 // Based on real SF pricing patterns observed in the field
 
+// ── Market signals ───────────────────────────────────────────────────────────
+// These adjust the city baseline price based on live crude oil and CA-specific factors
+var marketSignals={
+  wtiCrude:null,        // Live WTI crude $/barrel
+  wtiBaseline:70,       // Baseline WTI we calibrate against (matches current EIA data)
+  caBlendPremium:0.30,  // CA CARBOB summer blend premium (Feb-Oct)
+  lcfsCredit:0.35,      // CA Low Carbon Fuel Standard credit cost
+  marketDelta:0,        // Computed adjustment from market signals
+  lastFetched:null
+};
+
+// Retail price moves roughly $0.024 per $1 change in crude oil
+// (based on historical CA retail/crude correlation)
+var CRUDE_TO_RETAIL_RATIO=0.024;
+
+// Seasonal blend premium — CA switches to summer blend Feb 1, back Oct 1
+function getCaSeasonalDelta(){
+  var month=new Date().getMonth(); // 0=Jan
+  // Summer blend (Feb-Oct): adds ~$0.15-0.25
+  if(month>=1&&month<=9)return 0.20;
+  // Winter blend: slightly cheaper
+  return 0.05;
+}
+
+// Fetch live WTI crude from OilPriceAPI (free tier)
+function fetchMarketSignals(){
+  return fetch('https://api.oilpriceapi.com/v1/prices/latest?by_code=WTI_USD',{
+    headers:{'Authorization':'Token OPA_API_KEY_FREE','Content-Type':'application/json'}
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data&&data.data&&data.data.price){
+      var wti=parseFloat(data.data.price);
+      marketSignals.wtiCrude=wti;
+      // Calculate delta from our baseline
+      var crudeDelta=(wti-marketSignals.wtiBaseline)*CRUDE_TO_RETAIL_RATIO;
+      // Add seasonal CA blend premium
+      var seasonal=getCaSeasonalDelta();
+      // Total market adjustment (capped at ±$0.60 to prevent wild swings)
+      marketSignals.marketDelta=Math.max(-0.60,Math.min(0.60,
+        Math.round((crudeDelta+seasonal)*100)/100
+      ));
+      marketSignals.lastFetched=Date.now();
+      console.log('WTI crude: $'+wti+'/bbl → market delta: $'+marketSignals.marketDelta);
+    }
+    return marketSignals;
+  })
+  .catch(function(e){
+    console.warn('Market signals fetch failed:',e);
+    // Use seasonal adjustment even without live crude
+    marketSignals.marketDelta=getCaSeasonalDelta();
+    return marketSignals;
+  });
+}
+
 var LOCATION_PRICE_ZONES=[
   // ── High premium zones (+$0.25 to +$0.45) ──────────────────────────────
   // Tourist/downtown core
@@ -1010,8 +1090,10 @@ var priceRefreshInterval=null;
 function startPriceAutoRefresh(){
   if(priceRefreshInterval)clearInterval(priceRefreshInterval);
   priceRefreshInterval=setInterval(function(){
-    fetchLivePrices().then(function(){
-      // Silently recalculate station scores with fresh baseline
+    Promise.all([
+      fetchLivePrices().catch(function(){}),
+      fetchMarketSignals().catch(function(){})
+    ]).then(function(){
       if(allStations.length>0){
         allStations.forEach(function(s){s.score=calcScore(s);});
         renderAll();
@@ -1189,8 +1271,15 @@ function onSignedIn(){
   // Initialize map as soon as Google Maps is ready
   if(typeof google!=='undefined'&&google.maps){initMap();}
   else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
-  // Fetch live prices first, then load stations so ribbon shows correct source
-  fetchLivePrices().then(function(){loadStations();}).catch(function(){loadStations();});
+  // Fetch live prices AND market signals before loading stations
+  Promise.all([
+    fetchLivePrices().catch(function(){return livePrices;}),
+    fetchMarketSignals().catch(function(){return marketSignals;})
+  ]).then(function(){
+    loadStations();
+  }).catch(function(){
+    loadStations();
+  });
   startPriceAutoRefresh();
   // Sync local data to cloud if needed
   if(currentUser)syncLocalToCloud();
@@ -1821,7 +1910,11 @@ function buildStationList(lat,lng,liveEV,liveGas){
       var gasCount=allStations.filter(function(s){return s.type==="gas";}).length;
       var evCount=allStations.filter(function(s){return s.type==="ev";}).length;
       var avgPrice='$'+(livePrices.regular||5.77).toFixed(2)+' avg';
-      if(dsTxt)dsTxt.textContent='⛽ '+gasCount+' gas · 🔌 '+evCount+' EV · '+avgPrice+(matched>0?' · '+matched+' live':' · EIA est.');
+      var oilNote='';
+      if(oilPriceData&&Math.abs(oilPriceAdjustment)>=0.10){
+        oilNote=' · '+(oilPriceAdjustment>0?'↑':'↓')+' oil mkt';
+      }
+      if(dsTxt)dsTxt.textContent='⛽ '+gasCount+' gas · 🔌 '+evCount+' EV · '+avgPrice+(matched>0?' · '+matched+' live':' · EIA est.')+oilNote;
       if(matched>0){
         allStations.forEach(function(s){s.score=calcScore(s);});
         allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
@@ -1998,7 +2091,7 @@ function showDetail(station){
   var driveMins2=station.driveDuration||Math.round(station.distanceMiles*2.5);
   var ds=Math.round(Math.min(100,Math.max(0,100-(driveMins2/20)*100)));
   var as2=60;if(station.open24h)as2+=15;if(station.rating&&station.rating>=4.0)as2+=15;else if(station.rating&&station.rating>=3.5)as2+=8;as2=Math.min(100,as2);
-  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big" style="color:#DC2626;">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+gradeTableHTML+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price (55%)',ps],['Wait (25%)',ws],['Distance (10%)',ds],['Amenities (10%)',as2]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
+  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big" style="color:#DC2626;">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+mktNote+gradeTableHTML+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price (55%)',ps],['Wait (25%)',ws],['Distance (10%)',ds],['Amenities (10%)',as2]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
   showScreen('detail');
   updateFavButtonForStation(station);
 }
