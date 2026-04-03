@@ -471,17 +471,14 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 <!-- TRIP SCREEN -->
 <div class="screen" id="screen-trip" style="background:#f7f7f9;">
   <div class="trip-hero">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <div class="trip-title" style="margin-bottom:0;">Trip planner</div>
-      <button class="vehicle-toggle-btn" onclick="openVehiclePicker()" id="trip-vehicle-btn" style="background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.4);">
-        <span class="vehicle-toggle-txt" id="trip-vehicle-txt" style="color:#fff;">Loading…</span>
-        <span class="vehicle-toggle-arrow" style="color:#fff;">▼</span>
-      </button>
-    </div>
+    <div class="trip-title">Trip planner</div>
     <div class="trip-sub">Smart fuel stops along your route</div>
-    <div class="trip-vehicle-chip">
-      <div><div style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;text-transform:uppercase;margin-bottom:2px;">Active vehicle</div><div class="tvc-name" id="trip-vehicle-name">No vehicle set</div></div>
-      <div class="tvc-level" id="trip-vehicle-level"></div>
+    <div class="trip-vehicle-chip" onclick="openVehiclePicker()" id="trip-vehicle-chip" style="cursor:pointer;">
+      <div><div style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;text-transform:uppercase;margin-bottom:2px;">Active vehicle — tap to switch</div><div class="tvc-name" id="trip-vehicle-name">No vehicle set</div></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="tvc-level" id="trip-vehicle-level"></div>
+        <span id="trip-vehicle-arrow" style="color:rgba(255,255,255,0.7);font-size:11px;display:none;">▼</span>
+      </div>
     </div>
   </div>
   <div class="scroll"><div class="trip-body" id="trip-body"></div></div>
@@ -1853,19 +1850,18 @@ function updateLocationDisplay(){
   var locEl=document.getElementById('location-txt');
   if(locEl)locEl.textContent=vehicleTxt;
   document.getElementById('map-title').textContent='Hi '+(profile.name||'there')+'! Near you';
-  // Update trip tab vehicle button
-  var tripVehicleTxt=document.getElementById('trip-vehicle-txt');
-  if(tripVehicleTxt)tripVehicleTxt.textContent=vehicleTxt;
   // Show/hide toggle arrow depending on vehicle count
   var vehicles=loadVehicles();
   var hasMultiple=vehicles.length>1;
-  ['vehicle-toggle-btn','trip-vehicle-btn'].forEach(function(id){
-    var btn=document.getElementById(id);
-    if(btn){
-      var arrow=btn.querySelector('.vehicle-toggle-arrow');
-      if(arrow)arrow.style.display=hasMultiple?'inline':'none';
-    }
-  });
+  var mapBtn=document.getElementById('vehicle-toggle-btn');
+  if(mapBtn){
+    var mapArrow=mapBtn.querySelector('.vehicle-toggle-arrow');
+    if(mapArrow)mapArrow.style.display=hasMultiple?'inline':'none';
+  }
+  var tripArrow=document.getElementById('trip-vehicle-arrow');
+  if(tripArrow)tripArrow.style.display=hasMultiple?'inline':'none';
+  var tripChip=document.getElementById('trip-vehicle-chip');
+  if(tripChip)tripChip.style.cursor=hasMultiple?'pointer':'default';
 }
 
 function useFallbackLocation(){userLat=37.8044;userLng=-122.2712;document.getElementById('map-title').textContent='SF Bay Area';document.getElementById('location-txt').textContent='SF Bay Area';ensureMap();updateMapCenter(userLat,userLng);if(gMap)gMap.setZoom(10);fetchOCM(userLat,userLng);}
