@@ -1691,7 +1691,7 @@ function buildStationList(lat,lng,liveEV,liveGas){
           }
         });
       });
-      console.log('Apify cache built:',Object.keys(apifyPriceCache).length,'entries');
+      var cacheSize=Object.keys(apifyPriceCache).length;
       // Apply to stations
       var matched=0;
       allStations.forEach(function(s){
@@ -1706,7 +1706,9 @@ function buildStationList(lat,lng,liveEV,liveGas){
           matched++;
         }
       });
-      console.log('Applied real GasBuddy prices to',matched,'of',allStations.length,'stations');
+      // Show debug in ribbon
+      var dsTxt=document.getElementById('data-source-txt');
+      if(dsTxt)dsTxt.textContent='⛽ '+allStations.filter(function(s){return s.type==="gas";}).length+' gas · 🔌 '+allStations.filter(function(s){return s.type==="ev";}).length+' EV · $'+( livePrices.regular||5.77).toFixed(2)+' avg · GB:'+matched+'/'+cacheSize;
       if(matched>0){
         allStations.forEach(function(s){s.score=calcScore(s);});
         allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
