@@ -1209,9 +1209,7 @@ var TIPS=[
 var TRIP_TYPES=[
   {key:'commute',label:'Commute',icon:'🏢'},
   {key:'roadtrip',label:'Road trip',icon:'🛣️'},
-  {key:'errand',label:'Errand run',icon:'🛒'},
-  {key:'airport',label:'Airport run',icon:'✈️'},
-  {key:'custom',label:'Custom',icon:'📍'},
+  {key:'fuelrun',label:'Fuel run',icon:'⛽'},
 ];
 
 // ── App state ─────────────────────────────────────────────────────────────────
@@ -2247,29 +2245,20 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
   var fuelLevel=(av?(av.level||50):50)/100;
   var mpg=av&&av.mpg?av.mpg:(ft.mpg||25);
   var currentRange=av&&av.fuelType==='electric'?fuelLevel*tankSize:fuelLevel*tankSize*mpg;
-  // Need to stop if trip exceeds 85% of current range
   var needsStop=totalMiles>currentRange*0.85;
 
-  if(!needsStop){
-    tripResult={needsStop:false,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,currentRange:Math.round(currentRange),av:av,ft:ft};
-    renderTripResult();return;
-  }
+  document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Finding best fuel stops along your route…</div></div>';
 
-  document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Canvassing route for best fuel stop…</div></div>';
-
-  // ── Smart corridor search ──────────────────────────────────────────────────
-  // Window: start searching at 40% of range (don't stop too early),
-  // must stop by 80% of range (leave a buffer). Clamp to route length.
-  var searchWindowStart=Math.max(totalMiles*0.15, currentRange*0.40);
-  var searchWindowEnd=Math.min(totalMiles*0.90, currentRange*0.80);
-  // If window is invalid (very short trip), just use midpoint
+  // ── Smart corridor search ─────────────────────────────────────────────────
+  // Always search regardless of whether user can make it
+  // Search window: from 10% of trip to 90%, prefer middle sections
+  var searchWindowStart=Math.max(totalMiles*0.10, Math.min(currentRange*0.35, totalMiles*0.40));
+  var searchWindowEnd=Math.min(totalMiles*0.90, currentRange*0.85);
   if(searchWindowStart>=searchWindowEnd){
-    searchWindowStart=totalMiles*0.30;
-    searchWindowEnd=totalMiles*0.70;
+    searchWindowStart=totalMiles*0.20;
+    searchWindowEnd=totalMiles*0.80;
   }
 
-  // Sample waypoints within the search window along the actual route
-  // Use decoded polyline if available (most accurate), fall back to route steps
   var samplePoints=[];
   var numSamples=4;
   for(var i=0;i<numSamples;i++){
@@ -2277,7 +2266,6 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     fraction=Math.max(0.05,Math.min(0.95,fraction));
     var pt;
     if(polylinePoints&&polylinePoints.length>10){
-      // Use decoded polyline for precise road-following coordinates
       pt=getPolylinePoint(polylinePoints,fraction)||{lat:userLat+(destLat-userLat)*fraction,lng:userLng+(destLng-userLng)*fraction};
     } else {
       pt=getRoutePoint(routeSteps,fraction,userLat,userLng,destLat,destLng);
@@ -2285,12 +2273,13 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     samplePoints.push({lat:pt.lat,lng:pt.lng,milesIn:Math.round(fraction*totalMiles)});
   }
 
-  // Determine correct station type based on vehicle fuel type
-  // electric → EV chargers; everything else (gas/diesel/hybrid/phev/unknown) → gas stations
+  // Also add user's current location as a sample point for nearby options
+  samplePoints.push({lat:userLat,lng:userLng,milesIn:0});
+
   var isEVVehicle=av&&av.fuelType==='electric';
-  var fetchType=isEVVehicle?'ev':'gas';
   var apiUrl=isEVVehicle?VERCEL_API:GAS_API;
   var allCandidates=[];
+
   var fetches=samplePoints.map(function(pt){
     return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=8')
       .then(function(r){return r.json();})
@@ -2304,8 +2293,7 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
               id:sid,
               type:isEVVehicle?'ev':'gas',
               basePrice:isEVVehicle?(s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG):EIA_GAS_AVG,
-              busy:40,
-              isLive:true,
+              busy:40,isLive:true,
               distanceMiles:distMiles(userLat,userLng,s.latitude||pt.lat,s.longitude||pt.lng),
               detourFromRoute:detourFromRoute,
               milesFromStart:pt.milesIn
@@ -2317,34 +2305,69 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
   });
 
   Promise.all(fetches).then(function(){
-    // Score each candidate — penalise large detours heavily
-    var scored=allCandidates.map(function(s){
+    // Score candidates
+    allCandidates.forEach(function(s){
       s.score=calcScore(s);
-      // Composite trip score: value score minus detour penalty (1pt per 0.1mi off route)
       s.tripScore=s.score-(s.detourFromRoute||0)*3;
-      return s;
     });
+    allCandidates.sort(function(a,b){return b.tripScore-a.tripScore;});
 
-    // Sort by tripScore descending
-    scored.sort(function(a,b){return b.tripScore-a.tripScore;});
-    var best=scored[0]||null;
+    // Build multiple recommendation tiers
+    var favIds=loadFavorites().map(function(f){return f.id;});
 
-    if(!best){
-      // Fallback: use geometric midpoint
-      var midFrac=((searchWindowStart+searchWindowEnd)/2)/totalMiles;
-      var mid=getRoutePoint(routeSteps,midFrac,userLat,userLng,destLat,destLng);
-      tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,bestStop:null,currentRange:Math.round(currentRange),av:av,ft:ft};
-      renderTripResult();return;
-    }
+    // Top pick — best overall trip score
+    var best=allCandidates[0]||null;
 
-    var stopPointMiles=best.milesFromStart||Math.round(totalMiles*0.5);
+    // Cheapest option
+    var cheapest=allCandidates.slice().sort(function(a,b){
+      return getLatestPrice(a).price-getLatestPrice(b).price;
+    })[0]||null;
+
+    // Least detour (most convenient)
+    var nearest=allCandidates.slice().sort(function(a,b){
+      return (a.detourFromRoute||0)-(b.detourFromRoute||0);
+    })[0]||null;
+
+    // Favorited station on route (if any)
+    var favOnRoute=allCandidates.find(function(s){return favIds.indexOf(s.id)>-1;})||null;
+
+    // Low fuel urgent stop (if under 25% — stop ASAP)
+    var urgentStop=fuelLevel<=0.25?allCandidates.slice().sort(function(a,b){
+      return (a.distanceMiles||99)-(b.distanceMiles||99);
+    })[0]||null:null;
+
+    var stopPointMiles=best?(best.milesFromStart||Math.round(totalMiles*0.5)):Math.round(totalMiles*0.5);
     var stopMinFromStart=Math.round(durationMin*(stopPointMiles/totalMiles));
-    var detour=Math.round((best.detourFromRoute||0)*10)/10;
-    var fuelCost=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*(getLatestPrice(best).price)*100)/100;
-    var fuelCostAvg=av&&av.fuelType==='electric'?null:Math.round(totalMiles/mpg*EIA_GAS_AVG*100)/100;
+    var detour=best?Math.round((best.detourFromRoute||0)*10)/10:0;
+    var avgPrice=livePrices.regular||EIA_GAS_AVG;
+    var fuelCost=av&&av.fuelType!=='electric'&&best?Math.round(totalMiles/mpg*(getLatestPrice(best).price)*100)/100:null;
+    var fuelCostAvg=av&&av.fuelType!=='electric'?Math.round(totalMiles/mpg*avgPrice*100)/100:null;
     var savings=fuelCost&&fuelCostAvg?Math.max(0,Math.round((fuelCostAvg-fuelCost)*100)/100):null;
 
-    tripResult={needsStop:true,totalMiles:totalMiles,durationMin:durationMin,destInput:destInput,destName:destName,destLat:destLat,destLng:destLng,bestStop:best,detourMiles:detour,currentRange:Math.round(currentRange),stopPoint:stopPointMiles,stopMinFromStart:stopMinFromStart,fuelCost:fuelCost,savings:savings,av:av,ft:ft};
+    tripResult={
+      needsStop:needsStop,
+      canMakeIt:!needsStop,
+      totalMiles:totalMiles,
+      durationMin:durationMin,
+      destInput:destInput,
+      destName:destName,
+      destLat:destLat,
+      destLng:destLng,
+      bestStop:best,
+      cheapestStop:cheapest,
+      nearestStop:nearest,
+      favStop:favOnRoute,
+      urgentStop:urgentStop,
+      detourMiles:detour,
+      currentRange:Math.round(currentRange),
+      stopPoint:stopPointMiles,
+      stopMinFromStart:stopMinFromStart,
+      fuelCost:fuelCost,
+      savings:savings,
+      fuelLevel:fuelLevel,
+      av:av,
+      ft:ft
+    };
     renderTripResult();
   });
 }
@@ -2373,34 +2396,125 @@ function getRoutePoint(steps,fraction,startLat,startLng,endLat,endLng){
   return{lat:startLat+(endLat-startLat)*fraction,lng:startLng+(endLng-startLng)*fraction};
 }
 
+// Helper to render a single stop option card
+function renderStopCard(stop,label,badge,badgeColor,badgeBg){
+  if(!stop)return'';
+  var sc=scoreColor(stop.score);
+  var pi=getLatestPrice(stop);
+  var pd=stop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
+  var det=stop.detourFromRoute!==undefined?stop.detourFromRoute.toFixed(1)+' mi detour':'on route';
+  var wt=waitMin(stop.busy||30);
+  var isFav=isFavorite(stop.id);
+  return'<div class="fuel-stop-card" onclick="openTripStopDetail(this.dataset.id)" data-id='+JSON.stringify(stop.id)+' style="cursor:pointer;margin-bottom:10px;">'
+    +'<div class="fsc-header">'
+      +'<div style="flex:1;">'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">'
+          +'<div class="fsc-label">'+label+'</div>'
+          +(isFav?'<span style="font-size:12px;">⭐</span>':'')
+          +'<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+badgeBg+';color:'+badgeColor+';">'+badge+'</span>'
+        +'</div>'
+        +'<div class="fsc-name">'+stop.name+'</div>'
+        +'<div class="fsc-addr">'+(stop.address||'')+'</div>'
+      +'</div>'
+      +'<div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+stop.score+'</span></div>'
+    +'</div>'
+    +'<div class="fsc-details">'
+      +'<div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div>'
+      +'<div class="fsc-detail-box"><div class="fsc-detail-val">'+det+'</div><div class="fsc-detail-lbl">Detour</div></div>'
+      +'<div class="fsc-detail-box"><div class="fsc-detail-val">'+wt+'m</div><div class="fsc-detail-lbl">Wait</div></div>'
+    +'</div>'
+    +'<div style="text-align:center;padding-top:4px;font-size:11px;color:#DC2626;font-weight:600;">Tap for full details →</div>'
+    +'</div>';
+}
+
 function renderTripResult(){
-  var r=tripResult;var av=r.av;var html='';
-  if(!r.needsStop){
-    var etaDest=formatTime(r.durationMin,true);
-    html+='<div class="no-stop-card"><div class="no-stop-icon">✅</div><div class="no-stop-title">You can make it without stopping!</div><div class="no-stop-body">Your '+(av?av.emoji+' '+av.year+' '+av.make+' '+av.model:'vehicle')+' has ~'+r.currentRange+' miles of range. The trip is '+Math.round(r.totalMiles)+' miles.</div></div>';
-    html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
-    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
-    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA '+etaDest+'</div></div></div>';
-    html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">'+etaDest+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
-    html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
+  var r=tripResult;
+  if(!r)return;
+  var av=r.av;
+  var html='';
+  var etaDest=formatTime(r.durationMin,true);
+  var fuelPct=Math.round((r.fuelLevel||0.5)*100);
+
+  // ── Range / fuel level status banner ─────────────────────────────────────
+  if(r.canMakeIt){
+    var rangeLeft=r.currentRange-r.totalMiles;
+    html+='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">'
+      +'<div style="font-size:24px;">✅</div>'
+      +'<div>'
+        +'<div style="font-size:13px;font-weight:700;color:#15803d;">You can make it!</div>'
+        +'<div style="font-size:11px;color:#166534;margin-top:2px;">'+(av?av.emoji+' '+av.make+' '+av.model:'')+' has ~'+r.currentRange+' mi range · '+fuelPct+'% fuel · '+Math.round(rangeLeft)+' mi to spare after arrival</div>'
+      +'</div>'
+      +'</div>';
   } else {
-    if(r.bestStop){
-      var sc=scoreColor(r.bestStop.score);var pi=getLatestPrice(r.bestStop);var pd=r.bestStop.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
-      var stopId=r.bestStop.id;
-      html+='<div class="fuel-stop-card" onclick="openTripStopDetail(this.dataset.id)" data-id='+JSON.stringify(stopId)+' style="cursor:pointer;"><div class="fsc-header"><div><div class="fsc-label">⛽ Recommended fuel stop</div><div class="fsc-name">'+r.bestStop.name+'</div><div class="fsc-addr">'+r.bestStop.address+'</div></div><div class="fsc-score" style="border-color:'+sc+';background:'+sc+'22;"><span class="fsc-score-txt" style="color:'+sc+';">'+r.bestStop.score+'</span></div></div><div class="fsc-details"><div class="fsc-detail-box"><div class="fsc-detail-val">'+pd+'</div><div class="fsc-detail-lbl">Price</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+r.detourMiles+' mi</div><div class="fsc-detail-lbl">Detour</div></div><div class="fsc-detail-box"><div class="fsc-detail-val">'+waitMin(r.bestStop.busy||30)+'m</div><div class="fsc-detail-lbl">Wait</div></div></div><div style="text-align:center;padding-top:6px;font-size:11px;color:#1667d9;font-weight:600;">Tap to view full station details →</div></div>';
-    }
-    if(r.savings&&r.savings>0){html+='<div class="savings-card"><div class="savings-title">💰 Savings vs. SF average</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">You save</div></div><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
-    else if(r.fuelCost){html+='<div class="savings-card"><div class="savings-title">⛽ Trip fuel estimate</div><div class="savings-row"><div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. cost</div></div><div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((r.ft&&r.ft.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div><div class="savings-item"><div class="savings-val">'+(r.bestStop?r.bestStop.score:'—')+'</div><div class="savings-lbl">Stop score</div></div></div></div>';}
-    var etaStop=formatTime(r.stopMinFromStart||Math.round(r.durationMin*0.5),false);
-    var etaDest2=formatTime(r.durationMin+(r.detourMiles?Math.round(r.detourMiles*2):0),true);
-    html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
-    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+(av.level||50)+'% fuel':'')+'</div></div></div>';
-    if(r.bestStop){html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-fuel">⛽</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Fuel stop · ~'+Math.round(r.stopPoint||r.totalMiles*0.5)+' mi in</div><div class="route-name">'+r.bestStop.name+'</div><div class="route-detail">'+r.bestStop.address+'</div><div class="route-eta">ETA '+etaStop+'</div><span class="route-badge" style="background:#dbeafe;color:#1d4ed8;">Score '+r.bestStop.score+'</span></div></div>';}
-    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA ~'+etaDest2+'</div></div></div>';
-    html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">~'+etaDest2+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
-    if(r.bestStop){html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate with fuel stop</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMaps()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMaps()">🗺 Google Maps</button></div><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">Or navigate direct</div><div class="direct-nav-row"><button class="direct-nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Direct via Apple</button><button class="direct-nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Direct via Google</button></div></div>';}
-    else{html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate to destination</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';}
+    var urgencyColor=fuelPct<=10?'#DC2626':fuelPct<=25?'#d97706':'#1a1a2e';
+    var urgencyMsg=fuelPct<=10?'⚠️ Very low fuel — stop soon!':fuelPct<=25?'🟡 Low fuel — plan a stop':fuelPct<=50?'Stop recommended along the way':'Consider fueling up on this trip';
+    html+='<div style="background:#fff5f5;border:1.5px solid #FCA5A5;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">'
+      +'<div style="font-size:24px;">'+(fuelPct<=10?'🚨':fuelPct<=25?'⚠️':'⛽')+'</div>'
+      +'<div>'
+        +'<div style="font-size:13px;font-weight:700;color:'+urgencyColor+';">'+urgencyMsg+'</div>'
+        +'<div style="font-size:11px;color:#888;margin-top:2px;">'+(av?av.emoji+' '+av.make+' '+av.model:'')+' · ~'+r.currentRange+' mi range · '+fuelPct+'% fuel</div>'
+      +'</div>'
+      +'</div>';
   }
+
+  // ── Fuel stop recommendations ─────────────────────────────────────────────
+  html+='<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Fuel stop recommendations</div>';
+
+  // Urgent stop if very low fuel
+  if(r.urgentStop&&fuelPct<=25){
+    html+=renderStopCard(r.urgentStop,'🚨 Nearest stop — fuel up now','Urgent','#DC2626','#fee2e2');
+  }
+
+  // Favorite on route
+  if(r.favStop){
+    html+=renderStopCard(r.favStop,'⭐ Your favorite on this route','Favorite','#b45309','#fef3c7');
+  }
+
+  // Best overall
+  if(r.bestStop){
+    html+=renderStopCard(r.bestStop,'🏆 Best value stop','Top pick','#15803d','#dcfce7');
+  }
+
+  // Cheapest (if different from best)
+  if(r.cheapestStop&&r.bestStop&&r.cheapestStop.id!==r.bestStop.id){
+    html+=renderStopCard(r.cheapestStop,'💰 Cheapest on route','Lowest price','#1d4ed8','#dbeafe');
+  }
+
+  // Most convenient (if different)
+  if(r.nearestStop&&r.bestStop&&r.nearestStop.id!==r.bestStop.id&&(!r.cheapestStop||r.nearestStop.id!==r.cheapestStop.id)){
+    html+=renderStopCard(r.nearestStop,'📍 Least detour','Most convenient','#7c3aed','#ede9fe');
+  }
+
+  // Fuel cost estimate
+  if(r.fuelCost){
+    html+='<div class="savings-card" style="margin-bottom:12px;">'
+      +'<div class="savings-title">⛽ Trip fuel estimate</div>'
+      +'<div class="savings-row">'
+        +'<div class="savings-item"><div class="savings-val">$'+r.fuelCost.toFixed(2)+'</div><div class="savings-lbl">Est. fuel cost</div></div>'
+        +'<div class="savings-item"><div class="savings-val">'+Math.round(r.totalMiles/((av&&av.mpg)||30))+' gal</div><div class="savings-lbl">Est. usage</div></div>'
+        +(r.savings&&r.savings>0?'<div class="savings-item"><div class="savings-val" style="color:#15803d;">$'+r.savings.toFixed(2)+'</div><div class="savings-lbl">You save</div></div>':'')
+      +'</div>'
+      +'</div>';
+  }
+
+  // ── Route overview ────────────────────────────────────────────────────────
+  var etaStop2=formatTime(r.stopMinFromStart||Math.round(r.durationMin*0.5),false);
+  var etaDest2=formatTime(r.durationMin+(r.detourMiles?Math.round(r.detourMiles*2):0),true);
+  html+='<div class="route-card"><div class="route-card-title">Route overview</div>';
+  html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-start">A</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Start · Now</div><div class="route-name">Your location</div><div class="route-detail">'+(av?av.emoji+' ~'+r.currentRange+' mi range · '+fuelPct+'% fuel':'')+'</div></div></div>';
+  if(r.bestStop){
+    html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-fuel">⛽</div><div class="rline"></div></div><div class="route-content"><div class="route-label">Fuel stop · ~'+Math.round(r.stopPoint||r.totalMiles*0.5)+' mi in</div><div class="route-name">'+r.bestStop.name+'</div><div class="route-detail">'+r.bestStop.address+'</div><div class="route-eta">ETA '+etaStop2+'</div><span class="route-badge" style="background:#dcfce7;color:#15803d;">Score '+r.bestStop.score+'</span></div></div>';
+  }
+  html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA ~'+etaDest2+'</div></div></div>';
+  html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">~'+etaDest2+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  if(r.bestStop){
+    html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate with top pick stop</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMaps()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMaps()">🗺 Google Maps</button></div><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">Navigate direct</div><div class="direct-nav-row"><button class="direct-nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Direct</button><button class="direct-nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Direct</button></div></div>';
+  } else {
+    html+='<div style="margin-bottom:12px;"><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
+  }
+
   html+='<button class="new-trip-btn" onclick="newTrip()">← Plan another trip</button><div style="height:20px;"></div>';
   document.getElementById('trip-body').innerHTML=html;
 }
