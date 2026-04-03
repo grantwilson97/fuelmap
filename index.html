@@ -654,6 +654,90 @@ var AUTOCOMPLETE_API='https://fuelmap-api-sf.vercel.app/api/autocomplete';
 var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35;
 var FUEL_PRICES_API='https://fuelmap-api-sf.vercel.app/api/fuelprices';
 var DISTANCE_MATRIX_API='https://fuelmap-api-sf.vercel.app/api/distancematrix';
+var APIFY_API='https://fuelmap-api-sf.vercel.app/api/apifyfuelprices';
+
+// Cache of Apify real prices keyed by station name (lowercase)
+var apifyPriceCache={};
+var apifyPriceCacheZip=null;
+
+// Convert lat/lng to approximate ZIP using reverse geocode or known SF ZIPs
+function getZipFromLatLng(lat,lng){
+  // Use Google Geocoder if available for accuracy
+  return new Promise(function(resolve){
+    if(typeof google!=='undefined'&&google.maps&&google.maps.Geocoder){
+      var gc=new google.maps.Geocoder();
+      gc.geocode({location:{lat:lat,lng:lng}},function(results,status){
+        if(status==='OK'&&results[0]){
+          var zip=results[0].address_components.find(function(c){
+            return c.types.indexOf('postal_code')>-1;
+          });
+          resolve(zip?zip.short_name:'94103');
+        } else {
+          resolve('94103');
+        }
+      });
+    } else {
+      resolve('94103');
+    }
+  });
+}
+
+// Fetch real prices from Apify/GasBuddy and cache them
+function fetchApifyPrices(zip){
+  if(apifyPriceCacheZip===zip&&Object.keys(apifyPriceCache).length>0){
+    return Promise.resolve(apifyPriceCache);
+  }
+  return fetch(APIFY_API+'?zip='+zip)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data.stations)return apifyPriceCache;
+      apifyPriceCache={};
+      apifyPriceCacheZip=zip;
+      data.stations.forEach(function(s){
+        // Key by normalized name for matching
+        var key=s.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+        apifyPriceCache[key]={
+          price:s.price,
+          priceType:s.priceType,
+          postedTime:s.postedTime,
+          address:s.address,
+          source:'GasBuddy'
+        };
+        // Also key by address line for more precise matching
+        if(s.address){
+          var addrKey=s.address.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,20);
+          apifyPriceCache['addr_'+addrKey]=Object.assign({name:s.name},apifyPriceCache[key]);
+        }
+      });
+      console.log('Apify prices loaded:',Object.keys(apifyPriceCache).length,'stations for ZIP',zip);
+      return apifyPriceCache;
+    })
+    .catch(function(e){
+      console.warn('Apify price fetch failed:',e);
+      return apifyPriceCache;
+    });
+}
+
+// Match a station to an Apify price
+function getApifyPrice(station){
+  if(!apifyPriceCache||Object.keys(apifyPriceCache).length===0)return null;
+  // Try address match first (most accurate)
+  if(station.address){
+    var addrKey='addr_'+station.address.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,20);
+    if(apifyPriceCache[addrKey])return apifyPriceCache[addrKey];
+  }
+  // Try brand name match
+  var nameKey=(station.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(apifyPriceCache[nameKey])return apifyPriceCache[nameKey];
+  // Try partial brand match (e.g. "ARCO" matches "arco")
+  var brand=(station.brand||station.name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  for(var key in apifyPriceCache){
+    if(key.indexOf('addr_')===-1&&(key.indexOf(brand)>-1||brand.indexOf(key)>-1)){
+      return apifyPriceCache[key];
+    }
+  }
+  return null;
+}
 
 // ── Polyline decoder ─────────────────────────────────────────────────────────
 // Decodes a Google encoded polyline string into array of {lat,lng} points
@@ -1549,6 +1633,33 @@ function buildStationList(lat,lng,liveEV,liveGas){
     var zoom=getSmartZoom(userLat,userLng,allStations.length);
     gMap.setZoom(zoom);
   }
+  // Fetch real GasBuddy prices from Apify and apply to stations
+  if(userLat&&userLng){
+    getZipFromLatLng(userLat,userLng).then(function(zip){
+      return fetchApifyPrices(zip);
+    }).then(function(){
+      // Apply real prices to matched stations
+      var matched=0;
+      allStations.forEach(function(s){
+        if(s.type!=='gas')return;
+        var ap=getApifyPrice(s);
+        if(ap&&ap.price){
+          s.realPrice=ap.price;
+          s.realPriceType=ap.priceType;
+          s.realPricePostedTime=ap.postedTime;
+          s.realPriceSource='GasBuddy';
+          s.score=calcScore(s);
+          matched++;
+        }
+      });
+      console.log('Applied real prices to',matched,'stations');
+      if(matched>0){
+        allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
+        renderAll();
+      }
+    }).catch(function(e){console.warn('Apify price apply failed:',e);});
+  }
+
   // Update with real driving distances in background
   if(userLat&&userLng){
     var dmStart=Date.now();
