@@ -533,8 +533,9 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
     <div class="search-title">Find a station</div>
     <div class="search-input-wrap">
       <span style="font-size:16px;">🔍</span>
-      <input class="search-input" id="search-input" type="text" placeholder="Search by brand or name…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="handleSearchInput(this.value)"/>
-      <button onclick="clearSearch()" style="background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;padding:0;" id="search-clear-btn" style="display:none;">✕</button>
+      <input class="search-input" id="search-input" type="text" placeholder="Search by brand or name…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="handleSearchInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();var v=this.value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}}"/>
+      <button onclick="clearSearch()" style="background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;padding:0;display:none;" id="search-clear-btn">✕</button>
+      <button onclick="var v=document.getElementById('search-input').value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}" style="background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;padding:6px 10px;cursor:pointer;flex-shrink:0;">Search</button>
     </div>
     <div class="brand-dropdown" id="brand-dropdown"></div>
   </div>
@@ -3330,17 +3331,13 @@ function handleSearchInput(val){
     items.push({type:'station',label:s.name,sub:dist+(s.address||''),icon:'📍',stationId:s.id});
   });
 
-  // 2. Brand-level search (if fewer than 3 specific matches)
-  if(stationMatches.length<3){
-    var brandMatches=GAS_BRANDS.filter(function(b){
-      return b.toLowerCase().indexOf(q)>-1&&b!=='All brands';
-    }).slice(0,3);
-    brandMatches.forEach(function(b){
-      if(!items.find(function(i){return i.label===b;})){
-        items.push({type:'brand',label:b,icon:'⛽',stationId:null});
-      }
-    });
-  }
+  // 2. Always add "Search all [brand]" option at top when brand matches
+  var brandMatches=GAS_BRANDS.filter(function(b){
+    return b.toLowerCase().indexOf(q)>-1&&b!=='All brands';
+  }).slice(0,2);
+  brandMatches.forEach(function(b){
+    items.unshift({type:'brand',label:'Search all "'+b+'" stations',searchQuery:b,icon:'🔍',stationId:null});
+  });
 
   if(items.length===0){dd.style.display='none';return;}
   dd.innerHTML='';
@@ -3360,6 +3357,7 @@ function handleSearchInput(val){
         if(input)input.value=it.label+(it.type==='station'&&it.sub?' — '+it.sub.replace(/^[\d.]+ mi · /,''):'');
         var dd2=document.getElementById('brand-dropdown');
         if(dd2)dd2.style.display='none';
+        if(it.type==='brand'&&it.searchQuery){runSearch(it.searchQuery);return;}
         if(it.type==='station'&&it.stationId){
           // Navigate directly to that specific station
           var st=allStations.find(function(s){return s.id===it.stationId;});
