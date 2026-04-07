@@ -2221,12 +2221,11 @@ function buildStationList(lat,lng,liveEV,liveGas){
   }
   // Keep demo EV stations not duplicated by live OCM
   var demoEV=DEMO_STATIONS.filter(function(s){return s.type==='ev';}).map(function(s){return Object.assign({},s,{distanceMiles:Math.round(distMiles(lat,lng,s.latitude,s.longitude)*10)/10});}).filter(function(d){return!liveEV.some(function(l){return distMiles(d.latitude,d.longitude,l.latitude,l.longitude)<0.15;});});
-  // Add seeded community stations — dedupe by proximity (within 0.1 miles)
+  // Add ALL seeded community stations — always include regardless of distance
+  // Dedupe only if Google Places already returned an exact match (within 0.08 miles)
   var seededToAdd=SEEDED_DEMO_STATIONS.filter(function(seed){
     return!allLive.some(function(live){
-      return live.latitude&&distMiles(live.latitude,live.longitude,seed.latitude,seed.longitude)<0.10;
-    })&&!demo.some(function(d){
-      return d.latitude&&distMiles(d.latitude,d.longitude,seed.latitude,seed.longitude)<0.10;
+      return live.latitude&&distMiles(live.latitude,live.longitude,seed.latitude,seed.longitude)<0.08;
     });
   }).map(function(s){
     return Object.assign({},s,{
