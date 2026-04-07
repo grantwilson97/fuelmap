@@ -113,6 +113,15 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .fuel-select{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
 .fuel-opt{padding:8px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:13px;font-weight:600;color:#555;cursor:pointer;}
 .fuel-opt.on{background:#DC2626;border-color:#DC2626;color:#fff;}
+.price-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0f0f0;}
+.price-row:last-child{border-bottom:none;}
+.price-row-label{font-size:13px;font-weight:700;color:#1a1a2e;width:72px;flex-shrink:0;}
+.price-row-input-wrap{flex:1;display:flex;align-items:center;gap:4px;background:#f7f7f9;border-radius:10px;border:1.5px solid #e0e0e0;padding:8px 10px;}
+.price-row-input-wrap:focus-within{border-color:#DC2626;background:#fff;}
+.price-row-prefix{font-size:16px;font-weight:700;color:#888;}
+.price-row-input{border:none;outline:none;font-size:18px;font-weight:700;color:#1a1a2e;background:transparent;width:80px;}
+.price-row-unit{font-size:11px;color:#aaa;flex-shrink:0;}
+.price-row-check{font-size:16px;width:20px;text-align:center;}
 .price-input-wrap{display:flex;align-items:center;gap:8px;border-bottom:2px solid #1667d9;padding-bottom:8px;margin-bottom:16px;}
 .price-prefix{font-size:28px;font-weight:500;color:#888;}
 .price-input{font-size:32px;font-weight:800;color:#1a1a2e;border:none;outline:none;width:100%;background:transparent;}
@@ -566,16 +575,11 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 <!-- REPORT PRICE MODAL -->
 <div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-title">Report a price</div>
-    <div class="modal-sub">Help other drivers with a price you just saw</div>
+    <div class="modal-title">Report prices</div>
+    <div class="modal-sub">Enter any prices you saw at the pump</div>
     <div class="modal-station" id="modal-station-name"></div>
-    <div class="thanks-msg" id="thanks-msg">Thanks! Price reported and saved.</div>
-    <div class="fuel-select" id="fuel-select"></div>
-    <div class="price-input-wrap">
-      <span class="price-prefix">$</span>
-      <input class="price-input" type="number" step="0.01" min="0" max="20" placeholder="0.00" id="price-input" oninput="validatePrice()"/>
-      <span class="price-per" id="price-per">/gal</span>
-    </div>
+    <div class="thanks-msg" id="thanks-msg">Thanks! Prices reported and saved.</div>
+    <div id="multi-price-inputs"></div>
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeModalDirect()">Cancel</button>
       <button class="modal-submit" id="modal-submit" onclick="submitPrice()" disabled>Submit</button>
@@ -2630,9 +2634,77 @@ function showTripError(msg){document.getElementById('trip-body').innerHTML='<div
 
 // ── Report modal ──────────────────────────────────────────────────────────────
 var FUEL_OPTS={gas:[['regular','Regular'],['midgrade','Midgrade'],['premium','Premium'],['diesel','Diesel']],ev:[['ev_l2','Level 2'],['ev_dc','DC Fast']]};
-function openReportModal(){if(!currentStation)return;document.getElementById('modal-station-name').textContent=currentStation.name;document.getElementById('thanks-msg').style.display='none';document.getElementById('price-input').value='';document.getElementById('modal-submit').disabled=true;var fs=document.getElementById('fuel-select');fs.innerHTML='';var opts=currentStation.type==='ev'?FUEL_OPTS.ev:FUEL_OPTS.gas;modalFuelType=opts[0][0];document.getElementById('price-per').textContent=currentStation.type==='ev'?'/kWh':'/gal';opts.forEach(function(p){var d=document.createElement('div');d.className='fuel-opt'+(p[0]===modalFuelType?' on':'');d.textContent=p[1];d.onclick=function(){modalFuelType=p[0];document.querySelectorAll('.fuel-opt').forEach(function(o){o.classList.remove('on');});d.classList.add('on');};fs.appendChild(d);});document.getElementById('modal-overlay').classList.remove('hidden');}
+function openReportModal(){
+  if(!currentStation)return;
+  document.getElementById('modal-station-name').textContent=currentStation.name;
+  document.getElementById('thanks-msg').style.display='none';
+  document.getElementById('modal-submit').disabled=true;
+
+  var isEV=currentStation.type==='ev';
+  var opts=isEV?FUEL_OPTS.ev:FUEL_OPTS.gas;
+  var unit=isEV?'/kWh':'/gal';
+  var container=document.getElementById('multi-price-inputs');
+  container.innerHTML='';
+
+  // Render a row for each fuel grade
+  opts.forEach(function(p){
+    var key=p[0];var label=p[1];
+    var row=document.createElement('div');
+    row.className='price-row';
+    row.innerHTML=
+      '<div class="price-row-label">'+label+'</div>'+
+      '<div class="price-row-input-wrap">'+
+        '<span class="price-row-prefix">$</span>'+
+        '<input class="price-row-input" type="number" step="0.01" min="0" max="20" '+
+          'placeholder="0.00" id="price-input-'+key+'" oninput="validateMultiPrice()"/>'+
+        '<span class="price-row-unit">'+unit+'</span>'+
+      '</div>'+
+      '<div class="price-row-check" id="check-'+key+'"></div>';
+    container.appendChild(row);
+  });
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  // Focus first input
+  var first=container.querySelector('.price-row-input');
+  if(first)setTimeout(function(){first.focus();},100);
+}
+
+function validateMultiPrice(){
+  var opts=currentStation&&currentStation.type==='ev'?FUEL_OPTS.ev:FUEL_OPTS.gas;
+  var anyValid=false;
+  opts.forEach(function(p){
+    var inp=document.getElementById('price-input-'+p[0]);
+    var check=document.getElementById('check-'+p[0]);
+    if(inp){
+      var v=parseFloat(inp.value);
+      var valid=v&&v>1&&v<20;
+      if(check)check.textContent=valid?'✓':'';
+      if(valid)anyValid=true;
+    }
+  });
+  document.getElementById('modal-submit').disabled=!anyValid;
+}
 function validatePrice(){var v=parseFloat(document.getElementById('price-input').value);document.getElementById('modal-submit').disabled=!(v>0&&v<20);}
-function submitPrice(){var v=parseFloat(document.getElementById('price-input').value);if(!v||!currentStation)return;saveReport(currentStation.id,modalFuelType,v);document.getElementById('thanks-msg').style.display='block';document.getElementById('price-input').value='';document.getElementById('modal-submit').disabled=true;setTimeout(function(){closeModalDirect();showDetail(currentStation);},1200);}
+function submitPrice(){
+  if(!currentStation)return;
+  var opts=currentStation.type==='ev'?FUEL_OPTS.ev:FUEL_OPTS.gas;
+  var saved=0;
+  opts.forEach(function(p){
+    var inp=document.getElementById('price-input-'+p[0]);
+    if(inp){
+      var v=parseFloat(inp.value);
+      if(v&&v>1&&v<20){
+        saveReport(currentStation.id,p[0],v);
+        saved++;
+      }
+    }
+  });
+  if(saved===0)return;
+  document.getElementById('thanks-msg').style.display='block';
+  document.getElementById('thanks-msg').textContent='Thanks! '+saved+' price'+(saved>1?'s':'')+' reported.';
+  document.getElementById('modal-submit').disabled=true;
+  setTimeout(function(){closeModalDirect();showDetail(currentStation);},1400);
+}
 function closeModal(e){if(e.target.id==='modal-overlay')closeModalDirect();}
 function closeModalDirect(){document.getElementById('modal-overlay').classList.add('hidden');}
 function navigateToStation(){if(!currentStation)return;var a=encodeURIComponent(currentStation.address),n=encodeURIComponent(currentStation.name);window.location.href='maps:?daddr='+a+'&q='+n;setTimeout(function(){window.location.href='https://maps.google.com/?daddr='+a+'&q='+n;},500);}
