@@ -3399,26 +3399,33 @@ function runSearch(query){
   if(!q)return;
   document.getElementById('search-results').innerHTML='<div style="text-align:center;padding:20px;color:#888;font-size:13px;">Searching…</div>';
 
-  // Search allStations by name/brand
-  var results=allStations.filter(function(s){
+  // Helper: does this station match the query?
+  function stationMatchesQuery(s, q){
     var name=(s.name||'').toLowerCase();
     var brand=(s.brand||s.network||'').toLowerCase();
-    return name.indexOf(q)>-1||brand.indexOf(q)>-1;
-  });
+    var addr=(s.address||'').toLowerCase();
+    return name.indexOf(q)>-1||brand.indexOf(q)>-1||addr.indexOf(q)>-1;
+  }
 
-  // Also fetch from Google Places for broader coverage
+  // Search allStations (includes seeded) — strict name/brand match
+  var results=allStations.filter(function(s){return stationMatchesQuery(s,q);});
+
+  // Also fetch from Google Places — but FILTER results to only matching stations
   if(userLat&&userLng){
     fetch(GAS_API+'?latitude='+userLat+'&longitude='+userLng+'&radius=25&keyword='+encodeURIComponent(query))
       .then(function(r){return r.json();})
       .then(function(data){
-        var fresh=(data.stations||[]).map(function(s){
-          var pl=s.priceLevel!==null&&s.priceLevel!==undefined?s.priceLevel:null;
-          return Object.assign({},s,{id:'gpl_'+s.id,type:'gas',basePrice:estimateStationPrice('regular',pl,s.brand),priceLevel:pl,priceEstimated:true,isLive:true,distanceMiles:s.distanceMiles||distMiles(userLat,userLng,s.latitude,s.longitude),busy:40,score:0});
-        });
-        // Merge with local results, dedupe
+        var fresh=(data.stations||[])
+          .filter(function(s){return stationMatchesQuery(s,q);}) // strict filter
+          .map(function(s){
+            var pl=s.priceLevel!==null&&s.priceLevel!==undefined?s.priceLevel:null;
+            return Object.assign({},s,{id:'gpl_'+s.id,type:'gas',basePrice:estimateStationPrice('regular',pl,s.brand),priceLevel:pl,priceEstimated:true,isLive:true,distanceMiles:s.distanceMiles||distMiles(userLat,userLng,s.latitude,s.longitude),busy:40,score:0});
+          });
+        // Merge, dedupe by id and proximity
         fresh.forEach(function(s){
           if(!results.find(function(r){return r.id===s.id||distMiles(r.latitude||0,r.longitude||0,s.latitude,s.longitude)<0.05;})){
-            s.score=calcScore(s);results.push(s);
+            s.score=calcScore(s);
+            results.push(s);
           }
         });
         results.sort(function(a,b){return (a.distanceMiles||99)-(b.distanceMiles||99);});
@@ -3427,11 +3434,13 @@ function runSearch(query){
         updateSearchMap(results);
       })
       .catch(function(){
+        results.sort(function(a,b){return (a.distanceMiles||99)-(b.distanceMiles||99);});
         currentSearchResults=results;
         renderSearchResults(results,query);
         updateSearchMap(results);
       });
   } else {
+    results.sort(function(a,b){return (a.distanceMiles||99)-(b.distanceMiles||99);});
     currentSearchResults=results;
     renderSearchResults(results,query);
   }
