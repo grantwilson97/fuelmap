@@ -533,7 +533,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
     <div class="search-title">Find a station</div>
     <div class="search-input-wrap">
       <span style="font-size:16px;">🔍</span>
-      <input class="search-input" id="search-input" type="text" placeholder="Search by brand or name…" autocomplete="off" oninput="handleSearchInput(this.value)"/>
+      <input class="search-input" id="search-input" type="text" placeholder="Search by brand or name…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="handleSearchInput(this.value)"/>
       <button onclick="clearSearch()" style="background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;padding:0;" id="search-clear-btn" style="display:none;">✕</button>
     </div>
     <div class="brand-dropdown" id="brand-dropdown"></div>
@@ -1471,11 +1471,13 @@ function onSignedIn(){
   startPriceAutoRefresh();
   // Refresh oil price every 2 hours
   setInterval(function(){fetchOilPriceAdjustment();},2*60*60*1000);
+  // Always render favorites from localStorage immediately (works offline/PWA)
+  renderFavorites();
   // Sync local data to cloud if needed
   if(currentUser){
     syncLocalToCloud();
-    // Load favorites from cloud, then render favorites tab
-    loadCloudFavorites().then(function(){renderFavorites();});
+    // Then load cloud favorites and re-render (non-blocking)
+    loadCloudFavorites().then(function(){renderFavorites();}).catch(function(){});
   }
 }
 
@@ -3311,26 +3313,61 @@ function handleSearchInput(val){
   var dd=document.getElementById('brand-dropdown');
   if(!dd)return;
   if(val.length<2){dd.style.display='none';dd.innerHTML='';return;}
-  var matches=GAS_BRANDS.filter(function(b){
-    return b.toLowerCase().indexOf(val.toLowerCase())>-1&&b!=='All brands';
-  });
-  var stationMatches=allStations.filter(function(s){
-    return s.name&&s.name.toLowerCase().indexOf(val.toLowerCase())>-1;
-  }).slice(0,4);
+
+  var q=val.toLowerCase();
   var items=[];
-  matches.slice(0,5).forEach(function(b){items.push({type:'brand',label:b,icon:'⛽'});});
+
+  // 1. Specific stations from allStations + seeded — show individual stations first
+  var stationMatches=allStations.filter(function(s){
+    var name=(s.name||'').toLowerCase();
+    var addr=(s.address||'').toLowerCase();
+    var brand=(s.brand||'').toLowerCase();
+    return name.indexOf(q)>-1||addr.indexOf(q)>-1||brand.indexOf(q)>-1;
+  }).sort(function(a,b){return (a.distanceMiles||99)-(b.distanceMiles||99);}).slice(0,6);
+
   stationMatches.forEach(function(s){
-    if(!items.find(function(m){return m.label.toLowerCase()===s.name.toLowerCase();})){
-      items.push({type:'station',label:s.name,sub:s.address,icon:'📍'});
-    }
+    var dist=s.distanceMiles&&s.distanceMiles<90?s.distanceMiles.toFixed(1)+' mi · ':'';
+    items.push({type:'station',label:s.name,sub:dist+(s.address||''),icon:'📍',stationId:s.id});
   });
+
+  // 2. Brand-level search (if fewer than 3 specific matches)
+  if(stationMatches.length<3){
+    var brandMatches=GAS_BRANDS.filter(function(b){
+      return b.toLowerCase().indexOf(q)>-1&&b!=='All brands';
+    }).slice(0,3);
+    brandMatches.forEach(function(b){
+      if(!items.find(function(i){return i.label===b;})){
+        items.push({type:'brand',label:b,icon:'⛽',stationId:null});
+      }
+    });
+  }
+
   if(items.length===0){dd.style.display='none';return;}
   dd.innerHTML='';
   items.forEach(function(item){
     var div=document.createElement('div');
     div.className='brand-item';
-    div.innerHTML='<span style="font-size:14px;">'+item.icon+'</span><span style="font-weight:600;color:#1a1a2e;">'+item.label+'</span>'+(item.sub?'<span style="color:#888;font-size:11px;margin-left:4px;">'+item.sub+'</span>':'');
-    div.onclick=function(){selectSearchBrand(item.label);};
+    div.style.cssText='padding:10px 14px;display:flex;flex-direction:column;gap:2px;cursor:pointer;border-bottom:0.5px solid #f0f0f0;';
+    div.innerHTML=
+      '<div style="display:flex;align-items:center;gap:6px;">'+
+        '<span style="font-size:13px;">'+item.icon+'</span>'+
+        '<span style="font-weight:600;color:#1a1a2e;font-size:13px;">'+item.label+'</span>'+
+      '</div>'+
+      (item.sub?'<div style="color:#888;font-size:11px;padding-left:19px;">'+item.sub+'</div>':'');
+    div.onclick=(function(it){
+      return function(){
+        var input=document.getElementById('search-input');
+        if(input)input.value=it.label+(it.type==='station'&&it.sub?' — '+it.sub.replace(/^[\d.]+ mi · /,''):'');
+        var dd2=document.getElementById('brand-dropdown');
+        if(dd2)dd2.style.display='none';
+        if(it.type==='station'&&it.stationId){
+          // Navigate directly to that specific station
+          var st=allStations.find(function(s){return s.id===it.stationId;});
+          if(st){currentStation=st;showDetail(st);return;}
+        }
+        runSearch(it.label);
+      };
+    })(item);
     dd.appendChild(div);
   });
   dd.style.display='block';
