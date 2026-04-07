@@ -1603,6 +1603,45 @@ function getGradePrices(station){
   });
   return grades;
 }
+// ── Seeded community reports ─────────────────────────────────────────────────
+// Pre-loaded real prices from user reports — applied by address matching
+var SEEDED_PRICES=[
+  {name:'ARCO',address:'6707 Mission Blvd',city:'Fremont',price:4.99,grade:'regular'},
+  {name:'Costco',address:'4500 Auto Mall',city:'Fremont',price:5.09,grade:'regular'},
+  {name:'Costco',address:'350 Newpark Mall',city:'Newark',price:5.09,grade:'regular'},
+  {name:'Chevron',address:'39880 Mission Blvd',city:'Fremont',price:5.09,grade:'regular'},
+  {name:'ARCO',address:'1245 E Calaveras',city:'Milpitas',price:5.15,grade:'regular'},
+  {name:'Costco',address:'1601 Coleman',city:'Santa Clara',price:5.15,grade:'regular'},
+  {name:'A & A Express',address:'3980 Mowry',city:'Fremont',price:5.15,grade:'regular'},
+  {name:'Exxon',address:'39950 Fremont Blvd',city:'Fremont',price:5.15,grade:'regular'},
+  {name:'Safeway',address:'1071 E Calaveras',city:'Milpitas',price:5.15,grade:'regular'},
+  {name:'Grand Gasoline',address:'501 W Harder',city:'Hayward',price:5.29,grade:'regular'},
+];
+
+// Apply seeded prices to loaded stations by address+name matching
+function applySeedPrices(stations){
+  if(!stations||stations.length===0)return;
+  stations.forEach(function(s){
+    if(s.type!=='gas'||!s.address)return;
+    var addrLow=(s.address||'').toLowerCase();
+    var nameLow=(s.name||'').toLowerCase();
+    SEEDED_PRICES.forEach(function(seed){
+      var seedAddr=seed.address.toLowerCase();
+      var seedName=seed.name.toLowerCase();
+      var seedCity=seed.city.toLowerCase();
+      // Match: address contains seed street + city matches
+      if(addrLow.indexOf(seedAddr)>-1&&addrLow.indexOf(seedCity)>-1&&nameLow.indexOf(seedName)>-1){
+        // Only seed if no existing report
+        var existing=getReports(s.id);
+        var alreadyReported=existing.some(function(r){return r.fuelType===seed.grade;});
+        if(!alreadyReported){
+          saveReport(s.id,seed.grade,seed.price);
+        }
+      }
+    });
+  });
+}
+
 function getReports(id){try{return JSON.parse(localStorage.getItem('reports_'+id)||'[]');}catch(e){return[];}}
 function saveReport(id,ft,price){var r=getReports(id);r.unshift({fuelType:ft,price:price,ts:Date.now()});if(r.length>5)r.pop();localStorage.setItem('reports_'+id,JSON.stringify(r));}
 function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
@@ -1919,7 +1958,7 @@ function buildStationList(lat,lng,liveEV,liveGas){
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV';
-  clearLoading();renderAll();renderAlerts();
+  clearLoading();applySeedPrices(allStations);renderAll();renderAlerts();
   if(gMap&&userLat&&userLng){
     var zoom=getSmartZoom(userLat,userLng,allStations.length);
     gMap.setZoom(zoom);
