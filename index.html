@@ -3598,14 +3598,14 @@ function renderFavorites(){
     card.className = 'fav-card';
     card.style.cursor = 'pointer';
     card.setAttribute('data-fid', String(fav.id));
-    card.onclick = function(){ openFavoriteDetail(this.getAttribute('data-fid')); };
+    card.onclick = function(){ openFavoriteDetail(this.dataset.fid); };
 
     var star = document.createElement('button');
     star.className = 'fav-star';
     star.style.cssText='background:none;border:none;cursor:pointer;font-size:20px;padding:0;';
     star.textContent = '⭐';
     star.setAttribute('data-fid', String(fav.id));
-    star.onclick = function(e){ e.stopPropagation(); removeFavorite(this.getAttribute('data-fid')); };
+    star.onclick = function(e){ e.stopPropagation(); removeFavorite(this.dataset.fid); };
 
     var info = document.createElement('div');
     info.className = 'fav-info';
@@ -3970,11 +3970,14 @@ function makeAlertCard(a){
   return card;
 }
 
+// Global indexed alert list for reliable onclick access
+window._alertList=[];
+
 function renderAlerts(){
-  // Regenerate smart alerts from current station data
   var smartAlerts=generateSmartAlerts();
   var userAlerts=loadUserAlerts();
   alerts=smartAlerts.concat(userAlerts);
+  window._alertList=alerts; // store globally for index access
 
   var el=document.getElementById('alerts-body');
   if(!el)return;
@@ -3985,38 +3988,75 @@ function renderAlerts(){
   document.getElementById('triggered-count').textContent=triggered.length;
   document.getElementById('total-count').textContent=alerts.length;
 
-  // Build with DOM to avoid variable-in-string issues
-  el.innerHTML='';
-
   if(alerts.length===0){
-    var empty=document.createElement('div');
-    empty.style.cssText='text-align:center;padding:40px 20px;';
-    empty.innerHTML='<div style="font-size:40px;margin-bottom:12px;">🔔</div><div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">No alerts yet</div><div style="font-size:13px;color:#888;line-height:1.5;">Alerts will appear here when stations near you are offering prices significantly below the SF average.</div>';
-    el.appendChild(empty);
+    el.innerHTML='<div style="text-align:center;padding:40px 20px;">'
+      +'<div style="font-size:40px;margin-bottom:12px;">🔔</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">No alerts yet</div>'
+      +'<div style="font-size:13px;color:#888;line-height:1.5;">Alerts appear when nearby stations are priced well below the SF average.</div>'
+      +'</div>';
     updateBellBadge();
     return;
   }
 
-
+  var html='';
 
   if(market.length>0){
-    var mTitle=document.createElement('div');mTitle.className='alert-sec-title';mTitle.textContent='Market conditions';
-    el.appendChild(mTitle);
-    market.forEach(function(a){el.appendChild(makeAlertCard(a));});
-  }
-  if(deals.length>0){
-    var dTitle=document.createElement('div');dTitle.className='alert-sec-title';dTitle.textContent='Best prices near you';
-    el.appendChild(dTitle);
-    deals.forEach(function(a){el.appendChild(makeAlertCard(a));});
+    html+='<div class="alert-sec-title">Market conditions</div>';
+    alerts.forEach(function(a,idx){
+      if(a.type!=='market')return;
+      html+='<div class="alert-card" style="border-color:#f59e0b;background:#fffbeb;">'
+        +'<div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div></div>'
+        +'<div class="alert-pill" style="background:#fef3c7;color:#b45309;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;">Market</div></div>'
+        +'<div style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;">'+(a.message||'')+'</div>'
+        +'<div class="alert-btns">'
+        +'<button class="alert-btn btn-danger" onclick="window._alertDismiss('+idx+')">Dismiss</button>'
+        +'</div></div>';
+    });
   }
 
-  var spacer=document.createElement('div');spacer.style.height='20px';
-  el.appendChild(spacer);
+  if(deals.length>0){
+    html+='<div class="alert-sec-title">Best prices near you</div>';
+    alerts.forEach(function(a,idx){
+      if(a.type!=='deal')return;
+      html+='<div class="alert-card alert-triggered">'
+        +'<div class="alert-top"><div style="flex:1;">'
+        +'<div class="alert-name">'+a.name+'</div>'
+        +'<div class="alert-loc">'+(a.dist||'')+' · '+(a.source||'')+'</div>'
+        +'</div><div class="alert-pill pill-triggered">Deal</div></div>'
+        +'<div class="alert-price-row">'
+        +'<div class="alert-price-big" style="color:#DC2626;">$'+a.price.toFixed(2)+'</div>'
+        +'<div class="alert-price-unit">/gal · saves $'+a.savings.toFixed(2)+' vs avg</div>'
+        +'</div>'
+        +'<div class="alert-btns">'
+        +'<button class="alert-btn btn-primary" onclick="window._alertNavigate('+idx+')">Navigate ↗</button>'
+        +'<button class="alert-btn btn-danger" onclick="window._alertDismiss('+idx+')">Dismiss</button>'
+        +'</div></div>';
+    });
+  }
+
+  html+='<div style="height:20px;"></div>';
+  el.innerHTML=html;
   updateBellBadge();
 }
 
+// Global handlers — called by index, no closure needed
+window._alertNavigate=function(idx){
+  var a=window._alertList[idx];
+  if(!a)return;
+  var st=allStations.find(function(s){return String(s.id)===String(a.stationId);});
+  if(st){currentStation=st;showDetail(st);}
+};
+window._alertDismiss=function(idx){
+  var a=window._alertList[idx];
+  if(!a)return;
+  window._alertList.splice(idx,1);
+  alerts=window._alertList.slice();
+  renderAlerts();
+  updateBellBadge();
+};
+
 function navigateToAlertStation(stationId){
-  var st=allStations.find(function(s){return s.id===stationId;});
+  var st=allStations.find(function(s){return String(s.id)===String(stationId);});
   if(!st)return;
   currentStation=st;
   showDetail(st);
