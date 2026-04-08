@@ -3597,12 +3597,15 @@ function renderFavorites(){
     var card = document.createElement('div');
     card.className = 'fav-card';
     card.style.cursor = 'pointer';
-    card.addEventListener('click', (function(f){ return function(){ openFavoriteDetail(f.id); }; })(fav));
+    card.setAttribute('data-fid', String(fav.id));
+    card.onclick = function(){ openFavoriteDetail(this.getAttribute('data-fid')); };
 
-    var star = document.createElement('div');
+    var star = document.createElement('button');
     star.className = 'fav-star';
+    star.style.cssText='background:none;border:none;cursor:pointer;font-size:20px;padding:0;';
     star.textContent = '⭐';
-    star.addEventListener('click', (function(f){ return function(e){ e.stopPropagation(); removeFavorite(f.id); }; })(fav));
+    star.setAttribute('data-fid', String(fav.id));
+    star.onclick = function(e){ e.stopPropagation(); removeFavorite(this.getAttribute('data-fid')); };
 
     var info = document.createElement('div');
     info.className = 'fav-info';
@@ -3908,6 +3911,65 @@ function updateSearchMap(results){
 }
 
 // ── Alerts ────────────────────────────────────────────────────────────────────
+function makeAlertCard(a){
+  var card=document.createElement('div');
+  card.className='alert-card'+(a.type==='deal'?' alert-triggered':'');
+  if(a.type==='market'){card.style.borderColor='#f59e0b';card.style.background='#fffbeb';}
+
+  var top=document.createElement('div');top.className='alert-top';
+  var topLeft=document.createElement('div');topLeft.style.flex='1';
+  var nameEl=document.createElement('div');nameEl.className='alert-name';nameEl.textContent=a.name||'';
+  topLeft.appendChild(nameEl);
+  if(a.dist||a.source){
+    var locEl=document.createElement('div');locEl.className='alert-loc';
+    locEl.textContent=(a.dist||'')+' · '+(a.source||'');
+    topLeft.appendChild(locEl);
+  }
+  var pill=document.createElement('div');pill.className='alert-pill';
+  if(a.type==='market'){pill.style.cssText='background:#fef3c7;color:#b45309;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;';pill.textContent='Market';}
+  else{pill.className='alert-pill pill-triggered';pill.textContent='Deal';}
+  top.appendChild(topLeft);top.appendChild(pill);
+  card.appendChild(top);
+
+  if(a.type==='market'&&a.message){
+    var msg=document.createElement('div');
+    msg.style.cssText='font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;';
+    msg.textContent=a.message;
+    card.appendChild(msg);
+  }
+  if(a.type==='deal'&&a.price!=null){
+    var priceRow=document.createElement('div');priceRow.className='alert-price-row';
+    var priceBig=document.createElement('div');
+    priceBig.className='alert-price-big';priceBig.style.color='#DC2626';
+    priceBig.textContent='$'+a.price.toFixed(2);
+    var priceUnit=document.createElement('div');priceUnit.className='alert-price-unit';
+    priceUnit.textContent='/gal · saves $'+a.savings.toFixed(2)+' vs avg';
+    priceRow.appendChild(priceBig);priceRow.appendChild(priceUnit);
+    card.appendChild(priceRow);
+  }
+
+  var btns=document.createElement('div');btns.className='alert-btns';
+
+  if(a.type==='deal'&&a.stationId){
+    var navBtn=document.createElement('button');
+    navBtn.className='alert-btn btn-primary';
+    navBtn.textContent='Navigate ↗';
+    navBtn.setAttribute('data-sid', String(a.stationId));
+    navBtn.onclick=function(){navigateToAlertStation(this.getAttribute('data-sid'));};
+    btns.appendChild(navBtn);
+  }
+
+  var dismissBtn=document.createElement('button');
+  dismissBtn.className='alert-btn btn-danger';
+  dismissBtn.textContent='Dismiss';
+  dismissBtn.setAttribute('data-aid', String(a.id));
+  dismissBtn.onclick=function(){dismissAlert(this.getAttribute('data-aid'));};
+  btns.appendChild(dismissBtn);
+
+  card.appendChild(btns);
+  return card;
+}
+
 function renderAlerts(){
   // Regenerate smart alerts from current station data
   var smartAlerts=generateSmartAlerts();
@@ -3935,62 +3997,7 @@ function renderAlerts(){
     return;
   }
 
-  function makeAlertCard(a){
-    var card=document.createElement('div');
-    card.className='alert-card'+(a.type==='deal'?' alert-triggered':'');
-    if(a.type==='market'){card.style.borderColor='#f59e0b';card.style.background='#fffbeb';}
 
-    var top=document.createElement('div');top.className='alert-top';
-    var topLeft=document.createElement('div');topLeft.style.flex='1';
-    var nameEl=document.createElement('div');nameEl.className='alert-name';nameEl.textContent=a.name||'';
-    topLeft.appendChild(nameEl);
-    if(a.dist||a.source){
-      var locEl=document.createElement('div');locEl.className='alert-loc';
-      locEl.textContent=(a.dist||'')+' · '+(a.source||'');
-      topLeft.appendChild(locEl);
-    }
-    var pill=document.createElement('div');pill.className='alert-pill';
-    if(a.type==='market'){pill.style.cssText='background:#fef3c7;color:#b45309;';pill.textContent='Market';}
-    else{pill.className='alert-pill pill-triggered';pill.textContent='Deal';}
-    top.appendChild(topLeft);top.appendChild(pill);
-    card.appendChild(top);
-
-    if(a.type==='market'&&a.message){
-      var msg=document.createElement('div');
-      msg.style.cssText='font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;';
-      msg.textContent=a.message;
-      card.appendChild(msg);
-    }
-    if(a.type==='deal'&&a.price!=null){
-      var priceRow=document.createElement('div');priceRow.className='alert-price-row';
-      var priceBig=document.createElement('div');
-      priceBig.className='alert-price-big';priceBig.style.color='#DC2626';
-      priceBig.textContent='$'+a.price.toFixed(2);
-      var priceUnit=document.createElement('div');priceUnit.className='alert-price-unit';
-      priceUnit.textContent='/gal · saves $'+a.savings.toFixed(2)+' vs avg';
-      priceRow.appendChild(priceBig);priceRow.appendChild(priceUnit);
-      card.appendChild(priceRow);
-    }
-
-    var btns=document.createElement('div');btns.className='alert-btns';
-
-    if(a.type==='deal'&&a.stationId){
-      var navBtn=document.createElement('div');
-      navBtn.className='alert-btn btn-primary';
-      navBtn.textContent='Navigate ↗';
-      navBtn.addEventListener('click',(function(alert){return function(){navigateToAlertStation(alert.stationId);};})(a));
-      btns.appendChild(navBtn);
-    }
-
-    var dismissBtn=document.createElement('div');
-    dismissBtn.className='alert-btn btn-danger';
-    dismissBtn.textContent='Dismiss';
-    dismissBtn.addEventListener('click',(function(alert){return function(){dismissAlert(alert.id);};})(a));
-    btns.appendChild(dismissBtn);
-
-    card.appendChild(btns);
-    return card;
-  }
 
   if(market.length>0){
     var mTitle=document.createElement('div');mTitle.className='alert-sec-title';mTitle.textContent='Market conditions';
