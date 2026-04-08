@@ -156,7 +156,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .alert-price-big{font-size:22px;font-weight:800;color:#1667d9;}
 .alert-price-unit{font-size:12px;color:#888;}
 .alert-btns{display:flex;gap:7px;}
-.alert-btn{flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid;text-align:center;}
+.alert-btn{flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid;text-align:center;display:block;text-decoration:none;-webkit-tap-highlight-color:rgba(0,0,0,0.1);}
 .btn-primary{background:#1667d9;border-color:#1667d9;color:#fff;}
 .btn-danger{background:#fff;border-color:#fecaca;color:#dc2626;}
 .carbon-hero-row{display:flex;align-items:center;gap:16px;}
@@ -4011,26 +4011,31 @@ function renderAlerts(){
     return;
   }
 
-  var html='';
+  // Store alert IDs in global map for direct lookup
+  window._alertMap={};
+  alerts.forEach(function(a){window._alertMap[a.id]=a;});
 
+  var html='';
   if(market.length>0){
     html+='<div class="alert-sec-title">Market conditions</div>';
-    alerts.forEach(function(a,idx){
+    alerts.forEach(function(a){
       if(a.type!=='market')return;
+      var aid=String(a.id);
       html+='<div class="alert-card" style="border-color:#f59e0b;background:#fffbeb;">'
         +'<div class="alert-top"><div style="flex:1;"><div class="alert-name">'+a.name+'</div></div>'
         +'<div class="alert-pill" style="background:#fef3c7;color:#b45309;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;">Market</div></div>'
         +'<div style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;">'+(a.message||'')+'</div>'
         +'<div class="alert-btns">'
-        +'<a class="alert-btn btn-danger" href="javascript:void(0)" onclick="window._alertDismiss('+idx+');return false;" style="display:block;text-decoration:none;">Dismiss</a>'
+        +'<a class="alert-btn btn-danger" onclick="dismissAlertById(\''+aid+'\')">Dismiss</a>'
         +'</div></div>';
     });
   }
-
   if(deals.length>0){
     html+='<div class="alert-sec-title">Best prices near you</div>';
-    alerts.forEach(function(a,idx){
+    alerts.forEach(function(a){
       if(a.type!=='deal')return;
+      var aid=String(a.id);
+      var sid=String(a.stationId||'');
       html+='<div class="alert-card alert-triggered">'
         +'<div class="alert-top"><div style="flex:1;">'
         +'<div class="alert-name">'+a.name+'</div>'
@@ -4041,32 +4046,15 @@ function renderAlerts(){
         +'<div class="alert-price-unit">/gal · saves $'+a.savings.toFixed(2)+' vs avg</div>'
         +'</div>'
         +'<div class="alert-btns">'
-        +'<a class="alert-btn btn-primary" href="javascript:void(0)" onclick="window._alertNavigate('+idx+');return false;" style="display:block;text-decoration:none;">Navigate ↗</a>'
-        +'<a class="alert-btn btn-danger" href="javascript:void(0)" onclick="window._alertDismiss('+idx+');return false;" style="display:block;text-decoration:none;">Dismiss</a>'
+        +'<a class="alert-btn btn-primary" onclick="navigateAlertById(\''+sid+'\')">Navigate ↗</a>'
+        +'<a class="alert-btn btn-danger" onclick="dismissAlertById(\''+aid+'\')">Dismiss</a>'
         +'</div></div>';
     });
   }
-
   html+='<div style="height:20px;"></div>';
   el.innerHTML=html;
   updateBellBadge();
 }
-
-// Global handlers — called by index, no closure needed
-window._alertNavigate=function(idx){
-  var a=window._alertList[idx];
-  if(!a)return;
-  var st=allStations.find(function(s){return String(s.id)===String(a.stationId);});
-  if(st){currentStation=st;showDetail(st);}
-};
-window._alertDismiss=function(idx){
-  var a=window._alertList[idx];
-  if(!a)return;
-  window._alertList.splice(idx,1);
-  alerts=window._alertList.slice();
-  renderAlerts();
-  updateBellBadge();
-};
 
 function navigateToAlertStation(stationId){
   var st=allStations.find(function(s){return String(s.id)===String(stationId);});
@@ -4075,26 +4063,24 @@ function navigateToAlertStation(stationId){
   showDetail(st);
 }
 function dismissAlert(id){alerts=alerts.filter(function(a){return a.id!==id;});renderAlerts();updateBellBadge();}
+// Called directly via javascript: href — most reliable on iOS
+function dismissAlertById(id){
+  alerts=alerts.filter(function(a){return String(a.id)!==String(id);});
+  if(window._alertMap)delete window._alertMap[id];
+  renderAlerts();
+  updateBellBadge();
+}
+function navigateAlertById(stationId){
+  if(!stationId)return;
+  var st=allStations.find(function(s){return String(s.id)===String(stationId);});
+  if(st){currentStation=st;showDetail(st);}
+}
 
 // ── Carbon ────────────────────────────────────────────────────────────────────
 function renderCarbon(){var el=document.getElementById('carbon-body');var touData=[28,22,30,38,32,45,82,75],touLabels=['12a','3a','6a','9a','12p','3p','6p','9p'];var maxV=Math.max.apply(null,touData);var bars=touData.map(function(v){var color=v<35?'#16a34a':v<65?'#ca8a04':'#dc2626';return'<div class="tou-bar" style="height:'+Math.round(v/maxV*46)+'px;background:'+color+';"></div>';}).join('');var labels=touLabels.map(function(l){return'<div class="tou-label">'+l+'</div>';}).join('');el.innerHTML='<div class="tou-card"><div class="tou-title">⚡ PG&E grid carbon intensity — today</div><div class="tou-bars">'+bars+'</div><div class="tou-labels">'+labels+'</div><div class="tou-note">Off-peak solar window (9 AM–3 PM): 38% lower carbon.</div></div><div class="alert-sec-title" style="margin-top:4px;">SF-specific tips</div>'+TIPS.map(function(t){return'<div class="tip-card" style="border-left-color:'+t.color+';"><div class="tip-title" style="color:'+t.color+';">'+t.title+'</div><div class="tip-body">'+t.body+'</div><div class="tip-impact" style="background:'+t.bg+';color:'+t.color+';">'+t.impact+'</div></div>';}).join('')+'<div style="height:20px;"></div>';}
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function showScreen(name){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById('screen-'+name).classList.add('active');}
-// Debug: catch all taps at document level
-document._tapDebug=false;
-function enableTapDebug(){
-  if(document._tapDebug)return;
-  document._tapDebug=true;
-  document.addEventListener('touchstart',function(e){
-    var el=e.target;
-    var info=el.tagName+' id='+el.id+' class='+el.className;
-    // walk up 3 parents
-    for(var i=0;i<3;i++){el=el.parentElement;if(!el)break;info+=' > '+el.tagName+(el.id?' #'+el.id:'');}
-    alert('TOUCH: '+info);
-  },{once:true});
-}
-
 function showTab(name){
   var tabNames=['map','trip','favorites','search','profile'];
   if(tabNames.indexOf(name)>-1||name==='alerts'||name==='carbon'){
@@ -4105,7 +4091,7 @@ function showTab(name){
     if(name==='profile')renderProfile();
     if(name==='trip')renderTripPlanner();
     if(name==='favorites')renderFavorites();
-    if(name==='alerts'){renderAlerts();enableTapDebug();}
+    if(name==='alerts')renderAlerts();
     if(name==='search'){
       var si=document.getElementById('search-input');
       if(si&&si.value)runSearch(si.value);
