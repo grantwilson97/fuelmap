@@ -229,6 +229,19 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .profile-body{padding:14px;}
 .profile-section{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
 .profile-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
+.obd-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
+.obd-status-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.obd-status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;}
+.obd-status-dot.connected{background:#16a34a;}
+.obd-status-dot.connecting{background:#f59e0b;animation:pulse 1s infinite;}
+.obd-connect-btn{padding:9px 16px;border-radius:10px;background:#374151;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;}
+.obd-disconnect-btn{padding:9px 16px;border-radius:10px;background:#fee2e2;border:1.5px solid #fca5a5;color:#DC2626;font-size:13px;font-weight:700;cursor:pointer;}
+.obd-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+.obd-metric{background:#f7f7f9;border-radius:10px;padding:10px 12px;}
+.obd-metric-val{font-size:20px;font-weight:800;color:#1a1a2e;}
+.obd-metric-lbl{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;margin-top:2px;}
+.obd-fuel-bar{height:8px;background:#e5e7eb;border-radius:4px;margin-top:6px;overflow:hidden;}
+.obd-fuel-fill{height:100%;border-radius:4px;background:#16a34a;transition:width 0.5s;}
 .vehicle-card{background:#f7f7f9;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;border:2px solid transparent;}
 .vehicle-card.active-v{border-color:#DC2626;background:#fff5f5;}
 .vehicle-emoji{font-size:28px;width:44px;text-align:center;flex-shrink:0;}
@@ -570,7 +583,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 <!-- PROFILE SCREEN -->
 <div class="screen" id="screen-profile" style="background:#f7f7f9;">
   <div class="profile-hero" id="profile-hero"></div>
-  <div class="scroll"><div class="profile-body" id="profile-body"></div></div>
+  <div class="scroll"><div class="profile-body" id="profile-body"><div class="obd-card" id="obd-section"></div></div></div>
 </div>
 
 <!-- REPORT PRICE MODAL -->
@@ -3030,6 +3043,248 @@ function closeModalDirect(){document.getElementById('modal-overlay').classList.a
 function navigateToStation(){if(!currentStation)return;var a=encodeURIComponent(currentStation.address),n=encodeURIComponent(currentStation.name);window.location.href='maps:?daddr='+a+'&q='+n;setTimeout(function(){window.location.href='https://maps.google.com/?daddr='+a+'&q='+n;},500);}
 
 // ── Profile ───────────────────────────────────────────────────────────────────
+// ── OBD-II Bluetooth Integration ─────────────────────────────────────────────
+var obdDevice=null, obdServer=null, obdChar=null;
+var obdConnected=false, obdConnecting=false;
+var obdData={fuelLevel:null,rpm:null,speed:null,coolantTemp:null,odometer:null,engineLoad:null};
+var obdPollInterval=null;
+
+// OBD-II PIDs we care about
+var OBD_PIDS={
+  fuelLevel:  '012F',  // Fuel Tank Level Input (0-100%)
+  rpm:        '010C',  // Engine RPM
+  speed:      '010D',  // Vehicle Speed
+  coolant:    '0105',  // Coolant Temp
+  engineLoad: '0104',  // Engine Load
+};
+
+function obdSupported(){
+  return typeof navigator!=='undefined'&&navigator.bluetooth&&typeof navigator.bluetooth.requestDevice==='function';
+}
+
+async function connectOBD(){
+  if(!obdSupported()){
+    alert('Web Bluetooth is not supported on this browser. Please use Chrome on Android, or Safari 16+ on iPhone.');
+    return;
+  }
+  obdConnecting=true;
+  renderOBDSection();
+  try{
+    // Request OBD-II BLE device — standard ELM327 BLE service UUID
+    obdDevice=await navigator.bluetooth.requestDevice({
+      filters:[
+        {namePrefix:'OBD'},
+        {namePrefix:'ELM'},
+        {namePrefix:'OBDII'},
+        {namePrefix:'Veepeak'},
+        {namePrefix:'FIXD'},
+        {namePrefix:'Vgate'},
+        {namePrefix:'LELink'},
+        {namePrefix:'Carista'},
+      ],
+      optionalServices:[
+        'fff0','fff1','fff2',  // common ELM327 BLE services
+        '18f0','18f1',
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Veepeak
+        '0000fff0-0000-1000-8000-00805f9b34fb',
+      ]
+    });
+    obdDevice.addEventListener('gattserverdisconnected', onOBDDisconnected);
+    obdServer=await obdDevice.gatt.connect();
+    // Try known service UUIDs
+    var services=await obdServer.getPrimaryServices();
+    var svc=services[0];
+    var chars=await svc.getCharacteristics();
+    // Find writable characteristic
+    obdChar=chars.find(function(c){return c.properties.write||c.properties.writeWithoutResponse;})||chars[0];
+    obdConnected=true;
+    obdConnecting=false;
+    localStorage.setItem('fm_obd_name',obdDevice.name||'OBD Adapter');
+    // Initialize ELM327
+    await obdSend('ATZ');    // reset
+    await sleep(1000);
+    await obdSend('ATE0');   // echo off
+    await obdSend('ATL0');   // line feeds off
+    await obdSend('ATS0');   // spaces off
+    await obdSend('ATH0');   // headers off
+    await obdSend('ATSP0');  // auto protocol
+    // Start polling
+    startOBDPolling();
+    renderOBDSection();
+    renderProfile();
+  }catch(e){
+    obdConnecting=false;
+    obdConnected=false;
+    if(e.name!=='NotFoundError'){
+      alert('Could not connect to OBD adapter: '+e.message+'. Make sure your adapter is plugged in and powered on.');
+    }
+    renderOBDSection();
+  }
+}
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+async function obdSend(cmd){
+  if(!obdChar)return null;
+  try{
+    var encoder=new TextEncoder();
+    var data=encoder.encode(cmd+'\r');
+    if(obdChar.properties.writeWithoutResponse){
+      await obdChar.writeValueWithoutResponse(data);
+    } else {
+      await obdChar.writeValue(data);
+    }
+    await sleep(300);
+    return null;
+  }catch(e){return null;}
+}
+
+async function obdQuery(pid){
+  if(!obdChar||!obdConnected)return null;
+  try{
+    // Set up notification to receive response
+    var responseChars=await obdServer.getPrimaryServices().then(function(s){
+      return s[0].getCharacteristics();
+    });
+    var notifyChar=responseChars.find(function(c){return c.properties.notify;});
+    if(!notifyChar)return null;
+    return new Promise(async function(resolve){
+      var timeout=setTimeout(function(){resolve(null);},2000);
+      notifyChar.addEventListener('characteristicvaluechanged',function handler(e){
+        notifyChar.removeEventListener('characteristicvaluechanged',handler);
+        clearTimeout(timeout);
+        var decoder=new TextDecoder();
+        var val=decoder.decode(e.target.value).trim();
+        resolve(parseOBDResponse(pid,val));
+      });
+      await notifyChar.startNotifications().catch(function(){});
+      await obdSend(pid);
+    });
+  }catch(e){return null;}
+}
+
+function parseOBDResponse(pid, raw){
+  if(!raw||raw.indexOf('NO DATA')>-1||raw.indexOf('ERROR')>-1)return null;
+  var bytes=raw.replace(/[^0-9A-Fa-f ]/g,'').trim().split(' ').filter(Boolean);
+  if(bytes.length<3)return null;
+  try{
+    var A=parseInt(bytes[2],16);
+    var B=bytes[3]?parseInt(bytes[3],16):0;
+    if(pid==='012F')return Math.round(A/255*100); // fuel %
+    if(pid==='010C')return Math.round((A*256+B)/4); // RPM
+    if(pid==='010D')return A; // speed km/h
+    if(pid==='0105')return A-40; // coolant °C
+    if(pid==='0104')return Math.round(A/255*100); // engine load %
+  }catch(e){}
+  return null;
+}
+
+function startOBDPolling(){
+  if(obdPollInterval)clearInterval(obdPollInterval);
+  pollOBD();
+  obdPollInterval=setInterval(pollOBD,5000);
+}
+
+async function pollOBD(){
+  if(!obdConnected)return;
+  var fuel=await obdQuery('012F');
+  var rpm=await obdQuery('010C');
+  var speed=await obdQuery('010D');
+  var coolant=await obdQuery('0105');
+  if(fuel!==null){
+    obdData.fuelLevel=fuel;
+    // Sync to active vehicle
+    var av=getActiveVehicle();
+    if(av){
+      av.level=fuel;
+      var vehicles=loadVehicles();
+      var idx=vehicles.findIndex(function(v){return v.id===av.id;});
+      if(idx>-1){vehicles[idx].level=fuel;saveLocalVehicles(vehicles);}
+      updateLocationDisplay();
+      renderTripPlanner();
+    }
+  }
+  if(rpm!==null)obdData.rpm=rpm;
+  if(speed!==null)obdData.speed=speed;
+  if(coolant!==null)obdData.coolantTemp=coolant;
+  renderOBDSection();
+}
+
+function onOBDDisconnected(){
+  obdConnected=false;
+  if(obdPollInterval)clearInterval(obdPollInterval);
+  obdPollInterval=null;
+  renderOBDSection();
+  renderProfile();
+}
+
+function disconnectOBD(){
+  if(obdDevice&&obdDevice.gatt.connected){
+    obdDevice.gatt.disconnect();
+  }
+  obdConnected=false;
+  obdConnecting=false;
+  if(obdPollInterval)clearInterval(obdPollInterval);
+  obdPollInterval=null;
+  obdData={fuelLevel:null,rpm:null,speed:null,coolantTemp:null,odometer:null,engineLoad:null};
+  localStorage.removeItem('fm_obd_name');
+  renderOBDSection();
+  renderProfile();
+}
+
+function renderOBDSection(){
+  var el=document.getElementById('obd-section');
+  if(!el)return;
+  var savedName=localStorage.getItem('fm_obd_name');
+  var supported=obdSupported();
+  var html='<div class="profile-section-title">🔌 OBD-II Car Connect</div>';
+
+  if(!supported){
+    html+='<div style="font-size:12px;color:#888;line-height:1.5;margin-bottom:10px;">Web Bluetooth required. Use Chrome on Android or Safari 16+ on iPhone.</div>';
+    el.innerHTML=html;return;
+  }
+
+  html+='<div class="obd-status-row">'
+    +'<div style="display:flex;align-items:center;gap:8px;">'
+      +'<div class="obd-status-dot'+(obdConnected?' connected':obdConnecting?' connecting':'')+'"></div>'
+      +'<div style="font-size:13px;font-weight:600;color:#1a1a2e;">'
+        +(obdConnected?(savedName||'OBD Adapter'):obdConnecting?'Connecting…':'Not connected')
+      +'</div>'
+    +'</div>';
+
+  if(obdConnected){
+    html+='<button class="obd-disconnect-btn" onclick="disconnectOBD()">Disconnect</button>';
+  } else if(!obdConnecting){
+    html+='<button class="obd-connect-btn" onclick="connectOBD()">Connect adapter</button>';
+  }
+  html+='</div>';
+
+  if(!obdConnected&&!obdConnecting){
+    html+='<div style="font-size:12px;color:#888;line-height:1.5;">'
+      +'Plug an ELM327 Bluetooth OBD-II adapter into your car diagnostic port (under the dash). '
+      +'Tap Connect to sync real-time fuel level, RPM, and speed directly to FuelMap.'
+      +'<div style="margin-top:6px;font-size:11px;color:#aaa;">Compatible: Veepeak, FIXD, Vgate iCar, LELink, Carista (~$20-40 on Amazon)</div>'
+    +'</div>';
+  }
+
+  if(obdConnected&&obdData.fuelLevel!==null){
+    var fuelColor=obdData.fuelLevel<=10?'#DC2626':obdData.fuelLevel<=25?'#f59e0b':'#16a34a';
+    html+='<div class="obd-metrics">'
+      +'<div class="obd-metric">'
+        +'<div class="obd-metric-val" style="color:'+fuelColor+';">'+obdData.fuelLevel+'%</div>'
+        +'<div class="obd-metric-lbl">Fuel level</div>'
+        +'<div class="obd-fuel-bar"><div class="obd-fuel-fill" style="width:'+obdData.fuelLevel+'%;background:'+fuelColor+';"></div></div>'
+      +'</div>'
+      +(obdData.rpm!==null?'<div class="obd-metric"><div class="obd-metric-val">'+obdData.rpm+'</div><div class="obd-metric-lbl">RPM</div></div>':'')
+      +(obdData.speed!==null?'<div class="obd-metric"><div class="obd-metric-val">'+Math.round(obdData.speed*0.621)+'</div><div class="obd-metric-lbl">Speed (mph)</div></div>':'')
+      +(obdData.coolantTemp!==null?'<div class="obd-metric"><div class="obd-metric-val">'+Math.round(obdData.coolantTemp*9/5+32)+'°F</div><div class="obd-metric-lbl">Coolant temp</div></div>':'')
+    +'</div>'
+    +'<div style="font-size:11px;color:#15803d;margin-top:8px;font-weight:600;">✓ Fuel level synced to '+((getActiveVehicle()||{}).make||'your vehicle')+'</div>';
+  }
+
+  el.innerHTML=html;
+}
+
 function renderProfile(){
   var profile=loadProfile();var vehicles=loadLocalVehicles();var av=getActiveVehicle();
   var isCloud=!!currentUser;
@@ -3067,7 +3322,8 @@ function renderProfile(){
   if(isCloud){bodyHTML+='<button class="signout-btn" onclick="signOut()">Sign out</button>';}
   else{bodyHTML+='<button class="signout-btn" style="border-color:#1667d9;color:#1667d9;" onclick="showScreen(\'auth\');document.getElementById(\'tab-bar\').style.display=\'none\';">Sign in to sync profile</button>';}
   bodyHTML+='<div style="height:20px;"></div>';
-  document.getElementById('profile-body').innerHTML=bodyHTML;
+  document.getElementById('profile-body').innerHTML='<div class="obd-card" id="obd-section"></div>'+bodyHTML;
+  renderOBDSection();
 }
 
 function savePref(){
