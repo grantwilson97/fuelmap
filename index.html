@@ -3541,21 +3541,32 @@ function removeFavorite(id){
 }
 
 function openFavoriteDetail(id){
-  var fav=loadFavorites().find(function(f){return f.id===id;});
-  // Try to find in allStations first for full data
-  var st=allStations.find(function(s){return s.id===id;})||fav;
-  if(!st)return;
-  if(!st.distanceMiles&&userLat&&userLng&&st.latitude){
-    st=Object.assign({},st,{distanceMiles:Math.round(distMiles(userLat,userLng,st.latitude,st.longitude)*10)/10});
+  var fav=loadFavorites().find(function(f){return String(f.id)===String(id);});
+  // Prefer live station data (has all fields); fall back to saved fav object
+  var live=allStations.find(function(s){return String(s.id)===String(id);});
+  var st=live||fav;
+  if(!st){return;}
+  // Ensure all required fields exist for showDetail
+  st=Object.assign({
+    name:'Unknown Station',
+    address:'',
+    type:'gas',
+    basePrice:livePrices.regular||5.93,
+    busy:30,
+    score:70,
+    distanceMiles:0
+  }, st);
+  if(userLat&&userLng&&st.latitude&&st.longitude){
+    st.distanceMiles=Math.round(distMiles(userLat,userLng,st.latitude,st.longitude)*10)/10;
   }
-  if(!st.score)st=Object.assign({},st,{score:calcScore(st)});
+  if(!st.score||st.score===0)st.score=calcScore(st);
   currentStation=st;
   showDetail(st);
   // Override back button to go back to favorites
   setTimeout(function(){
     var btn=document.querySelector('#hero-wrap .back-btn');
     if(btn){btn.textContent='← Favorites';btn.onclick=function(){showTab('favorites');};}
-  },50);
+  },100);
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
