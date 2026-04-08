@@ -4081,6 +4081,20 @@ function renderCarbon(){var el=document.getElementById('carbon-body');var touDat
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function showScreen(name){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById('screen-'+name).classList.add('active');}
+// Debug: catch all taps at document level
+document._tapDebug=false;
+function enableTapDebug(){
+  if(document._tapDebug)return;
+  document._tapDebug=true;
+  document.addEventListener('touchstart',function(e){
+    var el=e.target;
+    var info=el.tagName+' id='+el.id+' class='+el.className;
+    // walk up 3 parents
+    for(var i=0;i<3;i++){el=el.parentElement;if(!el)break;info+=' > '+el.tagName+(el.id?' #'+el.id:'');}
+    alert('TOUCH: '+info);
+  },{once:true});
+}
+
 function showTab(name){
   var tabNames=['map','trip','favorites','search','profile'];
   if(tabNames.indexOf(name)>-1||name==='alerts'||name==='carbon'){
@@ -4091,17 +4105,7 @@ function showTab(name){
     if(name==='profile')renderProfile();
     if(name==='trip')renderTripPlanner();
     if(name==='favorites')renderFavorites();
-    if(name==='alerts'){
-      renderAlerts();
-      // Debug: log any tap on the alerts screen
-      var ab=document.getElementById('alerts-body');
-      if(ab&&!ab._dbg){
-        ab._dbg=true;
-        ab.addEventListener('touchstart',function(e){
-          alert('TAP DETECTED on: '+e.target.tagName+' class='+e.target.className);
-        },{once:true});
-      }
-    }
+    if(name==='alerts'){renderAlerts();enableTapDebug();}
     if(name==='search'){
       var si=document.getElementById('search-input');
       if(si&&si.value)runSearch(si.value);
