@@ -3519,8 +3519,9 @@ function renderFavorites(){
     var srcBadge=isReported?'<span style="font-size:10px;font-weight:700;color:#15803d;margin-left:4px;">✓ Reported</span>':'<span style="font-size:10px;color:#888;margin-left:4px;">~ est.</span>';
     var onRoute=routeStationIds.indexOf(fav.id)>-1;
     var sc=scoreColor(fav.score||70);
-    return '<div class="fav-card" onclick="openFavoriteDetail(\"\"+fav.id+"\")">'+
-      '<div class="fav-star" onclick="event.stopPropagation();removeFavorite(\"\"+fav.id+"\")">⭐</div>'+
+    var fid=String(fav.id);
+    return '<div class="fav-card" style="cursor:pointer;" onclick="openFavoriteDetail(\"'+fid+'\")">'+
+      '<div class="fav-star" onclick="event.stopPropagation();removeFavorite(\"'+fid+'\")">⭐</div>'+
       '<div class="fav-info">'+
         '<div class="fav-name">'+fav.name+'</div>'+
         '<div class="fav-addr">'+fav.address+'</div>'+
