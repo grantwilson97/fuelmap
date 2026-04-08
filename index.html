@@ -3585,28 +3585,73 @@ function renderFavorites(){
   var routeStationIds=[];
   if(tripResult&&tripResult.bestStop)routeStationIds.push(tripResult.bestStop.id);
 
-  el.innerHTML=favs.map(function(fav){
-    var liveSt=allStations.find(function(s){return s.id===fav.id;});
-    var pi=getLatestPrice(liveSt||fav);
-    var priceNum='$'+pi.price.toFixed(2)+(fav.type==='ev'?'/kWh':'/gal');
-    var isReported=pi.source==='GasBuddy'||pi.source==='community';
-    var srcBadge=isReported?'<span style="font-size:10px;font-weight:700;color:#15803d;margin-left:4px;">✓ Reported</span>':'<span style="font-size:10px;color:#888;margin-left:4px;">~ est.</span>';
-    var onRoute=routeStationIds.indexOf(fav.id)>-1;
-    var sc=scoreColor(fav.score||70);
-    var fid=String(fav.id);
-    return '<div class="fav-card" style="cursor:pointer;" onclick="openFavoriteDetail(\"'+fid+'\")">'+
-      '<div class="fav-star" onclick="event.stopPropagation();removeFavorite(\"'+fid+'\")">⭐</div>'+
-      '<div class="fav-info">'+
-        '<div class="fav-name">'+fav.name+'</div>'+
-        '<div class="fav-addr">'+fav.address+'</div>'+
-        '<div class="fav-badge-row">'+
-          '<span class="fav-price">'+priceNum+'</span>'+srcBadge+
-          (onRoute?'<span class="fav-on-route">📍 On your route</span>':'')+
-          (fav.rating?'<span style="font-size:10px;color:#888;">⭐ '+fav.rating+'</span>':'')+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  }).join('')+'<div style="height:20px;"></div>';
+  // Use DOM elements — avoids all quote/escaping issues with onclick
+  el.innerHTML = '';
+  favs.forEach(function(fav){
+    var liveSt = allStations.find(function(s){return String(s.id)===String(fav.id);});
+    var pi = getLatestPrice(liveSt||fav);
+    var priceNum = '$'+pi.price.toFixed(2)+(fav.type==='ev'?'/kWh':'/gal');
+    var isReported = pi.source==='GasBuddy'||pi.source==='community';
+    var onRoute = routeStationIds.indexOf(fav.id)>-1;
+
+    var card = document.createElement('div');
+    card.className = 'fav-card';
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', (function(f){ return function(){ openFavoriteDetail(f.id); }; })(fav));
+
+    var star = document.createElement('div');
+    star.className = 'fav-star';
+    star.textContent = '⭐';
+    star.addEventListener('click', (function(f){ return function(e){ e.stopPropagation(); removeFavorite(f.id); }; })(fav));
+
+    var info = document.createElement('div');
+    info.className = 'fav-info';
+
+    var nameEl = document.createElement('div');
+    nameEl.className = 'fav-name';
+    nameEl.textContent = fav.name||'';
+
+    var addrEl = document.createElement('div');
+    addrEl.className = 'fav-addr';
+    addrEl.textContent = fav.address||'';
+
+    var badges = document.createElement('div');
+    badges.className = 'fav-badge-row';
+    badges.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;';
+
+    var priceEl = document.createElement('span');
+    priceEl.className = 'fav-price';
+    priceEl.textContent = priceNum;
+    badges.appendChild(priceEl);
+
+    var srcEl = document.createElement('span');
+    srcEl.style.cssText = 'font-size:10px;font-weight:700;margin-left:4px;color:'+(isReported?'#15803d':'#888')+';';
+    srcEl.textContent = isReported?'✓ Reported':'~ est.';
+    badges.appendChild(srcEl);
+
+    if(onRoute){
+      var routeEl = document.createElement('span');
+      routeEl.className = 'fav-on-route';
+      routeEl.textContent = '📍 On your route';
+      badges.appendChild(routeEl);
+    }
+    if(fav.rating){
+      var ratingEl = document.createElement('span');
+      ratingEl.style.cssText = 'font-size:10px;color:#888;';
+      ratingEl.textContent = '⭐ '+fav.rating;
+      badges.appendChild(ratingEl);
+    }
+
+    info.appendChild(nameEl);
+    info.appendChild(addrEl);
+    info.appendChild(badges);
+    card.appendChild(star);
+    card.appendChild(info);
+    el.appendChild(card);
+  });
+  var spacer = document.createElement('div');
+  spacer.style.height = '20px';
+  el.appendChild(spacer);
 }
 
 function removeFavorite(id){
