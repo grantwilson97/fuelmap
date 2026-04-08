@@ -15,8 +15,8 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-.screen{display:none;flex:1;flex-direction:column;overflow:hidden;}
-.screen.active{display:flex;}
+.screen{display:none;flex:1;flex-direction:column;overflow:hidden;pointer-events:none;}
+.screen.active{display:flex;pointer-events:auto;}
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .topbar{padding:14px 14px 8px;background:#fff;border-bottom:0.5px solid #e5e5e5;}
 .title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
@@ -4061,7 +4061,7 @@ window._alertNavigate=function(idx){
 };
 window._alertDismiss=function(idx){
   var a=window._alertList[idx];
-  if(!a){alert('DEBUG: alert list empty or idx='+idx);return;}
+  if(!a)return;
   window._alertList.splice(idx,1);
   alerts=window._alertList.slice();
   renderAlerts();
