@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- FuelMap v2026-04-03 18:22 -->
+<!-- FuelMap v20260408035601 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 2026-04-03 18:22</title>
+<title>FuelMap 20260408035601</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -397,6 +397,19 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 </style>
 </head>
 <body>
+<script>
+// Force unregister any cached service workers and clear caches
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(function(regs){
+    regs.forEach(function(r){r.unregister();});
+  });
+}
+if('caches' in window){
+  caches.keys().then(function(names){
+    names.forEach(function(n){caches.delete(n);});
+  });
+}
+</script>
 
 <!-- AUTH SCREEN -->
 <div class="screen active" id="screen-auth">
