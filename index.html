@@ -1485,13 +1485,18 @@ function onSignedIn(){
   startPriceAutoRefresh();
   // Refresh oil price every 2 hours
   setInterval(function(){fetchOilPriceAdjustment();},2*60*60*1000);
-  // Always render favorites from localStorage immediately (works offline/PWA)
+  // Render favorites from localStorage immediately (works offline/PWA)
   renderFavorites();
-  // Sync local data to cloud if needed
+  // Sync to cloud if signed in
   if(currentUser){
     syncLocalToCloud();
-    // Then load cloud favorites and re-render (non-blocking)
-    loadCloudFavorites().then(function(){renderFavorites();}).catch(function(){});
+    // Load cloud favorites — merges cloud+local, then re-renders
+    loadCloudFavorites().then(function(favs){
+      if(favs&&favs.length>0){
+        localStorage.setItem('fm_favorites',JSON.stringify(favs));
+      }
+      renderFavorites();
+    }).catch(function(){renderFavorites();});
   }
 }
 
@@ -3485,8 +3490,77 @@ var GAS_BRANDS=['All brands','ARCO','BP','Chevron','Circle K','Costco Gas','Exxo
   'DoubleTime','Propel Fuels','Self Serve'];
 
 function loadFavorites(){try{return JSON.parse(localStorage.getItem('fm_favorites')||'[]');}catch(e){return[];}}
-function saveFavorites(f){localStorage.setItem('fm_favorites',JSON.stringify(f));}
-function isFavorite(stationId){return loadFavorites().some(function(f){return f.id===stationId;});}
+
+function saveFavorites(favs){
+  // Always save to localStorage first — works offline
+  localStorage.setItem('fm_favorites',JSON.stringify(favs));
+  // Sync to Supabase in background if signed in
+  if(!currentUser)return;
+  // Delete all then re-insert (simplest approach, avoids conflict handling)
+  sbFetch('/rest/v1/user_favorites?user_id=eq.'+currentUser.id,{method:'DELETE'})
+    .then(function(){
+      if(!favs||favs.length===0)return;
+      var rows=favs.map(function(f){return{
+        user_id:currentUser.id,
+        station_id:String(f.id),
+        station_name:f.name||'',
+        station_address:f.address||'',
+        station_type:f.type||'gas',
+        station_brand:f.brand||f.network||'',
+        latitude:f.latitude||null,
+        longitude:f.longitude||null,
+        rating:f.rating||null,
+        price_level:f.priceLevel||null
+      };});
+      return sbFetch('/rest/v1/user_favorites',{
+        method:'POST',
+        body:JSON.stringify(rows)
+      });
+    })
+    .catch(function(e){console.warn('Favorites cloud sync failed:',e);});
+}
+
+function loadCloudFavorites(){
+  if(!currentUser)return Promise.resolve(loadFavorites());
+  return sbFetch('/rest/v1/user_favorites?user_id=eq.'+currentUser.id+'&select=*')
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      if(!Array.isArray(rows)||rows.error){
+        // Table error — just keep local
+        return loadFavorites();
+      }
+      var local=loadFavorites();
+      if(rows.length===0&&local.length>0){
+        // Cloud empty but local has data — push local up
+        saveFavorites(local);
+        return local;
+      }
+      if(rows.length===0)return local;
+      // Cloud has data — convert and merge with any local-only entries
+      var cloud=rows.map(function(r){return{
+        id:r.station_id,
+        name:r.station_name||'',
+        address:r.station_address||'',
+        type:r.station_type||'gas',
+        brand:r.station_brand||'',
+        latitude:r.latitude,
+        longitude:r.longitude,
+        rating:r.rating,
+        priceLevel:r.price_level
+      };});
+      // Add any local favorites not in cloud
+      local.forEach(function(lf){
+        if(!cloud.find(function(cf){return String(cf.id)===String(lf.id);})){
+          cloud.push(lf);
+        }
+      });
+      localStorage.setItem('fm_favorites',JSON.stringify(cloud));
+      return cloud;
+    })
+    .catch(function(){return loadFavorites();});
+}
+
+function isFavorite(stationId){return loadFavorites().some(function(f){return String(f.id)===String(stationId);});}
 
 function toggleFavorite(station){
   var favs=loadFavorites();
