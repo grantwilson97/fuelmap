@@ -4022,7 +4022,7 @@ function renderAlerts(){
         +'<div class="alert-pill" style="background:#fef3c7;color:#b45309;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;">Market</div></div>'
         +'<div style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;">'+(a.message||'')+'</div>'
         +'<div class="alert-btns">'
-        +'<button class="alert-btn btn-danger" onclick="window._alertDismiss('+idx+')">Dismiss</button>'
+        +'<a class="alert-btn btn-danger" href="javascript:void(0)" onclick="window._alertDismiss('+idx+');return false;" style="display:block;text-decoration:none;">Dismiss</a>'
         +'</div></div>';
     });
   }
@@ -4041,8 +4041,8 @@ function renderAlerts(){
         +'<div class="alert-price-unit">/gal · saves $'+a.savings.toFixed(2)+' vs avg</div>'
         +'</div>'
         +'<div class="alert-btns">'
-        +'<button class="alert-btn btn-primary" onclick="window._alertNavigate('+idx+')">Navigate ↗</button>'
-        +'<button class="alert-btn btn-danger" onclick="window._alertDismiss('+idx+')">Dismiss</button>'
+        +'<a class="alert-btn btn-primary" href="javascript:void(0)" onclick="window._alertNavigate('+idx+');return false;" style="display:block;text-decoration:none;">Navigate ↗</a>'
+        +'<a class="alert-btn btn-danger" href="javascript:void(0)" onclick="window._alertDismiss('+idx+');return false;" style="display:block;text-decoration:none;">Dismiss</a>'
         +'</div></div>';
     });
   }
