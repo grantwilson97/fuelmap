@@ -4061,7 +4061,7 @@ window._alertNavigate=function(idx){
 };
 window._alertDismiss=function(idx){
   var a=window._alertList[idx];
-  if(!a)return;
+  if(!a){alert('DEBUG: alert list empty or idx='+idx);return;}
   window._alertList.splice(idx,1);
   alerts=window._alertList.slice();
   renderAlerts();
