@@ -1333,10 +1333,12 @@ function generateSmartAlerts(){
 
   deals.forEach(function(d,i){
     var s=d.station;
+    var alertId='deal_'+String(s.id);
+    if(_dismissedAlertIds[alertId])return;
     var dist=s.driveDuration?s.driveDuration+' min drive':(s.distanceMiles?s.distanceMiles.toFixed(1)+' mi':'nearby');
     var sourceLabel=d.source==='GasBuddy'?'✓ GasBuddy':d.estimated?'~ est.':'reported';
     smartAlerts.push({
-      id:'smart_'+i,
+      id:alertId,
       type:'deal',
       name:s.name+(s.address?' · '+s.address.split(',')[0]:''),
       price:d.price,
@@ -1352,7 +1354,7 @@ function generateSmartAlerts(){
   });
 
   // Alert for oil market spike if adjustment is significant
-  if(oilPriceAdjustment>=0.40){
+  if(oilPriceAdjustment>=0.40&&!_dismissedAlertIds['oil_spike']){
     smartAlerts.push({
       id:'oil_spike',
       type:'market',
@@ -3985,6 +3987,7 @@ function makeAlertCard(a){
 
 // Global indexed alert list for reliable onclick access
 window._alertList=[];
+var _dismissedAlertIds={};
 
 function renderAlerts(){
   var smartAlerts=generateSmartAlerts();
@@ -4012,6 +4015,8 @@ function renderAlerts(){
   }
 
   // Store alert IDs in global map for direct lookup
+  // Filter out dismissed alerts
+  alerts=alerts.filter(function(a){return !_dismissedAlertIds[String(a.id)];});
   window._alertMap={};
   alerts.forEach(function(a){window._alertMap[a.id]=a;});
 
@@ -4065,8 +4070,8 @@ function navigateToAlertStation(stationId){
 function dismissAlert(id){alerts=alerts.filter(function(a){return a.id!==id;});renderAlerts();updateBellBadge();}
 // Called directly via javascript: href — most reliable on iOS
 function dismissAlertById(id){
+  _dismissedAlertIds[String(id)]=true;
   alerts=alerts.filter(function(a){return String(a.id)!==String(id);});
-  if(window._alertMap)delete window._alertMap[id];
   renderAlerts();
   updateBellBadge();
 }
