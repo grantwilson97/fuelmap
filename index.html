@@ -2046,22 +2046,32 @@ function initPricePinOverlay(){
 
   PricePinOverlay.prototype.onAdd=function(){
     var st=this.station;
-    var color=pinColor(st.score);
     var pi=getLatestPrice(st);
     var isEV=st.type==='ev';
-    var priceLabel=isEV?'$'+pi.price.toFixed(2)+'/k':'$'+pi.price.toFixed(2);
-    var typeIcon=isEV?'⚡':'⛽';
+    var priceLabel=isEV?'⚡$'+pi.price.toFixed(2):'$'+pi.price.toFixed(2);
+
+    // Get brand color for pin background
+    var brandInfo=getBrandLogo(st.name,st.brand||st.network);
+    var pinBg=brandInfo?brandInfo.bg:pinColor(st.score);
+    var pinTextColor=brandInfo?brandInfo.text:'#fff';
+    // For EV stations always use teal
+    if(isEV){pinBg='#0d9488';pinTextColor='#fff';}
 
     var div=document.createElement('div');
-    div.style.cssText='position:absolute;cursor:pointer;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.25));transition:transform 0.15s;';
+    div.style.cssText='position:absolute;cursor:pointer;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));transition:transform 0.15s;';
 
-    // Pill shape with pointer triangle underneath
+    // Value dot color (green=good, yellow=avg, red=expensive)
+    var scoreColor2=st.score>=75?'#16a34a':st.score>=50?'#f59e0b':'#DC2626';
+    var brandLabel=brandInfo?brandInfo.label:'⛽';
     div.innerHTML=
-      '<div style="background:'+color+';border-radius:20px;padding:4px 8px 4px 6px;display:flex;align-items:center;gap:3px;white-space:nowrap;border:2px solid #fff;">'+
-        '<span style="font-size:10px;line-height:1;">'+typeIcon+'</span>'+
-        '<span style="font-size:11px;font-weight:800;color:#fff;letter-spacing:-0.3px;">'+priceLabel+'</span>'+
+      '<div style="position:relative;display:inline-flex;">'+
+        '<div style="display:flex;align-items:center;background:'+pinBg+';border-radius:20px;padding:3px 8px 3px 4px;white-space:nowrap;border:2px solid #fff;gap:4px;">'+
+          '<div style="background:rgba(255,255,255,0.25);border-radius:12px;padding:1px 5px;font-size:8px;font-weight:900;color:'+pinTextColor+';letter-spacing:-0.2px;">'+brandLabel+'</div>'+
+          '<span style="font-size:11px;font-weight:800;color:'+pinTextColor+';letter-spacing:-0.3px;">'+priceLabel+'</span>'+
+        '</div>'+
+        '<div style="position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:'+scoreColor2+';border:1.5px solid #fff;"></div>'+
       '</div>'+
-      '<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+color+';margin:0 auto;"></div>';
+      '<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+pinBg+';margin:0 auto;"></div>';
 
     div.addEventListener('click',function(e){
       e.stopPropagation();
