@@ -230,6 +230,19 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .profile-section{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
 .profile-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
 .obd-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
+.car-connect-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
+.car-brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.car-brand-btn{padding:12px 8px;border-radius:12px;border:1.5px solid #e0e0e0;background:#f7f7f9;cursor:pointer;text-align:center;font-size:12px;font-weight:700;color:#1a1a2e;}
+.car-brand-btn.connected{border-color:#16a34a;background:#f0fdf4;color:#15803d;}
+.car-brand-btn:active{background:#fff5f5;}
+.car-connect-modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:flex-end;justify-content:center;}
+.car-connect-modal.hidden{display:none;}
+.car-connect-sheet{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:430px;max-height:80vh;overflow-y:auto;}
+.car-input{width:100%;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:10px;outline:none;box-sizing:border-box;}
+.car-input:focus{border-color:#DC2626;}
+.car-synced-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid #f0f0f0;}
+.car-synced-lbl{font-size:12px;color:#888;font-weight:600;}
+.car-synced-val{font-size:13px;font-weight:700;color:#1a1a2e;}
 .obd-status-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .obd-status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;}
 .obd-status-dot.connected{background:#16a34a;}
@@ -3228,6 +3241,9 @@ async function pollOBD(){
   if(speed!==null)obdData.speed=speed;
   if(coolant!==null)obdData.coolantTemp=coolant;
   renderOBDSection();
+  renderCarConnectSection();
+  // Auto-sync car data in background
+  var cs=loadCarConnect();if(cs&&cs.brand)setTimeout(syncCarData,1000);
 }
 
 function onOBDDisconnected(){
@@ -3305,6 +3321,197 @@ function renderOBDSection(){
   el.innerHTML=html;
 }
 
+// ── Car Connect Integration ───────────────────────────────────────────────────
+var carConnectState={
+  brand:null,
+  accessToken:null,
+  vehicleId:null,
+  vehicleName:null,
+  lastSync:null
+};
+
+function loadCarConnect(){
+  try{return JSON.parse(localStorage.getItem('fm_car_connect')||'null');}catch(e){return null;}
+}
+function saveCarConnect(state){
+  localStorage.setItem('fm_car_connect',JSON.stringify(state));
+}
+function clearCarConnect(){
+  localStorage.removeItem('fm_car_connect');
+  carConnectState={brand:null,accessToken:null,vehicleId:null,vehicleName:null,lastSync:null};
+  renderCarConnectSection();
+  renderProfile();
+}
+
+function openCarConnectModal(brand){
+  carConnectState.brand=brand;
+  var modal=document.getElementById('car-connect-modal');
+  var content=document.getElementById('car-connect-content');
+  if(!modal||!content)return;
+
+  var saved=loadCarConnect();
+  if(saved&&saved.brand===brand&&saved.accessToken){
+    // Already connected — show status
+    content.innerHTML=
+      '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">'+getBrandEmoji(brand)+' '+brand+' connected</div>'+
+      '<div style="font-size:12px;color:#888;margin-bottom:16px;">Vehicle: '+(saved.vehicleName||'Unknown')+'</div>'+
+      '<div id="car-live-data"><div style="text-align:center;padding:20px;color:#888;">Loading vehicle data…</div></div>'+
+      '<button onclick="syncCarData()" style="width:100%;padding:12px;background:#374151;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:12px;">🔄 Sync now</button>'+
+      '<button onclick="clearCarConnect()" style="width:100%;padding:12px;background:#fff;border:1.5px solid #fca5a5;border-radius:12px;color:#DC2626;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;">Disconnect</button>'+
+      '<button onclick="closeCarConnectModal()" style="width:100%;padding:12px;background:#f2f2f7;border:none;border-radius:12px;color:#555;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;">Close</button>';
+    modal.classList.remove('hidden');
+    syncCarData();
+    return;
+  }
+
+  if(brand==='Tesla'){
+    content.innerHTML=
+      '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">🚗 Connect Tesla</div>'+
+      '<div style="font-size:12px;color:#888;margin-bottom:16px;">Sign in with your Tesla account to sync battery level and range.</div>'+
+      '<input class="car-input" type="email" id="car-email" placeholder="Tesla account email" autocorrect="off" autocapitalize="off"/>'+
+      '<input class="car-input" type="password" id="car-password" placeholder="Tesla account password"/>'+
+      '<div style="font-size:11px;color:#888;margin-bottom:12px;">Your credentials are sent securely to our server and never stored — only the access token is saved locally.</div>'+
+      '<button onclick="connectTesla()" style="width:100%;padding:13px;background:#DC2626;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">Connect Tesla</button>'+
+      '<div id="car-connect-status" style="margin-top:10px;font-size:12px;text-align:center;color:#888;"></div>'+
+      '<button onclick="closeCarConnectModal()" style="width:100%;padding:12px;background:#f2f2f7;border:none;border-radius:12px;color:#555;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;">Cancel</button>';
+  } else if(brand==='Mercedes'){
+    var clientId='YOUR_MERCEDES_CLIENT_ID';
+    var redirectUri=encodeURIComponent('https://grantwilson97.github.io/fuelmap/');
+    var scope=encodeURIComponent('mb:vehicle:status:general mb:user:pool:reader');
+    var authUrl='https://id.mercedes-benz.com/as/authorization.oauth2?response_type=code&client_id='+clientId+'&redirect_uri='+redirectUri+'&scope='+scope;
+    content.innerHTML=
+      '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">🚗 Connect Mercedes</div>'+
+      '<div style="font-size:12px;color:#888;margin-bottom:16px;">Sign in with your Mercedes me connect account to sync fuel level and range.</div>'+
+      '<div style="font-size:11px;color:#888;background:#f7f7f9;border-radius:10px;padding:12px;margin-bottom:16px;">⚠️ Requires a Mercedes developer account. Register at developer.mercedes-benz.com to get your Client ID, then update the app settings.</div>'+
+      '<button onclick="window.open(this.dataset.url,\'_blank\')" data-url="'+authUrl+'" style="width:100%;padding:13px;background:#1a1a2e;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">Sign in with Mercedes me</button>'+
+      '<button onclick="closeCarConnectModal()" style="width:100%;padding:12px;background:#f2f2f7;border:none;border-radius:12px;color:#555;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;">Cancel</button>';
+  } else {
+    content.innerHTML=
+      '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">'+getBrandEmoji(brand)+' Connect '+brand+'</div>'+
+      '<div style="font-size:13px;color:#888;margin-bottom:16px;line-height:1.5;">'+brand+' integration is coming soon. We are working on adding support — check back in a future update.</div>'+
+      '<button onclick="closeCarConnectModal()" style="width:100%;padding:12px;background:#f2f2f7;border:none;border-radius:12px;color:#555;font-size:14px;font-weight:700;cursor:pointer;">Close</button>';
+  }
+  modal.classList.remove('hidden');
+}
+
+function getBrandEmoji(brand){
+  var map={Tesla:'⚡',Mercedes:'⭐',Toyota:'🚗',BMW:'🚙',Ford:'🛻',Chevrolet:'🚘',Honda:'🚗',Hyundai:'🚗'};
+  return map[brand]||'🚗';
+}
+
+function closeCarConnectModal(){
+  var modal=document.getElementById('car-connect-modal');
+  if(modal)modal.classList.add('hidden');
+}
+
+async function connectTesla(){
+  var email=document.getElementById('car-email').value.trim();
+  var password=document.getElementById('car-password').value;
+  var status=document.getElementById('car-connect-status');
+  if(!email||!password){status.textContent='Please enter email and password.';status.style.color='#DC2626';return;}
+  status.textContent='Connecting…';status.style.color='#888';
+  try{
+    var r=await fetch('https://fuelmap-api-sf.vercel.app/api/car-tesla?action=token',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:email,password:password})
+    });
+    var data=await r.json();
+    if(!data.access_token){
+      status.textContent='Login failed: '+(data.error||'Check your credentials.');
+      status.style.color='#DC2626';return;
+    }
+    status.textContent='Getting vehicle list…';
+    var vr=await fetch('https://fuelmap-api-sf.vercel.app/api/car-tesla?action=vehicles&access_token='+data.access_token);
+    var vdata=await vr.json();
+    var vehicles=(vdata.response||[]);
+    if(vehicles.length===0){status.textContent='No vehicles found on this account.';status.style.color='#DC2626';return;}
+    var v=vehicles[0];
+    carConnectState={brand:'Tesla',accessToken:data.access_token,vehicleId:v.id_s,vehicleName:v.display_name||v.vin,lastSync:null};
+    saveCarConnect(carConnectState);
+    status.textContent='Connected! Syncing data…';status.style.color='#15803d';
+    await syncCarData();
+    closeCarConnectModal();
+    renderCarConnectSection();
+    renderProfile();
+  }catch(e){
+    status.textContent='Connection error: '+e.message;status.style.color='#DC2626';
+  }
+}
+
+async function syncCarData(){
+  var saved=loadCarConnect();
+  if(!saved||!saved.accessToken)return;
+  var el=document.getElementById('car-live-data');
+
+  try{
+    var url='https://fuelmap-api-sf.vercel.app/api/car-'+saved.brand.toLowerCase()+'?action=data&access_token='+saved.accessToken;
+    if(saved.vehicleId)url+='&vehicle_id='+saved.vehicleId;
+    var r=await fetch(url);
+    var data=await r.json();
+
+    // Tesla response
+    if(saved.brand==='Tesla'&&data.battery_level!=null){
+      var pct=data.battery_level;
+      var range=data.battery_range?Math.round(data.battery_range)+' mi':'—';
+      var charging=data.charging_state||'';
+      // Sync to active vehicle
+      var av=getActiveVehicle();
+      if(av&&av.fuelType==='electric'){
+        av.level=pct;
+        var vehicles=loadVehicles();
+        var idx=vehicles.findIndex(function(v){return v.id===av.id;});
+        if(idx>-1){vehicles[idx].level=pct;saveLocalVehicles(vehicles);}
+        updateLocationDisplay();renderTripPlanner();
+      }
+      saved.lastSync=new Date().toISOString();
+      saveCarConnect(saved);
+      if(el)el.innerHTML=
+        '<div class="car-synced-row"><span class="car-synced-lbl">Battery</span><span class="car-synced-val" style="color:'+(pct<=20?'#DC2626':pct<=50?'#f59e0b':'#15803d')+';">'+pct+'%</span></div>'+
+        '<div class="car-synced-row"><span class="car-synced-lbl">Range</span><span class="car-synced-val">'+range+'</span></div>'+
+        (charging?'<div class="car-synced-row"><span class="car-synced-lbl">Status</span><span class="car-synced-val">'+charging+'</span></div>':'')+
+        (data.odometer?'<div class="car-synced-row"><span class="car-synced-lbl">Odometer</span><span class="car-synced-val">'+Math.round(data.odometer).toLocaleString()+' mi</span></div>':'')+
+        '<div style="font-size:10px;color:#aaa;margin-top:8px;">Last synced: '+new Date(saved.lastSync).toLocaleTimeString()+'</div>';
+      renderCarConnectSection();
+    }
+  }catch(e){
+    if(el)el.innerHTML='<div style="color:#888;font-size:12px;padding:10px 0;">Could not sync: '+e.message+'</div>';
+  }
+}
+
+function renderCarConnectSection(){
+  var el=document.getElementById('car-connect-section');
+  if(!el)return;
+  var saved=loadCarConnect();
+  var brands=['Tesla','Mercedes','Toyota','BMW','Ford','Chevrolet','Honda','Hyundai'];
+
+  var html='<div class="profile-section-title">🚗 Connect your car</div>';
+  if(saved&&saved.brand){
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<div style="width:8px;height:8px;border-radius:50%;background:#16a34a;"></div>'
+        +'<div style="font-size:13px;font-weight:700;color:#1a1a2e;">'+saved.brand+' connected</div>'
+      +'</div>'
+      +'<button onclick="openCarConnectModal(this.dataset.brand)" data-brand="'+saved.brand+'" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:#15803d;cursor:pointer;">View data</button>'
+    +'</div>';
+    if(saved.lastSync){
+      html+='<div style="font-size:11px;color:#888;margin-bottom:10px;">Last synced: '+new Date(saved.lastSync).toLocaleTimeString()+'</div>';
+    }
+  } else {
+    html+='<div style="font-size:12px;color:#888;line-height:1.5;margin-bottom:10px;">Sync your car real-time fuel level, range, and battery directly to FuelMap.</div>';
+  }
+  html+='<div class="car-brand-grid">';
+  brands.forEach(function(brand){
+    var isConnected=saved&&saved.brand===brand;
+    html+='<div class="car-brand-btn'+(isConnected?' connected':'')+'" onclick="openCarConnectModal(this.dataset.brand)" data-brand="'+brand+'">'
+      +getBrandEmoji(brand)+' '+brand
+      +(isConnected?' ✓':'')
+    +'</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
 function renderProfile(){
   var profile=loadProfile();var vehicles=loadLocalVehicles();var av=getActiveVehicle();
   var isCloud=!!currentUser;
@@ -3342,7 +3549,7 @@ function renderProfile(){
   if(isCloud){bodyHTML+='<button class="signout-btn" onclick="signOut()">Sign out</button>';}
   else{bodyHTML+='<button class="signout-btn" style="border-color:#1667d9;color:#1667d9;" onclick="showScreen(\'auth\');document.getElementById(\'tab-bar\').style.display=\'none\';">Sign in to sync profile</button>';}
   bodyHTML+='<div style="height:20px;"></div>';
-  document.getElementById('profile-body').innerHTML='<div class="obd-card" id="obd-section"></div>'+bodyHTML;
+  document.getElementById('profile-body').innerHTML='<div class="obd-card" id="obd-section"></div><div class="car-connect-card" id="car-connect-section"></div>'+bodyHTML;
   renderOBDSection();
 }
 
@@ -4166,5 +4373,12 @@ function showTab(name){
   }catch(e){localStorage.removeItem('fm_session');}
 })();
 </script>
+<!-- CAR CONNECT MODAL -->
+<div class="car-connect-modal hidden" id="car-connect-modal">
+  <div class="car-connect-sheet" onclick="event.stopPropagation()">
+    <div style="width:40px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 16px;"></div>
+    <div id="car-connect-content"></div>
+  </div>
+</div>
 </body>
 </html>
