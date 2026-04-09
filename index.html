@@ -2102,8 +2102,9 @@ function openPricePin(st){
   var pi=getLatestPrice(st);
   var isEV=st.type==='ev';
   var priceStr=isEV?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
+  var stLogo=getBrandLogo(st.name,st.brand||st.network);
   var infoContent='<div style="font-family:-apple-system,sans-serif;padding:4px;min-width:160px;">'+
-    '<div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:2px;">'+st.name+'</div>'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'+(stLogo?'<img src="'+stLogo+'" style="width:24px;height:24px;object-fit:contain;border-radius:4px;" onerror="this.remove()">':'')+'<div style="font-size:13px;font-weight:700;color:#1a1a2e;">'+st.name+'</div></div>'+
     '<div style="font-size:11px;color:#888;margin-bottom:6px;">'+st.distanceMiles.toFixed(1)+' mi away</div>'+
     '<div style="display:flex;align-items:center;justify-content:space-between;">'+
     '<span style="font-size:16px;font-weight:800;color:#DC2626;">'+priceStr+'</span>'+
@@ -2464,7 +2465,11 @@ function renderCards(){
         +'</div>';
     }
     var favStar=isFavorite(st.id)?'⭐':'☆';
-    card.innerHTML='<div class="card-top"><div style="flex:1;padding-right:4px;"><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div>'
+    var logoHtml=brandLogoImg(st.name,st.brand||st.network,26);
+    card.innerHTML='<div class="card-top"><div style="display:flex;align-items:center;gap:8px;flex:1;padding-right:4px;">'
+      +logoHtml
+      +'<div><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div>'
+      +'</div>'
       +'<div onclick="event.stopPropagation();toggleFavFromCard(this.dataset.sid)" style="font-size:16px;cursor:pointer;padding:2px 0 2px 4px;" id=\"fav-card-'+st.id+'\" data-sid='+JSON.stringify(st.id)+'>'+favStar+'</div>'
       +'</div>'
       +gradesRowHTML
@@ -2530,7 +2535,9 @@ function showDetail(station){
   var rHTML=reports.length===0?'<div class="no-reports">No community reports yet — be the first!</div>':reports.map(function(r){return'<div class="report-item"><div><div class="report-fuel">'+r.fuelType.charAt(0).toUpperCase()+r.fuelType.slice(1)+'</div><div class="report-meta">'+timeAgo(r.ts)+'</div></div><div class="report-price">$'+Number(r.price).toFixed(2)+'</div></div>';}).join('');
   var av=getActiveVehicle();var vehicleTip='';
   if(av){var lvl=av.level||50;var rem=av.fuelType==='electric'?Math.round(lvl/100*(av.tankSize||300))+' miles range left':Math.round(lvl/100*(av.tankSize||15)*10)/10+' gal remaining';vehicleTip='<div class="section" style="border-left:3px solid #7c3aed;background:#faf5ff;"><div class="sec-title" style="color:#6d28d9;">'+av.emoji+' Your '+av.year+' '+av.make+' '+av.model+'</div><div class="body-txt" style="color:#6d28d9;">'+rem+' · '+lvl+'% full</div></div>';}
-  document.getElementById('hero-wrap').innerHTML='<div class="hero" style="background:'+heroBg+';"><button class="back-btn" onclick="showTab(\'map\')">← Map</button><div class="score-box" style="border-color:'+sc+';"><div class="score-val" style="color:'+sc+';">'+station.score+'</div><div class="score-lbl">Score</div></div><div class="hero-name">'+station.name+'</div><div class="hero-addr">'+station.address+' · '+station.distanceMiles.toFixed(1)+' mi</div></div>';
+  var detailLogo=getBrandLogo(station.name,station.brand||station.network);
+  var detailLogoHtml=detailLogo?'<img src="'+detailLogo+'" style="width:36px;height:36px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,0.2);padding:3px;margin-bottom:6px;" onerror="this.remove()">':'';
+  document.getElementById('hero-wrap').innerHTML='<div class="hero" style="background:'+heroBg+';"><button class="back-btn" onclick="showTab(&quot;map&quot;)">← Map</button><div class="score-box" style="border-color:'+sc+';"><div class="score-val" style="color:'+sc+';">'+station.score+'</div><div class="score-lbl">Score</div></div>'+detailLogoHtml+'<div class="hero-name">'+station.name+'</div><div class="hero-addr">'+station.address+' · '+station.distanceMiles.toFixed(1)+' mi</div></div>';
   // Recalculate component scores for breakdown display
   var priceD=getLatestPrice(station);
   var medianD=station.type==='ev'?EIA_EV_L2_AVG:livePrices.regular||EIA_GAS_AVG;
@@ -3366,12 +3373,16 @@ function openCarConnectModal(brand){
 
   if(brand==='Tesla'){
     content.innerHTML=
-      '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">🚗 Connect Tesla</div>'+
-      '<div style="font-size:12px;color:#888;margin-bottom:16px;">Sign in with your Tesla account to sync battery level and range.</div>'+
-      '<input class="car-input" type="email" id="car-email" placeholder="Tesla account email" autocorrect="off" autocapitalize="off"/>'+
-      '<input class="car-input" type="password" id="car-password" placeholder="Tesla account password"/>'+
-      '<div style="font-size:11px;color:#888;margin-bottom:12px;">Your credentials are sent securely to our server and never stored — only the access token is saved locally.</div>'+
-      '<button onclick="connectTesla()" style="width:100%;padding:13px;background:#DC2626;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">Connect Tesla</button>'+
+      '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">⚡ Connect Tesla</div>'+
+      '<div style="font-size:12px;color:#888;margin-bottom:16px;">Sign in with Tesla to sync battery level, range, and charging state directly to FuelMap.</div>'+
+      '<div style="font-size:11px;color:#888;background:#f7f7f9;border-radius:10px;padding:12px;margin-bottom:16px;line-height:1.6;">'+
+        '<b>Setup required (one time):</b><br>'+
+        '1. Register at <b>developer.tesla.com</b><br>'+
+        '2. Create an app — approval takes ~5 days<br>'+
+        '3. Add your Client ID + Secret to Vercel<br>'+
+        '4. Come back here to connect'+
+      '</div>'+
+      '<button onclick="startTeslaOAuth()" style="width:100%;padding:13px;background:#DC2626;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">Sign in with Tesla</button>'+
       '<div id="car-connect-status" style="margin-top:10px;font-size:12px;text-align:center;color:#888;"></div>'+
       '<button onclick="closeCarConnectModal()" style="width:100%;padding:12px;background:#f2f2f7;border:none;border-radius:12px;color:#555;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;">Cancel</button>';
   } else if(brand==='Mercedes'){
@@ -3404,38 +3415,49 @@ function closeCarConnectModal(){
   if(modal)modal.classList.add('hidden');
 }
 
-async function connectTesla(){
-  var email=document.getElementById('car-email').value.trim();
-  var password=document.getElementById('car-password').value;
+async function startTeslaOAuth(){
   var status=document.getElementById('car-connect-status');
-  if(!email||!password){status.textContent='Please enter email and password.';status.style.color='#DC2626';return;}
-  status.textContent='Connecting…';status.style.color='#888';
+  status.textContent='Getting auth URL…';status.style.color='#888';
   try{
-    var r=await fetch('https://fuelmap-api-sf.vercel.app/api/car-tesla?action=token',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:email,password:password})
-    });
+    var r=await fetch('https://fuelmap-api-sf.vercel.app/api/car-tesla?action=auth_url');
     var data=await r.json();
-    if(!data.access_token){
-      status.textContent='Login failed: '+(data.error||'Check your credentials.');
+    if(!data.url){
+      status.textContent='Could not get auth URL. Make sure Tesla API keys are set in Vercel.';
       status.style.color='#DC2626';return;
     }
-    status.textContent='Getting vehicle list…';
-    var vr=await fetch('https://fuelmap-api-sf.vercel.app/api/car-tesla?action=vehicles&access_token='+data.access_token);
-    var vdata=await vr.json();
-    var vehicles=(vdata.response||[]);
-    if(vehicles.length===0){status.textContent='No vehicles found on this account.';status.style.color='#DC2626';return;}
-    var v=vehicles[0];
-    carConnectState={brand:'Tesla',accessToken:data.access_token,vehicleId:v.id_s,vehicleName:v.display_name||v.vin,lastSync:null};
-    saveCarConnect(carConnectState);
-    status.textContent='Connected! Syncing data…';status.style.color='#15803d';
-    await syncCarData();
-    closeCarConnectModal();
-    renderCarConnectSection();
-    renderProfile();
+    // Save state for callback verification
+    localStorage.setItem('fm_tesla_oauth_state',data.state);
+    // Open Tesla auth in new window
+    window.open(data.url,'_blank');
+    status.textContent='Complete sign-in in the Tesla window, then come back here.';
+    status.style.color='#15803d';
+    // Poll for callback code stored by the redirect page
+    var pollCount=0;
+    var poll=setInterval(async function(){
+      pollCount++;
+      if(pollCount>60){clearInterval(poll);status.textContent='Timed out. Try again.';return;}
+      var code=localStorage.getItem('fm_tesla_oauth_code');
+      if(!code)return;
+      clearInterval(poll);
+      localStorage.removeItem('fm_tesla_oauth_code');
+      status.textContent='Exchanging token…';
+      var tr=await fetch('https://fuelmap-api-sf.vercel.app/api/car-tesla?action=token&code='+encodeURIComponent(code));
+      var tdata=await tr.json();
+      if(!tdata.access_token){status.textContent='Token exchange failed.';status.style.color='#DC2626';return;}
+      var vr=await fetch('https://fuelmap-api-sf.vercel.app/api/car-tesla?action=vehicles&access_token='+tdata.access_token);
+      var vdata=await vr.json();
+      var vehicles=vdata.response||[];
+      if(vehicles.length===0){status.textContent='No Tesla vehicles found.';status.style.color='#DC2626';return;}
+      var v=vehicles[0];
+      carConnectState={brand:'Tesla',accessToken:tdata.access_token,refreshToken:tdata.refresh_token,vehicleId:v.id_s,vehicleName:v.display_name||v.vin,lastSync:null};
+      saveCarConnect(carConnectState);
+      await syncCarData();
+      closeCarConnectModal();
+      renderCarConnectSection();
+      renderProfile();
+    },3000);
   }catch(e){
-    status.textContent='Connection error: '+e.message;status.style.color='#DC2626';
+    status.textContent='Error: '+e.message;status.style.color='#DC2626';
   }
 }
 
@@ -3707,6 +3729,57 @@ function updateBellBadge(){
 }
 
 // ── Favorites ─────────────────────────────────────────────────────────────────
+// ── Brand Logo Map ───────────────────────────────────────────────────────────
+var BRAND_LOGOS={
+  'arco':      'https://logo.clearbit.com/arco.com',
+  'chevron':   'https://logo.clearbit.com/chevron.com',
+  'shell':     'https://logo.clearbit.com/shell.com',
+  '76':        'https://logo.clearbit.com/76.com',
+  'mobil':     'https://logo.clearbit.com/mobil.com',
+  'exxon':     'https://logo.clearbit.com/exxon.com',
+  'bp':        'https://logo.clearbit.com/bp.com',
+  'valero':    'https://logo.clearbit.com/valero.com',
+  'costco':    'https://logo.clearbit.com/costco.com',
+  'texaco':    'https://logo.clearbit.com/texaco.com',
+  'marathon':  'https://logo.clearbit.com/marathonpetroleum.com',
+  'sunoco':    'https://logo.clearbit.com/sunoco.com',
+  'circle k':  'https://logo.clearbit.com/circlek.com',
+  'speedway':  'https://logo.clearbit.com/speedway.com',
+  'kwik trip': 'https://logo.clearbit.com/kwiktrip.com',
+  'casey':     'https://logo.clearbit.com/caseys.com',
+  'pilot':     'https://logo.clearbit.com/pilotflyingj.com',
+  'loves':     'https://logo.clearbit.com/loves.com',
+  'wawa':      'https://logo.clearbit.com/wawa.com',
+  'sheetz':    'https://logo.clearbit.com/sheetz.com',
+  'sinclair':  'https://logo.clearbit.com/sinclairoil.com',
+  'gulf':      'https://logo.clearbit.com/gulfuels.com',
+  'safeway':   'https://logo.clearbit.com/safeway.com',
+  'costco gas':'https://logo.clearbit.com/costco.com',
+  'tesla':     'https://logo.clearbit.com/tesla.com',
+  'electrify': 'https://logo.clearbit.com/electrifyamerica.com',
+  'chargepoint':'https://logo.clearbit.com/chargepoint.com',
+  'blink':     'https://logo.clearbit.com/blinkcharging.com',
+  'evgo':      'https://logo.clearbit.com/evgo.com',
+};
+
+function getBrandLogo(name, brand){
+  var key=(brand||name||'').toLowerCase().trim();
+  // Direct match
+  if(BRAND_LOGOS[key])return BRAND_LOGOS[key];
+  // Partial match
+  for(var k in BRAND_LOGOS){
+    if(key.indexOf(k)>-1||k.indexOf(key)>-1)return BRAND_LOGOS[k];
+  }
+  return null;
+}
+
+function brandLogoImg(name, brand, size){
+  size=size||28;
+  var url=getBrandLogo(name,brand);
+  if(!url)return'';
+  return'<img src="'+url+'" style="width:'+size+'px;height:'+size+'px;object-fit:contain;border-radius:6px;flex-shrink:0;" onerror="this.remove()">';
+}
+
 var GAS_BRANDS=['All brands','ARCO','BP','Chevron','Circle K','Costco Gas','Exxon','Flyers',
   'Loop','Mobil','Shell','Standard','Sunoco','Valero','76','ExtraMile','Fuel 24:7',
   'DoubleTime','Propel Fuels','Self Serve'];
@@ -3832,6 +3905,15 @@ function renderFavorites(){
     var info = document.createElement('div');
     info.className = 'fav-info';
 
+    // Brand logo
+    var favLogoUrl=getBrandLogo(fav.name,fav.brand);
+    if(favLogoUrl){
+      var favLogoEl=document.createElement('img');
+      favLogoEl.src=favLogoUrl;
+      favLogoEl.style.cssText='width:32px;height:32px;object-fit:contain;border-radius:8px;flex-shrink:0;';
+      favLogoEl.onerror=function(){this.style.display='none';};
+      card.insertBefore(favLogoEl,star);
+    }
     var nameEl = document.createElement('div');
     nameEl.className = 'fav-name';
     nameEl.textContent = fav.name||'';
