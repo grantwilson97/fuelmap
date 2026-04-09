@@ -529,9 +529,9 @@ if('caches' in window){
     <div class="hero-title">Price alerts</div>
     <div class="hero-sub">San Francisco Bay Area</div>
     <div class="hero-stats">
-      <div class="hero-stat"><div class="hero-stat-val">2</div><div class="hero-stat-lbl">Active</div></div>
-      <div class="hero-stat"><div class="hero-stat-val" id="triggered-count">1</div><div class="hero-stat-lbl">Triggered</div></div>
-      <div class="hero-stat"><div class="hero-stat-val" id="total-count">3</div><div class="hero-stat-lbl">Total</div></div>
+      <div class="hero-stat" onclick="setAlertFilter('active')" id="stat-active" style="cursor:pointer;"><div class="hero-stat-val" id="active-count">0</div><div class="hero-stat-lbl">Active</div></div>
+      <div class="hero-stat" onclick="setAlertFilter('triggered')" id="stat-triggered" style="cursor:pointer;"><div class="hero-stat-val" id="triggered-count">0</div><div class="hero-stat-lbl">Triggered</div></div>
+      <div class="hero-stat" onclick="setAlertFilter('all')" id="stat-total" style="cursor:pointer;"><div class="hero-stat-val" id="total-count">0</div><div class="hero-stat-lbl">Total</div></div>
     </div>
   </div>
   <div class="scroll"><div class="alert-body" id="alerts-body"></div></div>
@@ -3987,7 +3987,21 @@ function makeAlertCard(a){
 
 // Global indexed alert list for reliable onclick access
 window._alertList=[];
-var _dismissedAlertIds={};
+var _alertFilter='all'; // 'all', 'triggered', 'active'
+function setAlertFilter(f){
+  _alertFilter=f;
+  // Highlight active filter
+  ['active','triggered','total'].forEach(function(n){
+    var el=document.getElementById('stat-'+n);
+    if(el)el.style.background=((n===f||(n==='total'&&f==='all'))?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.15)');
+  });
+  renderAlerts();
+}
+
+var _dismissedAlertIds=(function(){
+  try{return JSON.parse(localStorage.getItem('fm_dismissed_alerts')||'{}');}
+  catch(e){return{};}
+})();
 
 function renderAlerts(){
   var smartAlerts=generateSmartAlerts();
@@ -4001,8 +4015,17 @@ function renderAlerts(){
   var market=alerts.filter(function(a){return a.type==='market';});
   var triggered=alerts.filter(function(a){return a.status==='triggered';});
 
+  var activeAlerts=alerts.filter(function(a){return a.status==='active';});
+  document.getElementById('active-count').textContent=activeAlerts.length;
   document.getElementById('triggered-count').textContent=triggered.length;
   document.getElementById('total-count').textContent=alerts.length;
+
+  // Apply filter
+  var filteredAlerts=alerts;
+  if(_alertFilter==='triggered')filteredAlerts=triggered;
+  else if(_alertFilter==='active')filteredAlerts=activeAlerts;
+  var deals=filteredAlerts.filter(function(a){return a.type==='deal';});
+  var market=filteredAlerts.filter(function(a){return a.type==='market';});
 
   if(alerts.length===0){
     el.innerHTML='<div style="text-align:center;padding:40px 20px;">'
@@ -4037,7 +4060,7 @@ function renderAlerts(){
   }
   if(deals.length>0){
     html+='<div class="alert-sec-title">Best prices near you</div>';
-    alerts.forEach(function(a){
+    filteredAlerts.forEach(function(a){
       if(a.type!=='deal')return;
       var aid=String(a.id);
       var sid=String(a.stationId||'');
@@ -4071,6 +4094,8 @@ function dismissAlert(id){alerts=alerts.filter(function(a){return a.id!==id;});r
 // Called directly via javascript: href — most reliable on iOS
 function dismissAlertById(id){
   _dismissedAlertIds[String(id)]=true;
+  // Persist to localStorage so dismissals survive reload/re-login
+  try{localStorage.setItem('fm_dismissed_alerts',JSON.stringify(_dismissedAlertIds));}catch(e){}
   alerts=alerts.filter(function(a){return String(a.id)!==String(id);});
   renderAlerts();
   updateBellBadge();
