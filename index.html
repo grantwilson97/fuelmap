@@ -507,6 +507,7 @@ if('caches' in window){
     <div class="cards" id="cards"></div>
     <div class="pge-chip" id="pge-ribbon" style="margin:0 14px 10px;display:none;"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh · Charge off-peak to save 54%</span></div>
   </div>
+  <div class="station-preview" id="station-preview"><div class="preview-drag" onclick="closeStationPreview()"></div><div id="station-preview-content"></div></div>
 </div>
 
 <!-- DETAIL SCREEN -->
@@ -3868,6 +3869,13 @@ function loadCloudFavorites(){
 function isFavorite(stationId){return loadFavorites().some(function(f){return String(f.id)===String(stationId);});}
 
 function toggleFavorite(station){
+  // Refresh preview fav button if showing
+  setTimeout(function(){
+    var btn=document.getElementById('preview-fav-btn');
+    if(btn&&window._previewStation&&String(window._previewStation.id)===String(station.id)){
+      btn.textContent=isFavorite(station.id)?'⭐':'☆';
+    }
+  },50);
   var favs=loadFavorites();
   var idx=favs.findIndex(function(f){return f.id===station.id;});
   if(idx>-1){favs.splice(idx,1);}
