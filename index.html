@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- FuelMap v20260408035601 -->
+<!-- FuelMap v20260415215026 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -4465,6 +4465,8 @@ function renderAlerts(){
   }
 
   // Store alert IDs in global map for direct lookup
+  // Re-read dismissed alerts from localStorage (ensures PWA gets latest)
+  try{_dismissedAlertIds=JSON.parse(localStorage.getItem('fm_dismissed_alerts')||'{}');}catch(e){}
   // Filter out dismissed alerts
   alerts=alerts.filter(function(a){return !_dismissedAlertIds[String(a.id)];});
   window._alertMap={};
