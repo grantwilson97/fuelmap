@@ -2853,7 +2853,7 @@ function renderTripPlanner(){
     document.getElementById('trip-vehicle-level').textContent='';
   }
   if(tripResult){renderTripResult();return;}
-  var ttColorMap={commute:'tt-commute',road:'tt-road',fuel:'tt-fuel'};
+  var ttColorMap={commute:'tt-commute',roadtrip:'tt-road',fuelrun:'tt-fuel'};
   var typeOpts=TRIP_TYPES.map(function(t){var cc=ttColorMap[t.key]||'tt-'+t.key;return'<div class="tt-opt '+cc+(selectedTripType===t.key?' on':'')+'" onclick="setTripType(\''+t.key+'\')">'+t.icon+' '+t.label+'</div>';}).join('');
   document.getElementById('trip-body').innerHTML=
     '<div class="trip-form-card">'+
