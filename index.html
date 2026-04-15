@@ -384,9 +384,11 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .direct-nav-apple{flex:1;padding:10px;background:#f7f7f9;border:1px solid #e0e0e0;border-radius:10px;font-size:12px;font-weight:600;color:#555;cursor:pointer;text-align:center;}
 .direct-nav-google{flex:1;padding:10px;background:#f7f7f9;border:1px solid #e0e0e0;border-radius:10px;font-size:12px;font-weight:600;color:#555;cursor:pointer;text-align:center;}
 /* ── Vehicle toggle ── */
-.vehicle-toggle-btn{background:#fff5f5;border:2px solid #DC2626;border-radius:20px;padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;max-width:150px;}
-.vehicle-toggle-txt{font-size:11px;font-weight:700;color:#DC2626;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
-.vehicle-toggle-arrow{font-size:9px;color:#DC2626;flex-shrink:0;}
+.vehicle-toggle-btn{background:linear-gradient(135deg,#DC2626,#b91c1c);border:none;border-radius:10px;padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;max-width:170px;box-shadow:0 2px 8px rgba(220,38,38,0.35);transition:box-shadow 0.15s,transform 0.15s;}
+.vehicle-toggle-btn:active{transform:scale(0.97);box-shadow:0 1px 4px rgba(220,38,38,0.25);}
+.vehicle-toggle-icon{font-size:14px;flex-shrink:0;}
+.vehicle-toggle-txt{font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;letter-spacing:0.1px;}
+.vehicle-toggle-arrow{font-size:8px;color:rgba(255,255,255,0.8);flex-shrink:0;margin-left:2px;}
 .vehicle-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
 .vehicle-picker-overlay.hidden{display:none;}
 .vehicle-picker{background:#fff;border-radius:20px 20px 0 0;padding:16px;width:100%;max-width:430px;max-height:60vh;overflow-y:auto;}
@@ -477,6 +479,7 @@ if(storedVer&&storedVer!==VER){
       <div class="wordmark"><div><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div><div style="height:2.5px;background:linear-gradient(90deg,#DC2626,#FCD34D);border-radius:2px;width:100%;"></div></div>
       <div style="flex:1;display:flex;justify-content:center;margin:0 6px;">
         <button class="vehicle-toggle-btn" onclick="openVehiclePicker()" id="vehicle-toggle-btn">
+          <span class="vehicle-toggle-icon" id="vehicle-toggle-icon">🚗</span>
           <span class="vehicle-toggle-txt" id="location-txt">Loading…</span>
           <span class="vehicle-toggle-arrow">▼</span>
         </button>
@@ -2323,7 +2326,9 @@ function updateLocationDisplay(){
   var vehicleTxt=av?av.emoji+' '+av.make+' '+av.model:'Add a vehicle';
   // Update map tab vehicle button
   var locEl=document.getElementById('location-txt');
-  if(locEl)locEl.textContent=vehicleTxt;
+  if(locEl)locEl.textContent=av?av.make+' '+av.model:'Add a vehicle';
+  var iconEl=document.getElementById('vehicle-toggle-icon');
+  if(iconEl)iconEl.textContent=av?av.emoji:'🚗';
   document.getElementById('map-title').textContent='Hi '+(profile.name||'there')+'! Near you';
   // Show/hide toggle arrow depending on vehicle count
   var vehicles=loadVehicles();
