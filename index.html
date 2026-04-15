@@ -3915,10 +3915,11 @@ function renderFavorites(){
     var info = document.createElement('div');
     info.className = 'fav-info';
 
-    // Brand logo
+    // Brand logo badge
     var favLogoDiv=document.createElement('div');
     favLogoDiv.innerHTML=brandLogoImg(fav.name,fav.brand,32);
-    if(favLogoDiv.firstChild)card.insertBefore(favLogoDiv.firstChild,star);
+    var favLogoEl=favLogoDiv.firstChild;
+
     var nameEl = document.createElement('div');
     nameEl.className = 'fav-name';
     nameEl.textContent = fav.name||'';
@@ -3957,8 +3958,11 @@ function renderFavorites(){
     info.appendChild(nameEl);
     info.appendChild(addrEl);
     info.appendChild(badges);
-    card.appendChild(star);
+
+    // Assemble card in correct order: logo | info | star
+    if(favLogoEl) card.appendChild(favLogoEl);
     card.appendChild(info);
+    card.appendChild(star);
     el.appendChild(card);
   });
   var spacer = document.createElement('div');
