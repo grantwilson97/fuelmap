@@ -2106,31 +2106,74 @@ function initPricePinOverlay(){
 var pricePinOverlayReady=false;
 
 function openPricePin(st){
-  // Close any open info window
   if(selectedInfoWindow){selectedInfoWindow.close();selectedInfoWindow=null;}
-  var color=pinColor(st.score);
+  var sc=scoreColor(st.score);
   var pi=getLatestPrice(st);
   var isEV=st.type==='ev';
   var priceStr=isEV?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
-  var infoContent='<div style="font-family:-apple-system,sans-serif;padding:4px;min-width:160px;">'+
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'+brandLogoImg(st.name,st.brand||st.network,24)+'<div style="font-size:13px;font-weight:700;color:#1a1a2e;">'+st.name+'</div></div>'+
-    '<div style="font-size:11px;color:#888;margin-bottom:6px;">'+st.distanceMiles.toFixed(1)+' mi away</div>'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;">'+
-    '<span style="font-size:16px;font-weight:800;color:#DC2626;">'+priceStr+'</span>'+
-    '<span style="background:'+color+'22;color:'+color+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">'+st.score+'</span>'+
-    '</div>'+
-    '<button onclick="showDetailFromMap(\''+st.id+'\')" style="width:100%;margin-top:8px;padding:7px;background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">View details</button>'+
-    '</div>';
-  var iw=new google.maps.InfoWindow({content:infoContent,maxWidth:200});
-  // Use a tiny invisible marker as anchor
-  var anchor=new google.maps.Marker({
-    position:{lat:st.latitude,lng:st.longitude},
-    map:gMap,opacity:0,clickable:false
-  });
-  iw.open(gMap,anchor);
-  selectedInfoWindow=iw;
-  gMap.panTo({lat:st.latitude,lng:st.longitude});
-  google.maps.event.addListenerOnce(iw,'closeclick',function(){anchor.setMap(null);});
+  var dist=st.distanceMiles!=null?st.distanceMiles.toFixed(1)+' mi':'';
+  var isReported=pi.source==='GasBuddy'||pi.source==='community';
+  var wait=waitMin(st.busy||30);
+  var isFav=isFavorite(st.id);
+  var gp=isEV?null:getGradePrices(st);
+  var av=getActiveVehicle();
+  var prefGrade=(av&&av.gasGrade)||'regular';
+  var gradesHTML='';
+  if(gp){
+    gradesHTML='<div style="display:flex;gap:5px;margin:8px 0;">';
+    GAS_GRADES.forEach(function(g){
+      var isPref=g.key===prefGrade;
+      gradesHTML+='<div style="flex:1;background:'+(isPref?'#fff5f5':'#f7f7f9')+';border:1.5px solid '+(isPref?'#DC2626':'#eee')+';border-radius:8px;padding:5px 3px;text-align:center;">'
+        +'<div style="font-size:8px;color:#888;font-weight:700;text-transform:uppercase;">'+g.label+'</div>'
+        +'<div style="font-size:12px;font-weight:800;color:#DC2626;">$'+gp[g.key].price.toFixed(2)+'</div>'
+        +'</div>';
+    });
+    gradesHTML+='</div>';
+  }
+  var el=document.getElementById('station-preview-content');
+  if(!el)return;
+  window._previewStation=st;
+  el.innerHTML=
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+        +brandLogoImg(st.name,st.brand||st.network,34)
+        +'<div><div style="font-size:14px;font-weight:800;color:#1a1a2e;">'+st.name+'</div>'
+        +'<div style="font-size:11px;color:#888;">'+dist+(st.address?' · '+(st.address.split(',')[0]):'')+'</div></div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;">'
+        +'<button onclick="previewToggleFav(this)" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0;">'+(isFav?'⭐':'☆')+'</button>'
+        +'<div style="background:'+sc+'22;color:'+sc+';font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;">'+st.score+'</div>'
+      +'</div>'
+    +'</div>'
+    +gradesHTML
+    +'<div style="display:flex;gap:6px;margin-bottom:10px;">'
+      +'<div style="flex:1;background:#f7f7f9;border-radius:10px;padding:7px;text-align:center;">'
+        +'<div style="font-size:15px;font-weight:800;color:#DC2626;">'+priceStr+'</div>'
+        +'<div style="font-size:9px;color:'+(isReported?'#15803d':'#888')+';">'+(isReported?'Reported':'est.')+'</div>'
+      +'</div>'
+      +'<div style="flex:1;background:#f7f7f9;border-radius:10px;padding:7px;text-align:center;">'
+        +'<div style="font-size:15px;font-weight:800;color:#1a1a2e;">'+wait+'m</div>'
+        +'<div style="font-size:9px;color:#888;">Wait</div>'
+      +'</div>'
+      +(st.rating?'<div style="flex:1;background:#f7f7f9;border-radius:10px;padding:7px;text-align:center;">'
+        +'<div style="font-size:15px;font-weight:800;color:#1a1a2e;">'+st.rating+'</div>'
+        +'<div style="font-size:9px;color:#888;">Rating</div>'
+      +'</div>':'')
+    +'</div>'
+    +'<button onclick="showDetailFromMap(window._previewStation.id)" style="width:100%;padding:12px;background:#DC2626;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">View full details</button>';
+  var sheet=document.getElementById('station-preview');
+  if(sheet)sheet.classList.add('visible');
+  if(gMap)gMap.panTo({lat:st.latitude,lng:st.longitude});
+}
+
+function previewToggleFav(btn){
+  if(!window._previewStation)return;
+  toggleFavorite(window._previewStation);
+  btn.textContent=isFavorite(window._previewStation.id)?'⭐':'☆';
+}
+function closeStationPreview(){
+  var sheet=document.getElementById('station-preview');
+  if(sheet)sheet.classList.remove('visible');
 }
 
 function updateMapPins(stations){
@@ -4428,6 +4471,7 @@ function showTab(name){
     if(name==='trip')renderTripPlanner();
     if(name==='favorites')renderFavorites();
     if(name==='alerts')renderAlerts();
+    if(name!=='map')closeStationPreview();
     if(name==='search'){
       var si=document.getElementById('search-input');
       if(si&&si.value)runSearch(si.value);
