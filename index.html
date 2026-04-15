@@ -2030,7 +2030,96 @@ function applySeedPrices(stations){
 }
 
 function getReports(id){try{return JSON.parse(localStorage.getItem('reports_'+id)||'[]');}catch(e){return[];}}
-function saveReport(id,ft,price){var r=getReports(id);r.unshift({fuelType:ft,price:price,ts:Date.now()});if(r.length>5)r.pop();localStorage.setItem('reports_'+id,JSON.stringify(r));}
+
+function saveReport(id,ft,price){
+  // 1. Save to localStorage immediately
+  var r=getReports(id);
+  r.unshift({fuelType:ft,price:price,ts:Date.now(),source:'community'});
+  if(r.length>10)r.pop();
+  localStorage.setItem('reports_'+id,JSON.stringify(r));
+
+  // 2. Update station in allStations so map/cards reflect immediately
+  var st=allStations.find(function(s){return String(s.id)===String(id);});
+  if(st){
+    if(ft==='regular'||ft==='ev_l2'){st.realPrice=price;st.realPricePostedTime=new Date().toISOString();}
+    st['price_'+ft]=price;
+    st.score=calcScore(st);
+  }
+
+  // 3. Save to Supabase so all devices see it
+  if(currentUser&&currentSession){
+    var token=currentSession.access_token;
+    var row={
+      user_id:currentUser.id,
+      station_id:String(id),
+      fuel_type:ft,
+      price:price,
+      reported_at:new Date().toISOString()
+    };
+    fetch(SUPABASE_URL+'/rest/v1/price_reports',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPABASE_ANON_KEY,
+        'Authorization':'Bearer '+token,
+        'Prefer':'resolution=merge-duplicates'
+      },
+      body:JSON.stringify(row)
+    }).then(function(r){
+      if(!r.ok)r.text().then(function(t){console.warn('Price report save failed:',t);});
+    }).catch(function(e){console.warn('Price report cloud save error:',e);});
+  }
+}
+
+// Load cloud price reports for all stations in current view
+function loadCloudReports(){
+  if(!currentSession)return Promise.resolve();
+  var token=currentSession.access_token;
+  // Get reports from last 7 days
+  var since=new Date(Date.now()-7*24*60*60*1000).toISOString();
+  return fetch(SUPABASE_URL+'/rest/v1/price_reports?reported_at=gte.'+since+'&select=station_id,fuel_type,price,reported_at&order=reported_at.desc',{
+    headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+token}
+  })
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(rows){
+    if(!Array.isArray(rows)||rows.length===0)return;
+    // Group by station_id — keep latest per station+fuel_type
+    var byStation={};
+    rows.forEach(function(row){
+      var sid=row.station_id;
+      if(!byStation[sid])byStation[sid]={};
+      if(!byStation[sid][row.fuel_type]){
+        byStation[sid][row.fuel_type]={price:row.price,ts:new Date(row.reported_at).getTime()};
+      }
+    });
+    // Apply to localStorage reports cache and allStations
+    Object.keys(byStation).forEach(function(sid){
+      var stReports=byStation[sid];
+      var existing=getReports(sid);
+      // Merge cloud reports into local
+      Object.keys(stReports).forEach(function(ft){
+        var cr=stReports[ft];
+        var alreadyLocal=existing.find(function(e){return e.fuelType===ft&&Math.abs(e.ts-cr.ts)<60000;});
+        if(!alreadyLocal){
+          existing.unshift({fuelType:ft,price:cr.price,ts:cr.ts,source:'community'});
+        }
+      });
+      if(existing.length>10)existing=existing.slice(0,10);
+      localStorage.setItem('reports_'+sid,JSON.stringify(existing));
+      // Update allStations
+      var st=allStations.find(function(s){return String(s.id)===String(sid);});
+      if(st){
+        var reg=stReports['regular']||stReports['ev_l2'];
+        if(reg){st.realPrice=reg.price;st.realPricePostedTime=new Date(reg.ts).toISOString();}
+        Object.keys(stReports).forEach(function(ft){st['price_'+ft]=stReports[ft].price;});
+        st.score=calcScore(st);
+      }
+    });
+    console.log('Loaded cloud price reports for',Object.keys(byStation).length,'stations');
+    renderAll();
+  })
+  .catch(function(e){console.warn('loadCloudReports failed:',e);});
+}
 function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
 function getLatestPrice(station){
   var r=getReports(station.id);
@@ -2399,6 +2488,8 @@ function buildStationList(lat,lng,liveEV,liveGas){
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV';
   clearLoading();applySeedPrices(allStations);renderAll();renderAlerts();
+  // Load cloud price reports so reported prices from any device show up
+  loadCloudReports();
   // Fetch Zyla ZIP-level prices in background to refine baseline
   if(userLat&&userLng){
     coordsToZip(userLat,userLng).then(function(zip){
@@ -3195,6 +3286,9 @@ function submitPrice(){
   document.getElementById('thanks-msg').style.display='block';
   document.getElementById('thanks-msg').textContent='Thanks! '+saved+' price'+(saved>1?'s':'')+' reported.';
   document.getElementById('modal-submit').disabled=true;
+  // Refresh map pins/cards immediately with new price
+  renderAll();
+  updateMapPins(allStations);
   setTimeout(function(){closeModalDirect();showDetail(currentStation);},1400);
 }
 function closeModal(e){if(e.target.id==='modal-overlay')closeModalDirect();}
