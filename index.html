@@ -232,7 +232,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .avc-level{display:flex;align-items:center;gap:6px;}
 .fuel-level-bar{width:60px;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;}
 .fuel-level-fill{height:100%;border-radius:3px;}
-.fuel-level-txt{font-size:11px;color:#fff;font-weight:700;}
+.fuel-level-txt{font-size:11px;color:#fff;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.35);}
 .profile-body{padding:14px;}
 .profile-section{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
 .profile-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
@@ -271,7 +271,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .vehicle-fuel-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
 .vehicle-fuel-bar{flex:1;height:5px;background:#e0e0e0;border-radius:3px;}
 .vehicle-fuel-fill{height:100%;border-radius:3px;}
-.vehicle-fuel-txt{font-size:10px;font-weight:700;width:28px;text-align:right;}
+.vehicle-fuel-txt{font-size:10px;font-weight:800;width:28px;text-align:right;}
 .vehicle-active-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:#fee2e2;color:#991b1b;flex-shrink:0;}
 .add-vehicle-btn{width:100%;padding:12px;border-radius:12px;border:2px dashed #d0d0d0;background:#fafafa;font-size:14px;font-weight:700;color:#888;cursor:pointer;text-align:center;}
 .pref-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid #f0f0f0;}
@@ -2847,7 +2847,14 @@ function renderTripPlanner(){
     var ft=FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||FUEL_TYPES[0];
     var rem=av.fuelType==='electric'?Math.round(lvl/100*(av.tankSize||300))+' mi range':Math.round(lvl/100*(av.tankSize||15)*(ft.mpg||30))+' mi range · '+lvl+'% full';
     document.getElementById('trip-vehicle-level').textContent=rem;
-    document.getElementById('trip-vehicle-level').style.color=fc;
+    document.getElementById('trip-vehicle-level').style.color='#fff';
+    document.getElementById('trip-vehicle-level').style.background='rgba(0,0,0,0.25)';
+    document.getElementById('trip-vehicle-level').style.padding='2px 7px';
+    document.getElementById('trip-vehicle-level').style.borderRadius='20px';
+    document.getElementById('trip-vehicle-level').style.fontSize='11px';
+    document.getElementById('trip-vehicle-level').style.fontWeight='700';
+    // Colored left border to convey fuel status
+    document.getElementById('trip-vehicle-level').style.borderLeft='3px solid '+fc;
   } else {
     document.getElementById('trip-vehicle-name').textContent='No vehicle — add one in Profile';
     document.getElementById('trip-vehicle-level').textContent='';
@@ -3802,14 +3809,14 @@ function renderProfile(){
   if(isCloud){heroHTML+='<div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px;">'+currentUser.email+'</div><span class="profile-badge">☁️ Cloud synced</span>';}
   else{heroHTML+='<span class="profile-badge">📱 Local only</span>';}
   heroHTML+='<button class="profile-edit-btn" style="margin-top:8px;" onclick="openProfileEditModal()">Edit profile</button></div></div>';
-  if(av){var lvl=av.level||50;var fc=fuelColor(lvl);heroHTML+='<div class="active-vehicle-chip"><div><div class="avc-label">Active vehicle</div><div class="avc-name">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div><div class="avc-fuel">'+av.fuelType.charAt(0).toUpperCase()+av.fuelType.slice(1)+'</div></div><div class="avc-level"><div class="fuel-level-bar"><div class="fuel-level-fill" style="width:'+lvl+'%;background:'+fc+';"></div></div><div class="fuel-level-txt" style="color:'+fc+';">'+lvl+'%</div></div></div>';}
+  if(av){var lvl=av.level||50;var fc=fuelColor(lvl);heroHTML+='<div class="active-vehicle-chip"><div><div class="avc-label">Active vehicle</div><div class="avc-name">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div><div class="avc-fuel">'+av.fuelType.charAt(0).toUpperCase()+av.fuelType.slice(1)+'</div></div><div class="avc-level"><div class="fuel-level-bar"><div class="fuel-level-fill" style="width:'+lvl+'%;background:'+fc+';"></div></div><div class="fuel-level-txt" style="color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.4);">'+lvl+'%</div></div></div>';}
   document.getElementById('profile-hero').innerHTML=heroHTML;
 
   var bodyHTML='';
   if(isCloud){bodyHTML+='<div style="margin-bottom:12px;"><span class="sync-badge">☁️ Profile synced to cloud · restores on any device</span></div>';}
 
   bodyHTML+='<div class="profile-section"><div class="profile-section-title">My vehicles ('+vehicles.length+'/5)</div>';
-  vehicles.forEach(function(v){var lvl=v.level||50;var fc=fuelColor(lvl);bodyHTML+='<div class="vehicle-card'+(v.active?' active-v':'')+'" onclick="setActiveVehicle(\''+v.id+'\')"><div class="vehicle-emoji">'+v.emoji+'</div><div class="vehicle-info"><div class="vehicle-name">'+v.year+' '+v.make+' '+v.model+'</div><div class="vehicle-detail">'+v.fuelType.charAt(0).toUpperCase()+v.fuelType.slice(1)+(v.tankSize?' · '+v.tankSize+(v.fuelType==='electric'?' mi range':' gal'):'')+(v.mpg&&v.fuelType!=='electric'?' · '+v.mpg+' mpg':'')+(v.gasGrade&&v.gasGrade!=='regular'?' · '+v.gasGrade:'')+'</div><div class="vehicle-fuel-row"><div class="vehicle-fuel-bar"><div class="vehicle-fuel-fill" style="width:'+lvl+'%;background:'+fc+';height:100%;border-radius:3px;"></div></div><div class="vehicle-fuel-txt" style="color:'+fc+';">'+lvl+'%</div></div></div>'+(v.active?'<div class="vehicle-active-badge">Active</div>':'')+'<div style="display:flex;flex-direction:column;gap:4px;margin-left:4px;"><div onclick="event.stopPropagation();openEditVehicle(\''+v.id+'\')" style="font-size:11px;color:#1667d9;font-weight:700;cursor:pointer;">Edit</div><div onclick="event.stopPropagation();deleteVehicle(\''+v.id+'\')" style="font-size:11px;color:#dc2626;font-weight:700;cursor:pointer;">Delete</div></div></div>';});
+  vehicles.forEach(function(v){var lvl=v.level||50;var fc=fuelColor(lvl);bodyHTML+='<div class="vehicle-card'+(v.active?' active-v':'')+'" onclick="setActiveVehicle(\''+v.id+'\')"><div class="vehicle-emoji">'+v.emoji+'</div><div class="vehicle-info"><div class="vehicle-name">'+v.year+' '+v.make+' '+v.model+'</div><div class="vehicle-detail">'+v.fuelType.charAt(0).toUpperCase()+v.fuelType.slice(1)+(v.tankSize?' · '+v.tankSize+(v.fuelType==='electric'?' mi range':' gal'):'')+(v.mpg&&v.fuelType!=='electric'?' · '+v.mpg+' mpg':'')+(v.gasGrade&&v.gasGrade!=='regular'?' · '+v.gasGrade:'')+'</div><div class="vehicle-fuel-row"><div class="vehicle-fuel-bar"><div class="vehicle-fuel-fill" style="width:'+lvl+'%;background:'+fc+';height:100%;border-radius:3px;"></div></div><div class="vehicle-fuel-txt" style="color:'+fc+';font-weight:800;">'+lvl+'%</div></div></div>'+(v.active?'<div class="vehicle-active-badge">Active</div>':'')+'<div style="display:flex;flex-direction:column;gap:4px;margin-left:4px;"><div onclick="event.stopPropagation();openEditVehicle(\''+v.id+'\')" style="font-size:11px;color:#1667d9;font-weight:700;cursor:pointer;">Edit</div><div onclick="event.stopPropagation();deleteVehicle(\''+v.id+'\')" style="font-size:11px;color:#dc2626;font-weight:700;cursor:pointer;">Delete</div></div></div>';});
   if(vehicles.length<5)bodyHTML+='<button class="add-vehicle-btn" onclick="openAddVehicle()">+ Add vehicle</button>';
   bodyHTML+='</div>';
 
