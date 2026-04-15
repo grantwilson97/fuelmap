@@ -709,6 +709,57 @@ var DIRECTIONS_API='https://fuelmap-api-sf.vercel.app/api/directions';
 var AUTOCOMPLETE_API='https://fuelmap-api-sf.vercel.app/api/autocomplete';
 var EIA_GAS_AVG=6.02,EIA_EV_L2_AVG=0.35;
 var FUEL_PRICES_API='https://fuelmap-api-sf.vercel.app/api/fuelprices';
+var ZYLA_KEY='13202|0QIJJQG1YCv7FxEpgdkQAYroBWiNUEQSgeejTjqd';
+var ZYLA_API='https://zylalabs.com/api/4808/gas+price+locator+api/5997/get+pices';
+
+// Fetch ZIP-level average from Zyla and update livePrices if it's more current
+function fetchZylaPrices(zip){
+  if(!zip||!ZYLA_KEY)return Promise.resolve(null);
+  return fetch(ZYLA_API+'?zip='+zip+'&type=regular',{
+    headers:{'Authorization':'Bearer '+ZYLA_KEY}
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data||data.status!=='success'||!data.gas_prices)return null;
+    // Extract average price from response
+    var avgEntry=data.gas_prices.find(function(p){return p.average;});
+    if(!avgEntry)return null;
+    var avg=parseFloat(avgEntry.average.replace('$',''));
+    var lowest=parseFloat(avgEntry.lowest.replace('$',''));
+    if(!avg||avg<3)return null;
+
+    // Only update if Zyla is higher than current EIA (more current data wins)
+    if(avg>livePrices.regular){
+      livePrices.regular=Math.round(avg*100)/100;
+      livePrices.midgrade=Math.round((avg+0.20)*100)/100;
+      livePrices.premium=Math.round((avg+0.40)*100)/100;
+      livePrices.diesel=Math.round((avg+0.05)*100)/100;
+      livePrices.source='Zyla/GasBuddy';
+      EIA_GAS_AVG=livePrices.regular;
+      console.log('Zyla price update: avg $'+avg+' lowest $'+lowest+' for ZIP '+zip);
+    }
+
+    // Store individual station prices by station_id for potential future matching
+    var stationPrices={};
+    data.gas_prices.forEach(function(p){
+      if(p.station_id&&p.price){
+        stationPrices[p.station_id]=parseFloat(p.price.replace('$',''));
+      }
+    });
+    return{avg:avg,lowest:lowest,stationPrices:stationPrices,zip:zip};
+  })
+  .catch(function(e){console.warn('Zyla fetch failed:',e);return null;});
+}
+
+// Get user's current ZIP from coordinates
+function coordsToZip(lat,lng){
+  return fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng,{
+    headers:{'User-Agent':'FuelMap/1.0'}
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){return d&&d.address&&d.address.postcode?d.address.postcode.split('-')[0]:null;})
+  .catch(function(){return null;});
+}
 var DISTANCE_MATRIX_API='https://fuelmap-api-sf.vercel.app/api/distancematrix';
 var APIFY_API='https://fuelmap-api-sf.vercel.app/api/apifyfuelprices';
 var OILPRICE_API='https://fuelmap-api-sf.vercel.app/api/oilprice';
@@ -2331,6 +2382,14 @@ function buildStationList(lat,lng,liveEV,liveGas){
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV';
   clearLoading();applySeedPrices(allStations);renderAll();renderAlerts();
+  // Fetch Zyla ZIP-level prices in background to refine baseline
+  if(userLat&&userLng){
+    coordsToZip(userLat,userLng).then(function(zip){
+      if(zip)fetchZylaPrices(zip).then(function(result){
+        if(result){allStations.forEach(function(s){s.score=calcScore(s);});renderAll();}
+      });
+    });
+  }
   if(gMap&&userLat&&userLng){
     var zoom=getSmartZoom(userLat,userLng,allStations.length);
     gMap.setZoom(zoom);
