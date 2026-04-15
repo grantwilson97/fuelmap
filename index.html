@@ -2476,7 +2476,7 @@ function buildStationList(lat,lng,liveEV,liveGas){
   // Dedupe only if Google Places already returned an exact match (within 0.08 miles)
   var seededToAdd=SEEDED_DEMO_STATIONS.filter(function(seed){
     return!allLive.some(function(live){
-      return live.latitude&&distMiles(live.latitude,live.longitude,seed.latitude,seed.longitude)<0.08;
+      return live.latitude&&distMiles(live.latitude,live.longitude,seed.latitude,seed.longitude)<0.05;
     });
   }).map(function(s){
     return Object.assign({},s,{
