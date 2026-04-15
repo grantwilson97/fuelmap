@@ -29,6 +29,8 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .filter-row::-webkit-scrollbar{display:none;}
 .chip{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;color:#555;background:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .chip.on{background:#DC2626;border-color:#DC2626;color:#fff;}
+.chip-all.on{background:#2563eb;border-color:#2563eb;color:#fff;}
+.chip-ev.on{background:#16a34a;border-color:#16a34a;color:#fff;}
 .map-box{flex:1;background:#f0f4ff;display:flex;flex-direction:column;position:relative;overflow:hidden;}
 .map-icon{font-size:48px;}
 .map-title{font-size:20px;font-weight:700;color:#1667d9;}
@@ -44,8 +46,12 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;}
 .sheet-title{font-size:14px;font-weight:700;color:#1a1a2e;}
 .sort-row{display:flex;gap:5px;}
-.sp{padding:4px 10px;border-radius:20px;border:1.5px solid #e0e0e0;font-size:11px;font-weight:600;color:#888;cursor:pointer;}
-.sp.on{background:#DC2626;border-color:#DC2626;color:#fff;}
+.sp{padding:4px 10px;border-radius:20px;border:1.5px solid #e0e0e0;font-size:11px;font-weight:600;color:#888;cursor:pointer;background:#fff;}
+.sp.on{color:#555;}
+.sp-value.on{background:#dcfce7;border-color:#16a34a;color:#15803d;}
+.sp-price.on{background:#fee2e2;border-color:#DC2626;color:#b91c1c;}
+.sp-wait.on{background:#fef3c7;border-color:#f59e0b;color:#b45309;}
+.sp-distance.on{background:#dbeafe;border-color:#2563eb;color:#1d4ed8;}
 .cards{display:flex;gap:10px;padding:0 14px 14px;overflow-x:auto;scrollbar-width:none;}
 .cards::-webkit-scrollbar{display:none;}
 .card{flex-shrink:0;width:200px;background:#fff;border-radius:16px;border:1.5px solid #eee;padding:12px;cursor:pointer;}
@@ -304,7 +310,10 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .autocomplete-item:last-child{border-bottom:none;}
 .trip-type-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
 .tt-opt{padding:8px 12px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;color:#555;cursor:pointer;display:flex;align-items:center;gap:4px;}
-.tt-opt.on{background:#DC2626;border-color:#DC2626;color:#fff;}
+.tt-opt.on{color:#fff;}
+.tt-commute.on{background:#2563eb;border-color:#2563eb;}
+.tt-road.on{background:linear-gradient(135deg,#DC2626,#f59e0b);border-color:#DC2626;}
+.tt-fuel.on{background:#16a34a;border-color:#16a34a;}
 .plan-btn{width:100%;padding:13px;background:#DC2626;border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;}
 .plan-btn:disabled{background:#FCA5A5;cursor:not-allowed;}
 .trip-planning{display:flex;flex-direction:column;align-items:center;padding:30px 20px;gap:12px;}
@@ -2647,9 +2656,9 @@ function getFiltered(){
 
 function renderFilters(){
   var el=document.getElementById('filters');el.innerHTML='';
-  [['all','All'],['gas','Gas'],['ev','EV']].forEach(function(p){
+  [['all','All','chip-all'],['gas','Gas',''],['ev','EV','chip-ev']].forEach(function(p){
     var c=document.createElement('div');
-    c.className='chip'+(currentFilter===p[0]?' on':'');
+    c.className='chip '+(p[2]||'')+(currentFilter===p[0]?' on':'');
     c.textContent=p[1];
     c.onclick=function(){currentFilter=p[0];autoFitMap=true;renderAll();};
     el.appendChild(c);
@@ -2657,7 +2666,7 @@ function renderFilters(){
   var ribbon=document.getElementById('pge-ribbon');
   if(ribbon)ribbon.style.display=(currentFilter==='ev'||currentFilter==='all')?'block':'none';
 }
-function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp'+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];autoFitMap=true;renderAll();};el.appendChild(c);});}
+function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp sp-'+p[0]+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];autoFitMap=true;renderAll();};el.appendChild(c);});}
 function renderCards(){
   var el=document.getElementById('cards');el.innerHTML='';var filtered=getFiltered();
   document.getElementById('sheet-title').textContent=filtered.length+' stations nearby';
@@ -2844,7 +2853,8 @@ function renderTripPlanner(){
     document.getElementById('trip-vehicle-level').textContent='';
   }
   if(tripResult){renderTripResult();return;}
-  var typeOpts=TRIP_TYPES.map(function(t){return'<div class="tt-opt'+(selectedTripType===t.key?' on':'')+'" onclick="setTripType(\''+t.key+'\')">'+t.icon+' '+t.label+'</div>';}).join('');
+  var ttColorMap={commute:'tt-commute',road:'tt-road',fuel:'tt-fuel'};
+  var typeOpts=TRIP_TYPES.map(function(t){var cc=ttColorMap[t.key]||'tt-'+t.key;return'<div class="tt-opt '+cc+(selectedTripType===t.key?' on':'')+'" onclick="setTripType(\''+t.key+'\')">'+t.icon+' '+t.label+'</div>';}).join('');
   document.getElementById('trip-body').innerHTML=
     '<div class="trip-form-card">'+
       '<div class="trip-form-title">Where are you going?</div>'+
