@@ -498,6 +498,11 @@ if('caches' in window){
       </div>
     </div>
   </div>
+  <!-- Station preview — shown above cards when pin is tapped -->
+  <div class="station-preview" id="station-preview" style="margin-top:8px;">
+    <div class="preview-drag" onclick="closeStationPreview()"></div>
+    <div id="station-preview-content"></div>
+  </div>
   <div class="sheet">
     <div class="drag"></div>
     <div class="sheet-head">
@@ -507,7 +512,6 @@ if('caches' in window){
     <div class="cards" id="cards"></div>
     <div class="pge-chip" id="pge-ribbon" style="margin:0 14px 10px;display:none;"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh · Charge off-peak to save 54%</span></div>
   </div>
-  <div class="station-preview" id="station-preview"><div class="preview-drag" onclick="closeStationPreview()"></div><div id="station-preview-content"></div></div>
 </div>
 
 <!-- DETAIL SCREEN -->
@@ -2118,49 +2122,37 @@ function openPricePin(st){
   var gp=isEV?null:getGradePrices(st);
   var av=getActiveVehicle();
   var prefGrade=(av&&av.gasGrade)||'regular';
-  var gradesHTML='';
+  // Show only preferred grade price in preview for compactness
+  var prefPriceStr='';
   if(gp){
-    gradesHTML='<div style="display:flex;gap:5px;margin:8px 0;">';
-    GAS_GRADES.forEach(function(g){
-      var isPref=g.key===prefGrade;
-      gradesHTML+='<div style="flex:1;background:'+(isPref?'#fff5f5':'#f7f7f9')+';border:1.5px solid '+(isPref?'#DC2626':'#eee')+';border-radius:8px;padding:5px 3px;text-align:center;">'
-        +'<div style="font-size:8px;color:#888;font-weight:700;text-transform:uppercase;">'+g.label+'</div>'
-        +'<div style="font-size:12px;font-weight:800;color:#DC2626;">$'+gp[g.key].price.toFixed(2)+'</div>'
-        +'</div>';
-    });
-    gradesHTML+='</div>';
+    var pref=gp[prefGrade]||gp['regular'];
+    prefPriceStr='$'+pref.price.toFixed(2);
+    priceStr=prefPriceStr+'/gal';
   }
   var el=document.getElementById('station-preview-content');
   if(!el)return;
   window._previewStation=st;
   el.innerHTML=
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
-      +'<div style="display:flex;align-items:center;gap:8px;">'
-        +brandLogoImg(st.name,st.brand||st.network,34)
-        +'<div><div style="font-size:14px;font-weight:800;color:#1a1a2e;">'+st.name+'</div>'
-        +'<div style="font-size:11px;color:#888;">'+dist+(st.address?' · '+(st.address.split(',')[0]):'')+'</div></div>'
+    // Row 1: logo + name/addr + fav + score
+    '<div style="display:flex;align-items:center;gap:8px;">'
+      +brandLogoImg(st.name,st.brand||st.network,30)
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:13px;font-weight:800;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+st.name+'</div>'
+        +'<div style="font-size:10px;color:#888;">'+dist+(st.address?' · '+(st.address.split(',')[0]):'')+'</div>'
       +'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px;">'
-        +'<button onclick="previewToggleFav(this)" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0;">'+(isFav?'⭐':'☆')+'</button>'
-        +'<div style="background:'+sc+'22;color:'+sc+';font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;">'+st.score+'</div>'
-      +'</div>'
+      +'<button onclick="previewToggleFav(this)" style="background:none;border:none;font-size:18px;cursor:pointer;padding:0 2px;flex-shrink:0;">'+(isFav?'⭐':'☆')+'</button>'
+      +'<div style="background:'+sc+'22;color:'+sc+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;">'+st.score+'</div>'
     +'</div>'
-    +gradesHTML
-    +'<div style="display:flex;gap:6px;margin-bottom:10px;">'
-      +'<div style="flex:1;background:#f7f7f9;border-radius:10px;padding:7px;text-align:center;">'
-        +'<div style="font-size:15px;font-weight:800;color:#DC2626;">'+priceStr+'</div>'
-        +'<div style="font-size:9px;color:'+(isReported?'#15803d':'#888')+';">'+(isReported?'Reported':'est.')+'</div>'
+    // Row 2: price | wait | rating + button
+    +'<div style="display:flex;align-items:center;gap:6px;margin-top:8px;">'
+      +'<div style="flex:1;">'
+        +'<span style="font-size:17px;font-weight:800;color:#DC2626;">'+priceStr+'</span>'
+        +'<span style="font-size:9px;color:'+(isReported?'#15803d':'#888')+';margin-left:4px;">'+(isReported?'✓ Reported':'~ est.')+'</span>'
       +'</div>'
-      +'<div style="flex:1;background:#f7f7f9;border-radius:10px;padding:7px;text-align:center;">'
-        +'<div style="font-size:15px;font-weight:800;color:#1a1a2e;">'+wait+'m</div>'
-        +'<div style="font-size:9px;color:#888;">Wait</div>'
-      +'</div>'
-      +(st.rating?'<div style="flex:1;background:#f7f7f9;border-radius:10px;padding:7px;text-align:center;">'
-        +'<div style="font-size:15px;font-weight:800;color:#1a1a2e;">'+st.rating+'</div>'
-        +'<div style="font-size:9px;color:#888;">Rating</div>'
-      +'</div>':'')
-    +'</div>'
-    +'<button onclick="showDetailFromMap(window._previewStation.id)" style="width:100%;padding:12px;background:#DC2626;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">View full details</button>';
+      +(wait>0?'<div style="font-size:11px;color:#555;font-weight:600;">'+wait+'m wait</div>':'')
+      +(st.rating?'<div style="font-size:11px;color:#555;font-weight:600;">⭐'+st.rating+'</div>':'')
+      +'<button onclick="showDetailFromMap(window._previewStation.id)" style="padding:7px 14px;background:#DC2626;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">Details →</button>'
+    +'</div>';
   var sheet=document.getElementById('station-preview');
   if(sheet)sheet.classList.add('visible');
   if(gMap)gMap.panTo({lat:st.latitude,lng:st.longitude});
