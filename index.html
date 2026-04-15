@@ -1569,18 +1569,20 @@ function onSignedIn(){
   startPriceAutoRefresh();
   // Refresh oil price every 2 hours
   setInterval(function(){fetchOilPriceAdjustment();},2*60*60*1000);
-  // Render favorites from localStorage immediately (works offline/PWA)
+  // Render from localStorage immediately — data already loaded in session restore
   renderFavorites();
-  // Sync to cloud if signed in
-  if(currentUser){
+  updateLocationDisplay();
+  renderTripPlanner();
+  // Only sync to cloud if this is a fresh sign-in (not session restore)
+  // Session restore already loaded cloud data above
+  if(currentUser&&!window._sessionRestored){
     syncLocalToCloud();
-    // Load cloud favorites — merges cloud+local, then re-renders
     loadCloudFavorites().then(function(favs){
       if(favs&&favs.length>0){
         localStorage.setItem('fm_favorites',JSON.stringify(favs));
+        renderFavorites();
       }
-      renderFavorites();
-    }).catch(function(){renderFavorites();});
+    }).catch(function(){});
   }
 }
 
@@ -4551,18 +4553,36 @@ function showTab(name){
     if(!s||!s.refresh_token)return;
     refreshSession(s.refresh_token).then(function(ok){
       if(!ok){localStorage.removeItem('fm_session');return;}
-      // Session restored — load cloud data then enter app
-      loadCloudProfile().then(function(p){
-        if(p&&p.name&&p.name!=='Driver'){
-          saveLocalProfile({name:p.name,emoji:p.emoji||'😊',email:currentUser?currentUser.email:''});
+      // Load ALL cloud data before entering app so everything is ready on first render
+      Promise.all([
+        loadCloudProfile().catch(function(){return null;}),
+        loadCloudVehicles().catch(function(){return null;}),
+        loadCloudFavorites().catch(function(){return null;})
+      ]).then(function(results){
+        var profile=results[0], vehicles=results[1], favs=results[2];
+        // Apply profile
+        if(profile&&profile.name&&profile.name!=='Driver'){
+          saveLocalProfile({name:profile.name,emoji:profile.emoji||'😊',email:currentUser?currentUser.email:''});
         }
-        return loadCloudVehicles();
-      }).then(function(vehicles){
-        if(vehicles&&vehicles.length>0)saveLocalVehicles(vehicles);
+        // Apply vehicles
+        if(vehicles&&vehicles.length>0){
+          saveLocalVehicles(vehicles);
+        }
+        // Apply favorites
+        if(favs&&favs.length>0){
+          localStorage.setItem('fm_favorites',JSON.stringify(favs));
+        }
+        // Mark as session restore so onSignedIn skips cloud re-fetch
+        window._sessionRestored=true;
         onSignedIn();
-        // Re-render map header now that profile is loaded
+        window._sessionRestored=false;
         updateLocationDisplay();
-      }).catch(function(){onSignedIn();});
+        renderProfile();
+      }).catch(function(){
+        // If cloud fails, enter app with whatever is in localStorage
+        onSignedIn();
+        updateLocationDisplay();
+      });
     }).catch(function(){localStorage.removeItem('fm_session');});
   }catch(e){localStorage.removeItem('fm_session');}
 })();
