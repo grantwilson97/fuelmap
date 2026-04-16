@@ -2660,13 +2660,13 @@ function renderFilters(){
     var c=document.createElement('div');
     c.className='chip '+(p[2]||'')+(currentFilter===p[0]?' on':'');
     c.textContent=p[1];
-    c.onclick=function(){currentFilter=p[0];autoFitMap=true;renderAll();};
+    c.onclick=function(){currentFilter=p[0];autoFitMap=true;closeStationPreview();renderAll();};
     el.appendChild(c);
   });
   var ribbon=document.getElementById('pge-ribbon');
   if(ribbon)ribbon.style.display=(currentFilter==='ev'||currentFilter==='all')?'block':'none';
 }
-function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp sp-'+p[0]+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];autoFitMap=true;renderAll();};el.appendChild(c);});}
+function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp sp-'+p[0]+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];autoFitMap=true;closeStationPreview();renderAll();};el.appendChild(c);});}
 function renderCards(){
   var el=document.getElementById('cards');el.innerHTML='';var filtered=getFiltered();
   document.getElementById('sheet-title').textContent=filtered.length+' stations nearby';
@@ -2733,7 +2733,7 @@ function renderCards(){
       +gradesRowHTML
       +(st.type!=='gas'?'<div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div>':'')
       +'<div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
-    card.onclick=function(){showDetail(st);};el.appendChild(card);
+    card.onclick=function(){closeStationPreview();showDetail(st);};el.appendChild(card);
   });
 }
 function renderAll(){
