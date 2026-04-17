@@ -573,6 +573,9 @@ if(storedVer&&storedVer!==VER){
       <div class="tvc-range" id="trip-vehicle-level"></div>
     </div>
   </div>
+  <div id="trip-map-wrap" style="height:200px;background:#e8ecf4;flex-shrink:0;display:none;position:relative;">
+    <div id="trip-google-map" style="width:100%;height:100%;"></div>
+  </div>
   <div class="scroll"><div class="trip-body" id="trip-body"></div></div>
 </div>
 
@@ -2950,29 +2953,36 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     samplePoints.push({lat:pt.lat,lng:pt.lng,milesIn:Math.round(fraction*totalMiles)});
   }
 
-  // Also add user's current location as a sample point for nearby options
-  samplePoints.push({lat:userLat,lng:userLng,milesIn:0});
-
+  // DO NOT add user's current location — only fetch along actual route
   var isEVVehicle=av&&av.fuelType==='electric';
   var apiUrl=isEVVehicle?VERCEL_API:GAS_API;
   var allCandidates=[];
 
+  // Max detour: 1.5 miles for short trips, 3 miles for long trips
+  var maxDetour=totalMiles<30?1.5:3.0;
+
   var fetches=samplePoints.map(function(pt){
-    return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=8')
+    return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=5')
       .then(function(r){return r.json();})
       .then(function(data){
         var stations=data.stations||[];
         stations.forEach(function(s){
           var sid=isEVVehicle?'ocm_'+s.id:'gpl_'+s.id;
+          if(!s.latitude||!s.longitude)return;
+          // Calculate detour: distance from nearest route sample point
+          var minDetour=samplePoints.reduce(function(min,rpt){
+            return Math.min(min,distMiles(rpt.lat,rpt.lng,s.latitude,s.longitude));
+          },999);
+          // Strict corridor filter — must be within maxDetour of some point on route
+          if(minDetour>maxDetour)return;
           if(!allCandidates.find(function(c){return c.id===sid;})){
-            var detourFromRoute=Math.round(distMiles(pt.lat,pt.lng,s.latitude||pt.lat,s.longitude||pt.lng)*10)/10;
             allCandidates.push(Object.assign({},s,{
               id:sid,
               type:isEVVehicle?'ev':'gas',
               basePrice:isEVVehicle?(s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG):EIA_GAS_AVG,
               busy:40,isLive:true,
-              distanceMiles:distMiles(userLat,userLng,s.latitude||pt.lat,s.longitude||pt.lng),
-              detourFromRoute:detourFromRoute,
+              distanceMiles:distMiles(userLat,userLng,s.latitude,s.longitude),
+              detourFromRoute:Math.round(minDetour*10)/10,
               milesFromStart:pt.milesIn
             }));
           }
@@ -3127,6 +3137,98 @@ function renderStopCard(stop,label,badge,badgeColor,badgeBg){
     +'</div>';
 }
 
+// ── Trip route map ───────────────────────────────────────────────────────────
+var tripMap=null,tripMapRoute=null,tripMapMarkers=[];
+
+function renderTripMap(result){
+  var wrap=document.getElementById('trip-map-wrap');
+  var mapDiv=document.getElementById('trip-google-map');
+  if(!wrap||!mapDiv||typeof google==='undefined')return;
+  wrap.style.display='block';
+
+  // Init map if needed
+  if(!tripMap){
+    tripMap=new google.maps.Map(mapDiv,{
+      zoom:10,
+      disableDefaultUI:true,
+      zoomControl:true,
+      zoomControlOptions:{position:google.maps.ControlPosition.RIGHT_CENTER},
+      styles:[
+        {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
+        {featureType:'transit',elementType:'labels',stylers:[{visibility:'off'}]}
+      ]
+    });
+  }
+
+  // Clear old route/markers
+  if(tripMapRoute)tripMapRoute.setMap(null);
+  tripMapMarkers.forEach(function(m){m.setMap(null);});
+  tripMapMarkers=[];
+
+  // Draw route using Directions API on the map
+  var directionsService=new google.maps.DirectionsService();
+  var directionsRenderer=new google.maps.DirectionsRenderer({
+    map:tripMap,
+    suppressMarkers:true,
+    polylineOptions:{strokeColor:'#2563eb',strokeWeight:4,strokeOpacity:0.85}
+  });
+  tripMapRoute=directionsRenderer;
+
+  // Build waypoints from best stop
+  var waypoints=[];
+  if(result.bestStop&&result.bestStop.latitude){
+    waypoints.push({location:new google.maps.LatLng(result.bestStop.latitude,result.bestStop.longitude),stopover:true});
+  }
+
+  directionsService.route({
+    origin:new google.maps.LatLng(userLat,userLng),
+    destination:new google.maps.LatLng(result.destLat,result.destLng),
+    waypoints:waypoints,
+    travelMode:google.maps.TravelMode.DRIVING
+  },function(res,status){
+    if(status==='OK'){
+      directionsRenderer.setDirections(res);
+    } else {
+      // Fallback: just center map on midpoint
+      tripMap.setCenter({lat:(userLat+result.destLat)/2,lng:(userLng+result.destLng)/2});
+      tripMap.setZoom(9);
+    }
+  });
+
+  // Start marker
+  tripMapMarkers.push(new google.maps.Marker({
+    position:{lat:userLat,lng:userLng},map:tripMap,
+    label:{text:'A',color:'#fff',fontWeight:'bold',fontSize:'11px'},
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#2563eb',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
+  }));
+
+  // Fuel stop markers for all recommended stops
+  var stops=[result.bestStop,result.cheapestStop,result.nearestStop].filter(function(s){return s&&s.latitude&&s.longitude;});
+  var seen={};
+  stops.forEach(function(s,i){
+    if(seen[s.id])return;seen[s.id]=true;
+    var fc=i===0?'#15803d':i===1?'#DC2626':'#7c3aed';
+    tripMapMarkers.push(new google.maps.Marker({
+      position:{lat:s.latitude,lng:s.longitude},map:tripMap,
+      label:{text:'⛽',fontSize:'12px'},
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:fc,fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+      title:s.name
+    }));
+  });
+
+  // Destination marker
+  tripMapMarkers.push(new google.maps.Marker({
+    position:{lat:result.destLat,lng:result.destLng},map:tripMap,
+    label:{text:'B',color:'#fff',fontWeight:'bold',fontSize:'11px'},
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#DC2626',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
+  }));
+}
+
+function hideTripMap(){
+  var wrap=document.getElementById('trip-map-wrap');
+  if(wrap)wrap.style.display='none';
+}
+
 function renderTripResult(){
   var r=tripResult;
   if(!r)return;
@@ -3233,6 +3335,8 @@ function renderTripResult(){
 
   html+='<button class="new-trip-btn" onclick="newTrip()">← Plan another trip</button><div style="height:20px;"></div>';
   document.getElementById('trip-body').innerHTML=html;
+  // Render route map
+  setTimeout(function(){renderTripMap(tripResult);},100);
 }
 
 function openAppleMaps(){if(!tripResult||!tripResult.bestStop)return;window.location.href='maps:?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.bestStop.address)+'+to:'+encodeURIComponent(tripResult.destInput);}
@@ -3281,7 +3385,7 @@ function updateFavButtonForStation(station){
   if(btn&&station)btn.textContent=isFavorite(station.id)?'⭐':'☆';
 }
 
-function newTrip(){tripResult=null;renderTripPlanner();}
+function newTrip(){tripResult=null;hideTripMap();renderTripPlanner();}
 function showTripError(msg){document.getElementById('trip-body').innerHTML='<div class="trip-form-card" style="border-color:#fecaca;background:#fef2f2;"><div class="trip-form-title" style="color:#dc2626;">Could not plan trip</div><div class="body-txt" style="color:#dc2626;">'+msg+'</div><button class="plan-btn" style="background:#dc2626;margin-top:10px;" onclick="newTrip()">Try again</button></div>';}
 
 // ── Report modal ──────────────────────────────────────────────────────────────
