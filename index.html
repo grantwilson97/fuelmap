@@ -2902,19 +2902,12 @@ function planTrip(){
   fetch(dirUrl)
     .then(function(r){return r.json();})
     .then(function(data){
-      console.log('Directions response status:',data&&data.status,'routes:',(data&&data.routes&&data.routes.length)||0);
-      // If alternatives caused an error, retry without it
-      if(!data||data.status==='INVALID_REQUEST'||data.status==='REQUEST_DENIED'||data.status==='ZERO_RESULTS'){
-        console.log('Retrying without alternatives, error:',data&&data.status,data&&data.error_message);
-        return fetch(DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest))
-          .then(function(r2){return r2.json();});
-      }
-      return data;
-    })
-    .then(function(data){
+      console.log('DIR STATUS:',JSON.stringify(data&&data.status),'ROUTES:',(data&&data.routes&&data.routes.length)||0,'ERR:',data&&data.error_message);
       if(!data||data.status!=='OK'||!data.routes||!data.routes.length){
-        var reason=data&&data.status?(' ('+data.status+(data.error_message?' · '+data.error_message:'')+')') :'';
-        showTripError('Could not find a route to "'+dest+'"'+reason+'. Try adding ", CA" or use a full address.');return;
+        var reason=data&&data.status?' ('+data.status+')':'';
+        var msg=data&&data.error_message?' — '+data.error_message:'';
+        showTripError('Could not plan trip'+reason+msg+'. Please update your Vercel directions.mjs and redeploy.');
+        return;
       }
       if(data.routes.length===1){
         selectRoute(data.routes[0],dest);
@@ -2923,8 +2916,7 @@ function planTrip(){
       }
     })
     .catch(function(e){
-      console.warn('Directions error:',e);
-      showTripError('Connection error: '+e.message+'. Please check your internet and try again.');
+      showTripError('Network error: '+e.message);
     });
 }
 
