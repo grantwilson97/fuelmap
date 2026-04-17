@@ -300,9 +300,14 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .trip-hero{background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:20px 18px;}
 .trip-title{font-size:24px;font-weight:800;color:#fff;margin-bottom:4px;}
 .trip-sub{font-size:13px;color:rgba(255,255,255,0.75);}
-.trip-vehicle-chip{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:10px;padding:8px 12px;margin-top:12px;display:flex;align-items:center;justify-content:space-between;}
-.tvc-name{font-size:13px;font-weight:700;color:#fff;}
-.tvc-level{font-size:12px;}
+.trip-vehicle-chip{background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.25);border-radius:12px;padding:10px 12px;margin-top:12px;cursor:pointer;}
+.tvc-name{font-size:14px;font-weight:800;color:#fff;margin-bottom:6px;}
+.tvc-meta{font-size:10px;color:rgba(255,255,255,0.65);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;}
+.tvc-bar-wrap{display:flex;align-items:center;gap:8px;margin-top:4px;}
+.tvc-bar-bg{flex:1;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden;}
+.tvc-bar-fill{height:100%;border-radius:3px;transition:width 0.3s;}
+.tvc-pct{font-size:11px;font-weight:800;color:#fff;min-width:32px;text-align:right;}
+.tvc-range{font-size:11px;color:rgba(255,255,255,0.8);font-weight:600;}
 .trip-body{padding:14px;}
 .trip-form-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
 .trip-form-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
@@ -556,11 +561,16 @@ if(storedVer&&storedVer!==VER){
     <div class="trip-title">Trip planner</div>
     <div class="trip-sub">Smart fuel stops along your route</div>
     <div class="trip-vehicle-chip" onclick="openVehiclePicker()" id="trip-vehicle-chip" style="cursor:pointer;">
-      <div><div style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;text-transform:uppercase;margin-bottom:2px;">Active vehicle — tap to switch</div><div class="tvc-name" id="trip-vehicle-name">No vehicle set</div></div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="tvc-level" id="trip-vehicle-level"></div>
-        <span id="trip-vehicle-arrow" style="color:rgba(255,255,255,0.7);font-size:11px;display:none;">▼</span>
+      <div class="tvc-meta">Active vehicle — tap to switch</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="tvc-name" id="trip-vehicle-name">No vehicle set</div>
+        <span id="trip-vehicle-arrow" style="color:rgba(255,255,255,0.6);font-size:11px;display:none;">▼</span>
       </div>
+      <div class="tvc-bar-wrap" id="tvc-bar-wrap" style="display:none;">
+        <div class="tvc-bar-bg"><div class="tvc-bar-fill" id="tvc-bar-fill"></div></div>
+        <span class="tvc-pct" id="tvc-pct"></span>
+      </div>
+      <div class="tvc-range" id="trip-vehicle-level"></div>
     </div>
   </div>
   <div class="scroll"><div class="trip-body" id="trip-body"></div></div>
@@ -2849,15 +2859,16 @@ function renderTripPlanner(){
     document.getElementById('trip-vehicle-name').textContent=av.emoji+' '+av.year+' '+av.make+' '+av.model;
     var ft=FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||FUEL_TYPES[0];
     var rem=av.fuelType==='electric'?Math.round(lvl/100*(av.tankSize||300))+' mi range':Math.round(lvl/100*(av.tankSize||15)*(ft.mpg||30))+' mi range · '+lvl+'% full';
-    document.getElementById('trip-vehicle-level').textContent=rem;
-    document.getElementById('trip-vehicle-level').style.color='#fff';
-    document.getElementById('trip-vehicle-level').style.background='rgba(0,0,0,0.25)';
-    document.getElementById('trip-vehicle-level').style.padding='2px 7px';
-    document.getElementById('trip-vehicle-level').style.borderRadius='20px';
-    document.getElementById('trip-vehicle-level').style.fontSize='11px';
-    document.getElementById('trip-vehicle-level').style.fontWeight='700';
-    // Colored left border to convey fuel status
-    document.getElementById('trip-vehicle-level').style.borderLeft='3px solid '+fc;
+    // Range text
+    var rangeOnly=av.fuelType==='electric'?Math.round(lvl/100*(av.tankSize||300))+' mi range':Math.round(lvl/100*(av.tankSize||15)*(ft.mpg||30))+' mi range';
+    document.getElementById('trip-vehicle-level').textContent=rangeOnly;
+    // Fuel bar
+    var barWrap=document.getElementById('tvc-bar-wrap');
+    var barFill=document.getElementById('tvc-bar-fill');
+    var pctEl=document.getElementById('tvc-pct');
+    if(barWrap)barWrap.style.display='flex';
+    if(barFill){barFill.style.width=lvl+'%';barFill.style.background=fc;}
+    if(pctEl){pctEl.textContent=lvl+'%';pctEl.style.color=fc;}
   } else {
     document.getElementById('trip-vehicle-name').textContent='No vehicle — add one in Profile';
     document.getElementById('trip-vehicle-level').textContent='';
