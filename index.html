@@ -2898,26 +2898,44 @@ function planTrip(){
   if(!dest){alert('Please enter a destination.');return;}
   if(!userLat||!userLng){alert('Location not found. Please enable location and try again.');return;}
   document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Getting route from Google Maps…</div></div>';
-  var dirUrl=DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest)+'&alternatives=true';
-  fetch(dirUrl)
-    .then(function(r){return r.json();})
-    .then(function(data){
-      console.log('DIR STATUS:',JSON.stringify(data&&data.status),'ROUTES:',(data&&data.routes&&data.routes.length)||0,'ERR:',data&&data.error_message);
-      if(!data||data.status!=='OK'||!data.routes||!data.routes.length){
-        var reason=data&&data.status?' ('+data.status+')':'';
-        var msg=data&&data.error_message?' — '+data.error_message:'';
-        showTripError('Could not plan trip'+reason+msg+'. Please update your Vercel directions.mjs and redeploy.');
-        return;
-      }
-      if(data.routes.length===1){
-        selectRoute(data.routes[0],dest);
-      } else {
-        showRouteSelector(data.routes,dest);
-      }
-    })
-    .catch(function(e){
-      showTripError('Network error: '+e.message);
+  // Use Google Maps DirectionsService directly — no Vercel proxy needed
+  if(typeof google==='undefined'||!google.maps){
+    showTripError('Google Maps not loaded. Please check your connection and try again.');return;
+  }
+  var directionsService=new google.maps.DirectionsService();
+  directionsService.route({
+    origin:new google.maps.LatLng(userLat,userLng),
+    destination:dest,
+    travelMode:google.maps.TravelMode.DRIVING,
+    provideRouteAlternatives:true
+  },function(data,status){
+    if(status!=='OK'||!data||!data.routes||!data.routes.length){
+      showTripError('Could not find a route to "'+dest+'" ('+status+'). Try a more specific address like "Sonoma, CA 95476".');
+      return;
+    }
+    // Convert DirectionsResult to our expected format
+    var routes=data.routes.map(function(r){
+      var leg=r.legs[0];
+      return{
+        summary:r.summary,
+        legs:[{
+          distance:{value:leg.distance.value},
+          duration:{value:leg.duration.value},
+          end_address:leg.end_address,
+          end_location:{lat:leg.end_location.lat(),lng:leg.end_location.lng()},
+          steps:leg.steps
+        }],
+        overview_polyline:{points:r.overview_path.map(function(p){return{lat:p.lat(),lng:p.lng()};})},
+        _directionsResult:data,
+        _routeIndex:data.routes.indexOf(r)
+      };
     });
+    if(routes.length===1){
+      selectRoute(routes[0],dest);
+    } else {
+      showRouteSelector(routes,dest);
+    }
+  });
 }
 
 // ── Route selector ───────────────────────────────────────────────────────────
@@ -3054,8 +3072,14 @@ function selectRoute(route,dest){
   var leg=route.legs[0];
   var polylinePoints=null;
   try{
-    if(route.overview_polyline&&route.overview_polyline.points){
-      polylinePoints=decodePolyline(route.overview_polyline.points);
+    var pts=route.overview_polyline&&route.overview_polyline.points;
+    if(pts){
+      // Could be already-decoded array or encoded string
+      if(Array.isArray(pts)){
+        polylinePoints=pts;
+      } else {
+        polylinePoints=decodePolyline(pts);
+      }
     }
   }catch(e){}
   processTripRoute(
@@ -3332,20 +3356,27 @@ function renderTripMap(result){
     waypoints.push({location:new google.maps.LatLng(result.bestStop.latitude,result.bestStop.longitude),stopover:true});
   }
 
-  directionsService.route({
-    origin:new google.maps.LatLng(userLat,userLng),
-    destination:new google.maps.LatLng(result.destLat,result.destLng),
-    waypoints:waypoints,
-    travelMode:google.maps.TravelMode.DRIVING
-  },function(res,status){
-    if(status==='OK'){
-      directionsRenderer.setDirections(res);
-    } else {
-      // Fallback: just center map on midpoint
-      tripMap.setCenter({lat:(userLat+result.destLat)/2,lng:(userLng+result.destLng)/2});
-      tripMap.setZoom(9);
-    }
-  });
+  // If we have the original DirectionsResult, use it directly
+  if(result._directionsResult&&result._routeIndex!==undefined){
+    var dr=result._directionsResult;
+    dr.request={routeIndex:result._routeIndex};
+    directionsRenderer.setDirections(dr);
+    directionsRenderer.setRouteIndex(result._routeIndex||0);
+  } else {
+    directionsService.route({
+      origin:new google.maps.LatLng(userLat,userLng),
+      destination:new google.maps.LatLng(result.destLat,result.destLng),
+      waypoints:waypoints,
+      travelMode:google.maps.TravelMode.DRIVING
+    },function(res,status){
+      if(status==='OK'){
+        directionsRenderer.setDirections(res);
+      } else {
+        tripMap.setCenter({lat:(userLat+result.destLat)/2,lng:(userLng+result.destLng)/2});
+        tripMap.setZoom(9);
+      }
+    });
+  }
 
   // Start marker
   tripMapMarkers.push(new google.maps.Marker({
