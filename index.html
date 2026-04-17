@@ -2898,20 +2898,30 @@ function planTrip(){
   if(!dest){alert('Please enter a destination.');return;}
   if(!userLat||!userLng){alert('Location not found. Please enable location and try again.');return;}
   document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Getting route from Google Maps…</div></div>';
-  fetch(DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest)+'&alternatives=true')
+  var dirUrl=DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest)+'&alternatives=true';
+  fetch(dirUrl)
     .then(function(r){return r.json();})
     .then(function(data){
-      if(data.status!=='OK'||!data.routes||!data.routes.length){showTripError('Could not find a route. Please try a different address.');return;}
+      // If alternatives caused an error, retry without it
+      if(!data||data.status==='INVALID_REQUEST'||data.status==='REQUEST_DENIED'){
+        return fetch(DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest))
+          .then(function(r2){return r2.json();});
+      }
+      return data;
+    })
+    .then(function(data){
+      if(!data||data.status!=='OK'||!data.routes||!data.routes.length){
+        showTripError('Could not find a route. Please check the destination and try again.');return;
+      }
       if(data.routes.length===1){
-        // Only one route — go straight to planning
         selectRoute(data.routes[0],dest);
       } else {
-        // Multiple routes — show selector
         showRouteSelector(data.routes,dest);
       }
     })
-    .catch(function(){
-      processTripRoute(20,25,dest,dest,userLat+0.15,userLng+0.15);
+    .catch(function(e){
+      console.warn('Directions error:',e);
+      showTripError('Connection error. Please check your internet and try again.');
     });
 }
 
