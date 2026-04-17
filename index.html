@@ -2898,24 +2898,171 @@ function planTrip(){
   if(!dest){alert('Please enter a destination.');return;}
   if(!userLat||!userLng){alert('Location not found. Please enable location and try again.');return;}
   document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Getting route from Google Maps…</div></div>';
-  fetch(DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest))
+  fetch(DIRECTIONS_API+'?origin='+encodeURIComponent(userLat+','+userLng)+'&destination='+encodeURIComponent(dest)+'&alternatives=true')
     .then(function(r){return r.json();})
     .then(function(data){
       if(data.status!=='OK'||!data.routes||!data.routes.length){showTripError('Could not find a route. Please try a different address.');return;}
-      var route=data.routes[0].legs[0];
-      // Decode full polyline for accurate corridor sampling
-      var polylinePoints=null;
-      try{
-        var overviewPolyline=data.routes[0].overview_polyline;
-        if(overviewPolyline&&overviewPolyline.points){
-          polylinePoints=decodePolyline(overviewPolyline.points);
-        }
-      }catch(e){polylinePoints=null;}
-      processTripRoute(route.distance.value/1609.34,Math.round(route.duration.value/60),dest,route.end_address,route.end_location.lat,route.end_location.lng,route.steps||[],polylinePoints);
+      if(data.routes.length===1){
+        // Only one route — go straight to planning
+        selectRoute(data.routes[0],dest);
+      } else {
+        // Multiple routes — show selector
+        showRouteSelector(data.routes,dest);
+      }
     })
     .catch(function(){
       processTripRoute(20,25,dest,dest,userLat+0.15,userLng+0.15);
     });
+}
+
+// ── Route selector ───────────────────────────────────────────────────────────
+var routeSelectorMap=null,routeSelectorRenderers=[];
+var ROUTE_COLORS=['#2563eb','#DC2626','#16a34a'];
+var pendingRoutes=null,pendingDest=null;
+
+function showRouteSelector(routes,dest){
+  pendingRoutes=routes;pendingDest=dest;
+  var wrap=document.getElementById('trip-map-wrap');
+  if(wrap)wrap.style.display='block';
+
+  // Build route card HTML
+  var html='<div style="padding:12px 0 4px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Choose a route</div>';
+  routes.forEach(function(route,i){
+    var leg=route.legs[0];
+    var miles=Math.round(leg.distance.value/1609.34);
+    var mins=Math.round(leg.duration.value/60);
+    var hrs=Math.floor(mins/60);var rem=mins%60;
+    var timeStr=hrs>0?hrs+'h '+rem+'m':mins+'m';
+    var via=route.summary||('Route '+(i+1));
+    var color=ROUTE_COLORS[i]||'#374151';
+    var isFirst=i===0;
+    html+='<div onclick="selectRouteByIndex('+i+')" style="'
+      +'display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;'
+      +'background:'+(isFirst?'#eff6ff':'#f7f7f9')+';border:2px solid '+(isFirst?color:'#e0e0e0')+';'
+      +'" id="route-card-'+i+'">'
+      +'<div style="width:14px;height:14px;border-radius:50%;background:'+color+';flex-shrink:0;"></div>'
+      +'<div style="flex:1;">'
+        +'<div style="font-size:13px;font-weight:700;color:#1a1a2e;">'+via+'</div>'
+        +'<div style="font-size:11px;color:#888;margin-top:2px;">'+miles+' mi · '+timeStr+'</div>'
+      +'</div>'
+      +(isFirst?'<div style="font-size:10px;font-weight:700;background:#2563eb;color:#fff;padding:3px 8px;border-radius:20px;">Fastest</div>':'')
+    +'</div>';
+  });
+  html+='</div>';
+  document.getElementById('trip-body').innerHTML=html;
+
+  // Show route previews on map
+  setTimeout(function(){renderRouteSelectorMap(routes,dest);},100);
+}
+
+function renderRouteSelectorMap(routes,dest){
+  var mapDiv=document.getElementById('trip-google-map');
+  if(!mapDiv||typeof google==='undefined')return;
+
+  if(!routeSelectorMap){
+    routeSelectorMap=new google.maps.Map(mapDiv,{
+      zoom:10,disableDefaultUI:true,
+      zoomControl:true,
+      zoomControlOptions:{position:google.maps.ControlPosition.RIGHT_CENTER},
+      styles:[
+        {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
+        {featureType:'transit',elementType:'labels',stylers:[{visibility:'off'}]}
+      ]
+    });
+  }
+  // Clear old renderers
+  routeSelectorRenderers.forEach(function(r){r.setMap(null);});
+  routeSelectorRenderers=[];
+
+  var directionsService=new google.maps.DirectionsService();
+  var bounds=new google.maps.LatLngBounds();
+  bounds.extend({lat:userLat,lng:userLng});
+  var destLat=routes[0].legs[0].end_location.lat;
+  var destLng=routes[0].legs[0].end_location.lng;
+  bounds.extend({lat:destLat,lng:destLng});
+
+  routes.forEach(function(route,i){
+    var color=ROUTE_COLORS[i]||'#374151';
+    var renderer=new google.maps.DirectionsRenderer({
+      map:routeSelectorMap,
+      suppressMarkers:i>0,
+      routeIndex:i,
+      polylineOptions:{
+        strokeColor:color,
+        strokeWeight:i===0?5:3,
+        strokeOpacity:i===0?0.9:0.45
+      }
+    });
+    routeSelectorRenderers.push(renderer);
+    directionsService.route({
+      origin:{lat:userLat,lng:userLng},
+      destination:{lat:destLat,lng:destLng},
+      provideRouteAlternatives:false,
+      travelMode:google.maps.TravelMode.DRIVING
+    },function(res,status){
+      if(status==='OK'&&res.routes[0]){
+        // Manually set the route using the polyline we already have
+        var decoded=decodePolyline(route.overview_polyline.points);
+        var path=decoded.map(function(p){return{lat:p.lat,lng:p.lng};});
+        var poly=new google.maps.Polyline({
+          path:path,map:routeSelectorMap,
+          strokeColor:color,strokeWeight:i===0?5:3,strokeOpacity:i===0?0.9:0.45,
+          clickable:true,zIndex:i===0?10:5
+        });
+        poly.addListener('click',function(){selectRouteByIndex(i);});
+        routeSelectorRenderers.push(poly);
+        // Fit bounds using all routes
+        decoded.forEach(function(p){bounds.extend({lat:p.lat,lng:p.lng});});
+        routeSelectorMap.fitBounds(bounds,{top:20,right:20,bottom:20,left:20});
+      }
+    });
+  });
+
+  // Start + end markers
+  new google.maps.Marker({
+    position:{lat:userLat,lng:userLng},map:routeSelectorMap,
+    label:{text:'A',color:'#fff',fontWeight:'bold',fontSize:'11px'},
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#2563eb',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
+  });
+  new google.maps.Marker({
+    position:{lat:destLat,lng:destLng},map:routeSelectorMap,
+    label:{text:'B',color:'#fff',fontWeight:'bold',fontSize:'11px'},
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#DC2626',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
+  });
+  routeSelectorMap.fitBounds(bounds,{top:20,right:20,bottom:20,left:20});
+}
+
+function selectRouteByIndex(i){
+  if(!pendingRoutes||!pendingDest)return;
+  // Highlight selected card
+  pendingRoutes.forEach(function(_,j){
+    var card=document.getElementById('route-card-'+j);
+    if(!card)return;
+    var color=ROUTE_COLORS[j]||'#374151';
+    card.style.border='2px solid '+(j===i?color:'#e0e0e0');
+    card.style.background=j===i?'#eff6ff':'#f7f7f9';
+  });
+  setTimeout(function(){selectRoute(pendingRoutes[i],pendingDest);},300);
+}
+
+function selectRoute(route,dest){
+  var leg=route.legs[0];
+  var polylinePoints=null;
+  try{
+    if(route.overview_polyline&&route.overview_polyline.points){
+      polylinePoints=decodePolyline(route.overview_polyline.points);
+    }
+  }catch(e){}
+  processTripRoute(
+    leg.distance.value/1609.34,
+    Math.round(leg.duration.value/60),
+    dest,
+    leg.end_address,
+    leg.end_location.lat,
+    leg.end_location.lng,
+    leg.steps||[],
+    polylinePoints
+  );
 }
 
 function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,destLng,routeSteps,polylinePoints){
