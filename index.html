@@ -2511,26 +2511,79 @@ function useFallbackLocation(){userLat=37.8044;userLng=-122.2712;document.getEle
 function fetchOCM(lat,lng){
   setLoading('Finding nearby stations…');
   var av=getActiveVehicle();
-  // Set filter based on active vehicle before fetching
   if(av&&av.fuelType==='electric')currentFilter='ev';
   else currentFilter='gas';
-  // Fetch EV chargers and gas stations in parallel
+
   var searchRadius=getSearchRadius();
+  // Use a smaller radius per fetch point so results are dense and accurate
+  var fetchRadius=Math.min(searchRadius,3);
+
+  // Generate grid of fetch points to cover the full search area
+  // This overcomes the 20-result limit per API call
+  var fetchPoints=[{lat:lat,lng:lng}];
+  // Add offset points ~1.5mi in each direction for better coverage
+  var offsets=[
+    {dlat:0.022,dlng:0},     // N ~1.5mi
+    {dlat:-0.022,dlng:0},    // S
+    {dlat:0,dlng:0.030},     // E
+    {dlat:0,dlng:-0.030},    // W
+    {dlat:0.015,dlng:0.021}, // NE
+    {dlat:0.015,dlng:-0.021},// NW
+    {dlat:-0.015,dlng:0.021},// SE
+    {dlat:-0.015,dlng:-0.021}// SW
+  ];
+  // Only add offset points if search radius > 2 miles
+  if(searchRadius>2){
+    offsets.forEach(function(o){
+      fetchPoints.push({lat:lat+o.dlat,lng:lng+o.dlng});
+    });
+  }
+
+  var seenGasIds={};
+  var allLiveGas=[];
+
+  var gasPromises=fetchPoints.map(function(pt){
+    return fetch(GAS_API+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius='+fetchRadius)
+      .then(function(r){return r.json();})
+      .then(function(data){
+        (data.stations||[]).forEach(function(s){
+          var id='gpl_'+s.id;
+          if(seenGasIds[id])return;
+          seenGasIds[id]=true;
+          var pl=s.priceLevel!==null&&s.priceLevel!==undefined?s.priceLevel:null;
+          var estPrice=estimateStationPrice('regular',pl,s.brand);
+          allLiveGas.push({
+            id:id,name:s.name,address:s.address,type:'gas',
+            basePrice:estPrice,priceLevel:pl,priceEstimated:true,
+            latitude:s.latitude,longitude:s.longitude,
+            distanceMiles:Math.round(distMiles(lat,lng,s.latitude,s.longitude)*10)/10,
+            busy:40,isLive:true,network:s.brand||'Gas',brand:s.brand,
+            rating:s.rating,open24h:false,isOpen:s.isOpen!==false
+          });
+        });
+      })
+      .catch(function(){});
+  });
+
+  // EV stations — single fetch is fine since there are fewer
   var evPromise=fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius='+searchRadius)
     .then(function(r){return r.json();})
     .then(function(data){
-      return(data.stations||[]).map(function(s){return{id:'ocm_'+s.id,name:s.name,address:s.address,type:'ev',basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:30,isLive:true,network:s.network,l2Connectors:s.l2Connectors||0,dcConnectors:s.dcConnectors||0,connectorTypes:s.connectorTypes||[],open24h:s.open24h||false,pricing:s.pricing||null,isOpen:s.isOpen};});
+      return(data.stations||[]).map(function(s){
+        return{id:'ocm_'+s.id,name:s.name,address:s.address,type:'ev',
+          basePrice:s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG,
+          latitude:s.latitude,longitude:s.longitude,
+          distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),
+          busy:30,isLive:true,network:s.network,l2Connectors:s.l2Connectors||0,
+          dcConnectors:s.dcConnectors||0,connectorTypes:s.connectorTypes||[],
+          open24h:s.open24h||false,pricing:s.pricing||null,isOpen:s.isOpen};
+      });
     })
     .catch(function(){return[];});
-  var gasPromise=fetch(GAS_API+'?latitude='+lat+'&longitude='+lng+'&radius='+searchRadius)
-    .then(function(r){return r.json();})
-    .then(function(data){
-      return(data.stations||[]).map(function(s){var pl=s.priceLevel!==null&&s.priceLevel!==undefined?s.priceLevel:null;var estPrice=estimateStationPrice('regular',pl,s.brand);return{id:'gpl_'+s.id,name:s.name,address:s.address,type:'gas',basePrice:estPrice,priceLevel:pl,priceEstimated:true,latitude:s.latitude,longitude:s.longitude,distanceMiles:s.distanceMiles||distMiles(lat,lng,s.latitude,s.longitude),busy:40,isLive:true,network:s.brand||'Gas',brand:s.brand,rating:s.rating,open24h:false,isOpen:s.isOpen!==false};});
-    })
-    .catch(function(){return[];});
-  Promise.all([evPromise,gasPromise]).then(function(results){
-    var liveEV=results[0];var liveGas=results[1];
-    buildStationList(lat,lng,liveEV,liveGas);
+
+  Promise.all(gasPromises.concat([evPromise])).then(function(results){
+    var liveEV=results[results.length-1];
+    buildStationList(lat,lng,liveEV,allLiveGas);
   });
 }
 
