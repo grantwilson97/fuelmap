@@ -2943,13 +2943,21 @@ var routeSelectorMap=null,routeSelectorRenderers=[];
 var ROUTE_COLORS=['#2563eb','#DC2626','#16a34a'];
 var pendingRoutes=null,pendingDest=null;
 
+var selectedRouteIndex=0;
+
 function showRouteSelector(routes,dest){
   pendingRoutes=routes;pendingDest=dest;
+  selectedRouteIndex=0;
   var wrap=document.getElementById('trip-map-wrap');
   if(wrap)wrap.style.display='block';
+  renderRouteCards();
+  setTimeout(function(){renderRouteSelectorMap(routes,dest);},100);
+}
 
-  // Build route card HTML
-  var html='<div style="padding:12px 0 4px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Choose a route</div>';
+function renderRouteCards(){
+  var routes=pendingRoutes;
+  var html='<div style="padding:12px 0 4px;">';
+  html+='<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Choose a route</div>';
   routes.forEach(function(route,i){
     var leg=route.legs[0];
     var miles=Math.round(leg.distance.value/1609.34);
@@ -2958,24 +2966,66 @@ function showRouteSelector(routes,dest){
     var timeStr=hrs>0?hrs+'h '+rem+'m':mins+'m';
     var via=route.summary||('Route '+(i+1));
     var color=ROUTE_COLORS[i]||'#374151';
-    var isFirst=i===0;
-    html+='<div onclick="selectRouteByIndex('+i+')" style="'
-      +'display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;'
-      +'background:'+(isFirst?'#eff6ff':'#f7f7f9')+';border:2px solid '+(isFirst?color:'#e0e0e0')+';'
+    var isSelected=i===selectedRouteIndex;
+    html+='<div onclick="highlightRoute('+i+')" style="'
+      +'display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;'
+      +'background:'+(isSelected?'#eff6ff':'#f7f7f9')+';'
+      +'border:2px solid '+(isSelected?color:'#e0e0e0')+';'
       +'" id="route-card-'+i+'">'
-      +'<div style="width:14px;height:14px;border-radius:50%;background:'+color+';flex-shrink:0;"></div>'
+      +'<div style="width:14px;height:14px;border-radius:50%;background:'+color+';flex-shrink:0;box-shadow:'+(isSelected?'0 0 0 3px '+color+'44':'none')+';"></div>'
       +'<div style="flex:1;">'
         +'<div style="font-size:13px;font-weight:700;color:#1a1a2e;">'+via+'</div>'
         +'<div style="font-size:11px;color:#888;margin-top:2px;">'+miles+' mi · '+timeStr+'</div>'
       +'</div>'
-      +(isFirst?'<div style="font-size:10px;font-weight:700;background:#2563eb;color:#fff;padding:3px 8px;border-radius:20px;">Fastest</div>':'')
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">'
+        +(i===0?'<div style="font-size:9px;font-weight:700;background:#2563eb;color:#fff;padding:2px 7px;border-radius:20px;">Fastest</div>':'')
+        +(isSelected?'<div style="font-size:9px;font-weight:700;background:'+color+';color:#fff;padding:2px 7px;border-radius:20px;">Selected</div>':'')
+      +'</div>'
     +'</div>';
   });
+  // Big GO button
+  var selRoute=routes[selectedRouteIndex];
+  var selLeg=selRoute&&selRoute.legs[0];
+  var selMiles=selLeg?Math.round(selLeg.distance.value/1609.34):0;
+  var selMins=selLeg?Math.round(selLeg.duration.value/60):0;
+  var selHrs=Math.floor(selMins/60);var selRem=selMins%60;
+  var selTime=selHrs>0?selHrs+'h '+selRem+'m':selMins+'m';
+  var selVia=selRoute&&selRoute.summary?selRoute.summary:'Route '+(selectedRouteIndex+1);
+  html+='<button onclick="confirmRoute()" style="'
+    +'width:100%;padding:14px;background:linear-gradient(135deg,#DC2626,#f59e0b);border:none;border-radius:14px;'
+    +'color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;'
+    +'box-shadow:0 3px 12px rgba(220,38,38,0.35);letter-spacing:0.2px;'
+    +'">'
+    +'⛽ Find fuel stops on '+selVia+' ('+selMiles+' mi · '+selTime+')'
+    +'</button>';
   html+='</div>';
   document.getElementById('trip-body').innerHTML=html;
+}
 
-  // Show route previews on map
-  setTimeout(function(){renderRouteSelectorMap(routes,dest);},100);
+function highlightRoute(i){
+  if(selectedRouteIndex===i)return;
+  selectedRouteIndex=i;
+  renderRouteCards();
+  // Bold the selected polyline on map, fade others
+  if(routeSelectorRenderers){
+    routeSelectorRenderers.forEach(function(r,j){
+      if(r.setOptions&&r.strokeColor!==undefined){
+        var isLine=typeof r.getPath==='function';
+        if(!isLine)return;
+        var color=ROUTE_COLORS[j]||'#374151';
+        r.setOptions({
+          strokeWeight:j===i?5:3,
+          strokeOpacity:j===i?0.92:0.35,
+          zIndex:j===i?20:5
+        });
+      }
+    });
+  }
+}
+
+function confirmRoute(){
+  if(!pendingRoutes||!pendingDest)return;
+  selectRoute(pendingRoutes[selectedRouteIndex],pendingDest);
 }
 
 function renderRouteSelectorMap(routes,dest){
@@ -3058,16 +3108,7 @@ function renderRouteSelectorMap(routes,dest){
 }
 
 function selectRouteByIndex(i){
-  if(!pendingRoutes||!pendingDest)return;
-  // Highlight selected card
-  pendingRoutes.forEach(function(_,j){
-    var card=document.getElementById('route-card-'+j);
-    if(!card)return;
-    var color=ROUTE_COLORS[j]||'#374151';
-    card.style.border='2px solid '+(j===i?color:'#e0e0e0');
-    card.style.background=j===i?'#eff6ff':'#f7f7f9';
-  });
-  setTimeout(function(){selectRoute(pendingRoutes[i],pendingDest);},300);
+  highlightRoute(i);
 }
 
 function selectRoute(route,dest){
@@ -3131,13 +3172,37 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     samplePoints.push({lat:pt.lat,lng:pt.lng,milesIn:Math.round(fraction*totalMiles)});
   }
 
-  // DO NOT add user's current location — only fetch along actual route
+  // Only fetch stations along actual route corridor
   var isEVVehicle=av&&av.fuelType==='electric';
   var apiUrl=isEVVehicle?VERCEL_API:GAS_API;
   var allCandidates=[];
 
-  // Max detour: 1.5 miles for short trips, 3 miles for long trips
-  var maxDetour=totalMiles<30?1.5:3.0;
+  // Use polyline for precise corridor if available
+  var routePath=polylinePoints||samplePoints;
+  // Max detour off route: tight corridor
+  var maxDetour=totalMiles<30?1.2:2.0;
+
+  // Helper: find minimum distance from a station to the actual route polyline
+  function distToRoute(sLat,sLng){
+    var min=999;
+    for(var pi=0;pi<routePath.length;pi++){
+      var rp=routePath[pi];
+      var d=distMiles(rp.lat,rp.lng,sLat,sLng);
+      if(d<min)min=d;
+      if(min<0.1)break; // close enough, stop early
+    }
+    return min;
+  }
+
+  // Helper: find how far along the route a station is (in miles from start)
+  function milesAlongRoute(sLat,sLng){
+    var bestIdx=0,bestDist=999;
+    for(var pi=0;pi<routePath.length;pi++){
+      var d=distMiles(routePath[pi].lat,routePath[pi].lng,sLat,sLng);
+      if(d<bestDist){bestDist=d;bestIdx=pi;}
+    }
+    return Math.round((bestIdx/routePath.length)*totalMiles);
+  }
 
   var fetches=samplePoints.map(function(pt){
     return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=5')
@@ -3147,23 +3212,28 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
         stations.forEach(function(s){
           var sid=isEVVehicle?'ocm_'+s.id:'gpl_'+s.id;
           if(!s.latitude||!s.longitude)return;
-          // Calculate detour: distance from nearest route sample point
-          var minDetour=samplePoints.reduce(function(min,rpt){
-            return Math.min(min,distMiles(rpt.lat,rpt.lng,s.latitude,s.longitude));
-          },999);
-          // Strict corridor filter — must be within maxDetour of some point on route
-          if(minDetour>maxDetour)return;
-          if(!allCandidates.find(function(c){return c.id===sid;})){
-            allCandidates.push(Object.assign({},s,{
-              id:sid,
-              type:isEVVehicle?'ev':'gas',
-              basePrice:isEVVehicle?(s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG):EIA_GAS_AVG,
-              busy:40,isLive:true,
-              distanceMiles:distMiles(userLat,userLng,s.latitude,s.longitude),
-              detourFromRoute:Math.round(minDetour*10)/10,
-              milesFromStart:pt.milesIn
-            }));
-          }
+          if(allCandidates.find(function(c){return c.id===sid;}))return;
+
+          var detour=distToRoute(s.latitude,s.longitude);
+          // Strict: must be within maxDetour of actual route polyline
+          if(detour>maxDetour)return;
+
+          // Must be AHEAD of start — station must be at least 0.5mi along route
+          var milesIn=milesAlongRoute(s.latitude,s.longitude);
+          if(milesIn<0.5)return;
+
+          // Must be BEFORE destination — not past the end
+          if(milesIn>totalMiles*0.95)return;
+
+          allCandidates.push(Object.assign({},s,{
+            id:sid,
+            type:isEVVehicle?'ev':'gas',
+            basePrice:isEVVehicle?(s.pricing&&s.pricing.indexOf('Free')>-1?0:EIA_EV_L2_AVG):EIA_GAS_AVG,
+            busy:40,isLive:true,
+            distanceMiles:distMiles(userLat,userLng,s.latitude,s.longitude),
+            detourFromRoute:Math.round(detour*10)/10,
+            milesFromStart:milesIn
+          }));
         });
       })
       .catch(function(){});
