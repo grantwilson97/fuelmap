@@ -2564,6 +2564,15 @@ function updateLocationDisplay(){
 
 function useFallbackLocation(){userLat=37.8044;userLng=-122.2712;document.getElementById('map-title').textContent='SF Bay Area';document.getElementById('location-txt').textContent='SF Bay Area';ensureMap();updateMapCenter(userLat,userLng);if(gMap)gMap.setZoom(10);fetchOCM(userLat,userLng);}
 
+// ── Station fetch cache — prevents re-fetching same area ──────────────────────
+var _fetchCache={};   // key: "lat,lng,r" → timestamp
+var _fetchCacheTTL=5*60*1000; // 5 min TTL
+
+function _cacheKey(lat,lng,r){
+  // Round to ~0.5mi grid so nearby points share cache
+  return (Math.round(lat*40)/40)+','+(Math.round(lng*30)/30)+','+r;
+}
+
 function fetchOCM(lat,lng){
   setLoading('Finding nearby stations…');
   var av=getActiveVehicle();
@@ -2571,34 +2580,53 @@ function fetchOCM(lat,lng){
   else currentFilter='gas';
 
   var searchRadius=getSearchRadius();
-  // Use a smaller radius per fetch point so results are dense and accurate
-  var fetchRadius=Math.min(searchRadius,3);
 
-  // Generate grid of fetch points to cover the full search area
-  // This overcomes the 20-result limit per API call
-  var fetchPoints=[{lat:lat,lng:lng}];
-  // Add offset points ~1.5mi in each direction for better coverage
-  var offsets=[
-    {dlat:0.022,dlng:0},     // N ~1.5mi
-    {dlat:-0.022,dlng:0},    // S
-    {dlat:0,dlng:0.030},     // E
-    {dlat:0,dlng:-0.030},    // W
-    {dlat:0.015,dlng:0.021}, // NE
-    {dlat:0.015,dlng:-0.021},// NW
-    {dlat:-0.015,dlng:0.021},// SE
-    {dlat:-0.015,dlng:-0.021}// SW
-  ];
-  // Only add offset points if search radius > 2 miles
-  if(searchRadius>2){
-    offsets.forEach(function(o){
-      fetchPoints.push({lat:lat+o.dlat,lng:lng+o.dlng});
-    });
+  // Grid density scales with search radius
+  // Each fetch point covers ~1.5mi radius → need grid spacing of ~2.5mi
+  // Grid spacing in degrees: 2.5mi ≈ 0.036 lat, 0.050 lng (at SF latitude)
+  var gridSpacingLat=0.036;
+  var gridSpacingLng=0.050;
+  var fetchRadius=1.5; // miles per cell — tight enough to get dense results
+
+  // Build grid covering the full search area
+  var fetchPoints=[];
+  var steps=Math.ceil(searchRadius/2.5);
+  for(var i=-steps;i<=steps;i++){
+    for(var j=-steps;j<=steps;j++){
+      var ptLat=lat+i*gridSpacingLat;
+      var ptLng=lng+j*gridSpacingLng;
+      // Only include points within the search radius
+      if(distMiles(lat,lng,ptLat,ptLng)<=searchRadius){
+        fetchPoints.push({lat:Math.round(ptLat*10000)/10000,lng:Math.round(ptLng*10000)/10000});
+      }
+    }
   }
+  if(fetchPoints.length===0)fetchPoints=[{lat:lat,lng:lng}];
 
   var seenGasIds={};
   var allLiveGas=[];
+  var now=Date.now();
 
+  // Fetch each grid point, skip if recently cached
   var gasPromises=fetchPoints.map(function(pt){
+    var ck=_cacheKey(pt.lat,pt.lng,fetchRadius);
+    // Mark as fetching even if we skip — avoids duplicate requests
+    var wasCached=_fetchCache[ck]&&(now-_fetchCache[ck])<_fetchCacheTTL;
+    _fetchCache[ck]=now;
+    if(wasCached){
+      // Already fetched recently — pull from allStations cache instead
+      allStations.forEach(function(s){
+        if(s.type==='gas'&&s.id&&s.id.startsWith('gpl_')){
+          if(distMiles(pt.lat,pt.lng,s.latitude||0,s.longitude||0)<=fetchRadius){
+            if(!seenGasIds[s.id]){
+              seenGasIds[s.id]=true;
+              allLiveGas.push(s);
+            }
+          }
+        }
+      });
+      return Promise.resolve();
+    }
     return fetch(GAS_API+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius='+fetchRadius)
       .then(function(r){return r.json();})
       .then(function(data){
@@ -2621,7 +2649,7 @@ function fetchOCM(lat,lng){
       .catch(function(){});
   });
 
-  // EV stations — single fetch is fine since there are fewer
+  // EV stations
   var evPromise=fetch(VERCEL_API+'?latitude='+lat+'&longitude='+lng+'&radius='+searchRadius)
     .then(function(r){return r.json();})
     .then(function(data){
@@ -2640,6 +2668,86 @@ function fetchOCM(lat,lng){
   Promise.all(gasPromises.concat([evPromise])).then(function(results){
     var liveEV=results[results.length-1];
     buildStationList(lat,lng,liveEV,allLiveGas);
+    // After initial load, fetch for map viewport if user has panned
+    if(gMap)setTimeout(fetchForMapViewport,1500);
+  });
+}
+
+// Fetch stations for the currently visible map bounds
+// Called when user pans/zooms — fills in stations not near the original location
+function fetchForMapViewport(){
+  if(!gMap)return;
+  var bounds=gMap.getBounds();
+  if(!bounds)return;
+  var ne=bounds.getNorthEast();var sw=bounds.getSouthWest();
+  var centerLat=(ne.lat()+sw.lat())/2;
+  var centerLng=(ne.lng()+sw.lng())/2;
+  // Radius to cover the viewport
+  var viewportRadius=distMiles(centerLat,centerLng,ne.lat(),ne.lng());
+  viewportRadius=Math.min(viewportRadius,15); // cap at 15mi
+  if(viewportRadius<1)return;
+
+  var gridSpacingLat=0.036,gridSpacingLng=0.050,fetchRadius=1.5;
+  var steps=Math.ceil(viewportRadius/2.5);
+  var seenGasIds={};
+  // Seed with existing stations
+  allStations.forEach(function(s){if(s.id&&s.id.startsWith('gpl_'))seenGasIds[s.id]=true;});
+
+  var now=Date.now();
+  var newPoints=[];
+  for(var i=-steps;i<=steps;i++){
+    for(var j=-steps;j<=steps;j++){
+      var ptLat=centerLat+i*gridSpacingLat;
+      var ptLng=centerLng+j*gridSpacingLng;
+      if(distMiles(centerLat,centerLng,ptLat,ptLng)<=viewportRadius){
+        var ck=_cacheKey(ptLat,ptLng,fetchRadius);
+        if(!_fetchCache[ck]||(now-_fetchCache[ck])>_fetchCacheTTL){
+          newPoints.push({lat:Math.round(ptLat*10000)/10000,lng:Math.round(ptLng*10000)/10000});
+          _fetchCache[ck]=now;
+        }
+      }
+    }
+  }
+  if(newPoints.length===0)return;
+
+  var newGas=[];
+  var promises=newPoints.map(function(pt){
+    return fetch(GAS_API+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius='+fetchRadius)
+      .then(function(r){return r.json();})
+      .then(function(data){
+        (data.stations||[]).forEach(function(s){
+          var id='gpl_'+s.id;
+          if(seenGasIds[id])return;
+          seenGasIds[id]=true;
+          var pl=s.priceLevel!==null&&s.priceLevel!==undefined?s.priceLevel:null;
+          newGas.push({
+            id:id,name:s.name,address:s.address,type:'gas',
+            basePrice:estimateStationPrice('regular',pl,s.brand),
+            priceLevel:pl,priceEstimated:true,
+            latitude:s.latitude,longitude:s.longitude,
+            distanceMiles:Math.round(distMiles(userLat||centerLat,userLng||centerLng,s.latitude,s.longitude)*10)/10,
+            busy:40,isLive:true,network:s.brand||'Gas',brand:s.brand,
+            rating:s.rating,open24h:false,isOpen:s.isOpen!==false,
+            score:0
+          });
+        });
+      }).catch(function(){});
+  });
+
+  Promise.all(promises).then(function(){
+    if(newGas.length===0)return;
+    // Merge new stations into allStations
+    newGas.forEach(function(s){
+      s.score=calcScore(s);
+      allStations.push(s);
+    });
+    allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
+    document.getElementById('station-count').textContent=allStations.length+' stations found';
+    document.getElementById('data-source-txt').textContent=
+      '⛽ '+allStations.filter(function(s){return s.type==='gas';}).length+' gas · 🔌 '+
+      allStations.filter(function(s){return s.type==='ev';}).length+' EV';
+    applySeedPrices(allStations);
+    updateMapPins(allStations);
   });
 }
 
