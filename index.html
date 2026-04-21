@@ -396,6 +396,12 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .savings-lbl{font-size:10px;color:#991b1b;font-weight:600;margin-top:2px;}
 .nav-choice-row{display:flex;gap:8px;margin-bottom:8px;}
 .nav-apple{flex:1;padding:13px;background:#DC2626;border:none;border-radius:12px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.selected-stop-bar{position:sticky;bottom:0;background:#fff;border-top:1.5px solid #f0f0f0;padding:10px 14px 14px;box-shadow:0 -4px 16px rgba(0,0,0,0.1);z-index:20;display:none;}
+.ssb-info{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.ssb-name{font-size:13px;font-weight:700;color:#1a1a2e;}
+.ssb-detail{font-size:11px;color:#888;}
+.ssb-nav-row{display:flex;gap:8px;}
+.ssb-nav-btn{flex:1;padding:12px;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
 .nav-google{flex:1;padding:13px;background:#fff;border:2px solid #e0e0e0;border-radius:12px;font-size:13px;font-weight:700;color:#1a1a2e;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
 .new-trip-btn{width:100%;padding:11px;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:12px;font-size:14px;font-weight:700;color:#555;cursor:pointer;margin-top:4px;}
 .direct-nav-row{display:flex;gap:8px;margin-bottom:8px;}
@@ -577,6 +583,7 @@ if(storedVer&&storedVer!==VER){
     <div id="trip-google-map" style="width:100%;height:100%;"></div>
   </div>
   <div class="scroll"><div class="trip-body" id="trip-body"></div></div>
+  <div class="selected-stop-bar" id="selected-stop-bar"></div>
 </div>
 
 <!-- ALERTS SCREEN -->
@@ -3355,6 +3362,8 @@ function getRoutePoint(steps,fraction,startLat,startLng,endLat,endLng){
 }
 
 // Helper to render a single stop option card
+var selectedTripStop=null;
+
 function renderStopCard(stop,label,badge,badgeColor,badgeBg){
   if(!stop)return'';
   var sc=scoreColor(stop.score);
@@ -3363,13 +3372,16 @@ function renderStopCard(stop,label,badge,badgeColor,badgeBg){
   var det=stop.detourFromRoute!==undefined?stop.detourFromRoute.toFixed(1)+' mi detour':'on route';
   var wt=waitMin(stop.busy||30);
   var isFav=isFavorite(stop.id);
-  return'<div class="fuel-stop-card" onclick="openTripStopDetail(this.dataset.id)" data-id='+JSON.stringify(stop.id)+' style="cursor:pointer;margin-bottom:10px;">'
+  var isSelected=selectedTripStop&&selectedTripStop.id===stop.id;
+  return'<div class="fuel-stop-card" onclick="selectTripStop(this.dataset.id)" data-id='+JSON.stringify(stop.id)
+    +' style="cursor:pointer;margin-bottom:10px;'+(isSelected?'border-color:#DC2626;box-shadow:0 0 0 2px #DC262633;':'')+'">'
     +'<div class="fsc-header">'
       +'<div style="flex:1;">'
         +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">'
           +'<div class="fsc-label">'+label+'</div>'
           +(isFav?'<span style="font-size:12px;">⭐</span>':'')
           +'<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+badgeBg+';color:'+badgeColor+';">'+badge+'</span>'
+          +(isSelected?'<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:#DC2626;color:#fff;">Selected</span>':'')
         +'</div>'
         +'<div class="fsc-name">'+stop.name+'</div>'
         +'<div class="fsc-addr">'+(stop.address||'')+'</div>'
@@ -3381,8 +3393,86 @@ function renderStopCard(stop,label,badge,badgeColor,badgeBg){
       +'<div class="fsc-detail-box"><div class="fsc-detail-val">'+det+'</div><div class="fsc-detail-lbl">Detour</div></div>'
       +'<div class="fsc-detail-box"><div class="fsc-detail-val">'+wt+'m</div><div class="fsc-detail-lbl">Wait</div></div>'
     +'</div>'
-    +'<div style="text-align:center;padding-top:4px;font-size:11px;color:#DC2626;font-weight:600;">Tap for full details →</div>'
+  +'</div>';
+}
+
+function selectTripStop(stationId){
+  // Find stop in tripResult
+  var allStops=[tripResult.urgentStop,tripResult.favStop,tripResult.bestStop,
+    tripResult.cheapestStop,tripResult.nearestStop,tripResult.topRatedStop,tripResult.fastestStop]
+    .filter(Boolean);
+  var stop=allStops.find(function(s){return String(s.id)===String(stationId);});
+  if(!stop){
+    // Fall back to allCandidates
+    stop=(tripResult.allCandidates||[]).find(function(s){return String(s.id)===String(stationId);});
+  }
+  if(!stop)return;
+
+  // Toggle selection
+  if(selectedTripStop&&selectedTripStop.id===stop.id){
+    selectedTripStop=null;
+  } else {
+    selectedTripStop=stop;
+  }
+  // Re-render trip result to update selected state
+  renderTripResult();
+
+  // Show/hide the sticky nav bar
+  updateSelectedStopBar();
+}
+
+function updateSelectedStopBar(){
+  var bar=document.getElementById('selected-stop-bar');
+  if(!bar)return;
+  if(!selectedTripStop){
+    bar.style.display='none';
+    return;
+  }
+  var s=selectedTripStop;
+  var pi=getLatestPrice(s);
+  var pd='$'+pi.price.toFixed(2)+(s.type==='ev'?'/kWh':'/gal');
+  bar.style.display='block';
+  bar.innerHTML=
+    '<div class="ssb-info">'
+      +brandLogoImg(s.name,s.brand,28)
+      +'<div>'
+        +'<div class="ssb-name">'+s.name+'</div>'
+        +'<div class="ssb-detail">'+pd+' · '+(s.detourFromRoute||0).toFixed(1)+' mi detour · Score '+s.score+'</div>'
+      +'</div>'
+      +'<button onclick="selectedTripStop=null;updateSelectedStopBar();renderTripResult();" '
+        +'style="background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;margin-left:auto;">✕</button>'
+    +'</div>'
+    +'<div class="ssb-nav-row">'
+      +'<button class="ssb-nav-btn" style="background:#DC2626;color:#fff;" onclick="tripNavigateApple()">'
+        +'🍎 Apple Maps'
+      +'</button>'
+      +'<button class="ssb-nav-btn" style="background:#fff;border:2px solid #e0e0e0;color:#1a1a2e;" onclick="tripNavigateGoogle()">'
+        +'🗺 Google Maps'
+      +'</button>'
     +'</div>';
+}
+
+function tripNavigateApple(){
+  if(!selectedTripStop||!tripResult)return;
+  var s=selectedTripStop;
+  window.location.href='maps:?saddr='+encodeURIComponent(userLat+','+userLng)
+    +'&daddr='+encodeURIComponent(s.address||s.name)
+    +'+to:'+encodeURIComponent(tripResult.destInput);
+}
+
+function tripNavigateGoogle(){
+  if(!selectedTripStop||!tripResult)return;
+  var s=selectedTripStop;
+  var waypoint=s.address||s.name;
+  var appUrl='comgooglemaps://?saddr='+encodeURIComponent(userLat+','+userLng)
+    +'&daddr='+encodeURIComponent(waypoint)
+    +'+to:'+encodeURIComponent(tripResult.destInput)+'&directionsmode=driving';
+  var webUrl='https://www.google.com/maps/dir/?api=1'
+    +'&origin='+encodeURIComponent(userLat+','+userLng)
+    +'&destination='+encodeURIComponent(tripResult.destInput)
+    +'&waypoints='+encodeURIComponent(waypoint);
+  var w=window.open(appUrl,'_blank');
+  setTimeout(function(){if(!w||w.closed)window.open(webUrl,'_blank');},500);
 }
 
 // ── Trip route map ───────────────────────────────────────────────────────────
@@ -3581,17 +3671,25 @@ function renderTripResult(){
   html+='<div class="route-stop"><div class="route-dot-col"><div class="rdot rdot-end">B</div></div><div class="route-content"><div class="route-label">Destination</div><div class="route-name">'+r.destInput+'</div><div class="route-detail">'+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'</div><div class="route-eta">ETA ~'+etaDest2+'</div></div></div>';
   html+='<div class="trip-stats-row"><div class="trip-stat"><div class="trip-stat-val">'+Math.round(r.totalMiles)+' mi</div><div class="trip-stat-lbl">Distance</div></div><div class="trip-stat"><div class="trip-stat-val">'+formatDuration(r.durationMin)+'</div><div class="trip-stat-lbl">Drive time</div></div><div class="trip-stat"><div class="trip-stat-val">~'+etaDest2+'</div><div class="trip-stat-lbl">Arrival</div></div></div></div>';
 
-  // ── Navigation ────────────────────────────────────────────────────────────
-  if(r.bestStop){
-    html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Navigate with top pick stop</div><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMaps()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMaps()">🗺 Google Maps</button></div><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;margin-top:4px;">Navigate direct</div><div class="direct-nav-row"><button class="direct-nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Direct</button><button class="direct-nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Direct</button></div></div>';
-  } else {
-    html+='<div style="margin-bottom:12px;"><div class="nav-choice-row"><button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button><button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button></div></div>';
-  }
+  // Navigation hint
+  html+='<div style="background:#f7f7f9;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#888;text-align:center;">'
+    +'👆 Tap a fuel stop above to select it, then navigate with Apple or Google Maps'
+    +'</div>';
+  // Direct to destination (no stop)
+  html+='<div style="margin-bottom:12px;">'
+    +'<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Skip fuel stop — navigate direct</div>'
+    +'<div class="nav-choice-row">'
+      +'<button class="nav-apple" onclick="openAppleMapsDirectOnly()">🍎 Apple Maps</button>'
+      +'<button class="nav-google" onclick="openGoogleMapsDirectOnly()">🗺 Google Maps</button>'
+    +'</div>'
+  +'</div>';
 
   html+='<button class="new-trip-btn" onclick="newTrip()">← Plan another trip</button><div style="height:20px;"></div>';
   document.getElementById('trip-body').innerHTML=html;
   // Render route map
   setTimeout(function(){renderTripMap(tripResult);},100);
+  // Restore selected stop bar if a stop was already selected
+  updateSelectedStopBar();
 }
 
 function openAppleMaps(){if(!tripResult||!tripResult.bestStop)return;window.location.href='maps:?saddr='+encodeURIComponent(userLat+','+userLng)+'&daddr='+encodeURIComponent(tripResult.bestStop.address)+'+to:'+encodeURIComponent(tripResult.destInput);}
@@ -3640,7 +3738,7 @@ function updateFavButtonForStation(station){
   if(btn&&station)btn.textContent=isFavorite(station.id)?'⭐':'☆';
 }
 
-function newTrip(){tripResult=null;hideTripMap();renderTripPlanner();}
+function newTrip(){tripResult=null;selectedTripStop=null;var bar=document.getElementById('selected-stop-bar');if(bar)bar.style.display='none';hideTripMap();renderTripPlanner();}
 function showTripError(msg){document.getElementById('trip-body').innerHTML='<div class="trip-form-card" style="border-color:#fecaca;background:#fef2f2;"><div class="trip-form-title" style="color:#dc2626;">Could not plan trip</div><div class="body-txt" style="color:#dc2626;">'+msg+'</div><button class="plan-btn" style="background:#dc2626;margin-top:10px;" onclick="newTrip()">Try again</button></div>';}
 
 // ── Report modal ──────────────────────────────────────────────────────────────
