@@ -2211,6 +2211,82 @@ function getLatestPrice(station){
   return{price:station.basePrice||station.price||EIA_EV_L2_AVG,source:station.isLive?'live':'eia',estimated:false};
 }
 
+// ── Station coordinate verification ─────────────────────────────────────────
+// Cross-references station coordinates against Google Geocoding API
+// to correct stations that are placed a block away from their actual address
+
+var _coordCache={};
+
+function verifyStationCoords(station){
+  // Only verify stations with an address
+  if(!station.address||!station.latitude||!station.longitude)return Promise.resolve(station);
+  var cacheKey=station.address.toLowerCase().trim();
+  if(_coordCache[cacheKey]){
+    return Promise.resolve(Object.assign({},station,_coordCache[cacheKey]));
+  }
+  // Geocode the address
+  return new Promise(function(resolve){
+    if(typeof google==='undefined'||!google.maps||!google.maps.Geocoder){
+      resolve(station);return;
+    }
+    var geocoder=new google.maps.Geocoder();
+    geocoder.geocode({address:station.address},function(results,status){
+      if(status==='OK'&&results[0]){
+        var loc=results[0].geometry.location;
+        var gLat=loc.lat();var gLng=loc.lng();
+        // Only correct if the geocoded location is within 0.3 miles of original
+        // (prevents wild corrections from bad geocodes)
+        var drift=distMiles(station.latitude,station.longitude,gLat,gLng);
+        if(drift<0.3&&drift>0.02){
+          // Meaningfully different — use geocoded coords
+          console.log('Coord correction for '+station.name+': '+drift.toFixed(3)+' mi drift → corrected');
+          var correction={latitude:gLat,longitude:gLng,coordVerified:true};
+          _coordCache[cacheKey]=correction;
+          resolve(Object.assign({},station,correction));
+        } else {
+          _coordCache[cacheKey]={latitude:station.latitude,longitude:station.longitude,coordVerified:true};
+          resolve(station);
+        }
+      } else {
+        resolve(station);
+      }
+    });
+  });
+}
+
+// Verify coordinates for all visible stations in background
+function verifyAllStationCoords(){
+  if(typeof google==='undefined'||!google.maps)return;
+  // Only verify stations close to user (within 3 miles) — prioritize what's on screen
+  var nearby=allStations.filter(function(s){
+    return s.latitude&&s.longitude&&s.address&&(s.distanceMiles||99)<3;
+  });
+  var i=0;
+  function verifyNext(){
+    if(i>=nearby.length)return;
+    var s=nearby[i++];
+    if(s.coordVerified){verifyNext();return;}
+    verifyStationCoords(s).then(function(verified){
+      if(verified.coordVerified&&verified.latitude!==s.latitude){
+        // Update in allStations
+        var idx=allStations.indexOf(s);
+        if(idx>-1){
+          allStations[idx]=Object.assign({},s,{
+            latitude:verified.latitude,
+            longitude:verified.longitude,
+            coordVerified:true
+          });
+        }
+        // Refresh pins if coords changed meaningfully
+        updateMapPins(allStations);
+      }
+      // Stagger requests to avoid geocoding rate limits (10/sec)
+      setTimeout(verifyNext,120);
+    });
+  }
+  setTimeout(verifyNext,2000); // Start after map loads
+}
+
 // ── Location + stations ───────────────────────────────────────────────────────
 // ── Google Maps ───────────────────────────────────────────────────────────────
 var gMap=null;
@@ -2560,6 +2636,8 @@ function buildStationList(lat,lng,liveEV,liveGas){
   clearLoading();applySeedPrices(allStations);renderAll();renderAlerts();
   // Load cloud price reports so reported prices from any device show up
   loadCloudReports();
+  // Verify station coordinates against Google Geocoding in background
+  verifyAllStationCoords();
   // Fetch Zyla ZIP-level prices in background to refine baseline
   if(userLat&&userLng){
     coordsToZip(userLat,userLng).then(function(zip){
