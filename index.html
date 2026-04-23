@@ -2982,6 +2982,17 @@ function initMap(){
       if(allStations.length>0)fetchForMapViewport();
     },600);
   });
+  // Re-filter pins immediately on zoom change (before idle fires fetch)
+  gMap.addListener('zoom_changed',function(){
+    if(allStations.length>0){
+      var mappable=allStations.filter(function(s){
+        if(currentFilter==='gas')return s.type!=='ev';
+        if(currentFilter==='ev')return s.type==='ev';
+        return true;
+      });
+      updateMapPins(mappable);
+    }
+  });
   // Close preview on map click
   gMap.addListener('click',function(){closeStationPreview();});
 }
@@ -3148,6 +3159,61 @@ function closeStationPreview(){
   if(sheet)sheet.classList.remove('visible');
 }
 
+// ── Zoom-based spatial filter (Zillow-style) ──────────────────────────────────
+// At low zoom levels we thin the pins so the map isn't crowded. Strategy:
+//   • Divide the visible area into a grid
+//   • In each cell keep only the "best" station (lowest price, with bonuses for
+//     user reports and premium brands being penalised)
+//   • Grid cell size shrinks as you zoom in, so more stations become visible
+// Always shows: stations with live user-reported prices, Costco, the absolute
+// cheapest station in any cell regardless of brand.
+function filterStationsByZoom(stations){
+  if(!gMap)return stations;
+  var zoom=gMap.getZoom();
+
+  // At street level (≥15) show everything
+  if(zoom>=15)return stations;
+
+  // Grid cell size in degrees: larger cell = fewer pins shown
+  // zoom 14 → 0.008° (~0.5mi), 13 → 0.018°, 12 → 0.04°, 11 → 0.09°, ≤10 → 0.2°
+  var cellSize;
+  if(zoom>=14)     cellSize=0.008;
+  else if(zoom>=13)cellSize=0.018;
+  else if(zoom>=12)cellSize=0.040;
+  else if(zoom>=11)cellSize=0.090;
+  else             cellSize=0.200;
+
+  // Score each station — lower is better (wins the cell)
+  function stationScore(st){
+    var pi=getLatestPrice(st);
+    var price=pi?pi.price:99;
+    var score=price; // base: raw price
+    // Penalise expensive brands at zoom-out (they can show when user zooms in)
+    var brand=(st.brand||'').toLowerCase();
+    if(brand==='shell'||brand==='chevron'||brand==='mobil'||brand==='exxon') score+=0.05;
+    // Reward live user-reported prices (always keep these)
+    if(pi&&pi.isReported) score-=0.50;
+    // Reward Costco (member favourite)
+    if(brand==='costco') score-=0.30;
+    return score;
+  }
+
+  var cells={};
+  stations.forEach(function(st){
+    if(!st.latitude||!st.longitude)return;
+    var cellLat=Math.floor(st.latitude/cellSize);
+    var cellLng=Math.floor(st.longitude/cellSize);
+    var key=cellLat+'_'+cellLng;
+    if(!cells[key]){
+      cells[key]=st;
+    } else {
+      if(stationScore(st)<stationScore(cells[key])) cells[key]=st;
+    }
+  });
+
+  return Object.values(cells);
+}
+
 function updateMapPins(stations){
   ensureMap();
   if(!gMap)return;
@@ -3164,7 +3230,10 @@ function updateMapPins(stations){
     pricePinOverlayReady=true;
   }
 
-  stations.forEach(function(st){
+  // Apply zoom-based thinning so the map isn't crowded when zoomed out
+  var displayStations=filterStationsByZoom(stations);
+
+  displayStations.forEach(function(st){
     if(!st.latitude||!st.longitude)return;
     if(pricePinOverlayReady){
       var overlay=new PricePinOverlay(st,gMap);
