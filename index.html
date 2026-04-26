@@ -42,6 +42,11 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .live-badge-txt{font-size:11px;color:#15803d;font-weight:700;}
 .loading-overlay{position:absolute;inset:0;background:rgba(240,244,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
 .loading-spinner{width:32px;height:32px;border:3px solid #fee2e2;border-top-color:#DC2626;border-radius:50%;animation:spin 0.8s linear infinite;}
+.usual-spots-row{display:flex;gap:8px;overflow-x:auto;padding:8px 12px 4px;scrollbar-width:none;}
+.usual-spots-row::-webkit-scrollbar{display:none;}
+.usual-spot-chip{flex-shrink:0;background:#fff;border:1.5px solid #e5e5e5;border-radius:12px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.usual-spot-price{font-size:14px;font-weight:800;color:#DC2626;}
+.usual-spot-name{font-size:11px;font-weight:600;color:#333;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-txt{font-size:13px;color:#DC2626;font-weight:600;}
 .sheet{background:#fff;border-top:0.5px solid #e5e5e5;}
@@ -545,6 +550,7 @@ if(storedVer&&storedVer!==VER){
       <div class="sheet-title" id="sheet-title">Loading…</div>
       <div class="sort-row" id="sorts"></div>
     </div>
+    <div id="usual-spots" style="display:none;padding:8px 12px 4px;"></div>
     <div class="cards" id="cards"></div>
     <div class="pge-chip" id="pge-ribbon" style="margin:0 14px 10px;display:none;"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh · Charge off-peak to save 54%</span></div>
   </div>
@@ -622,7 +628,7 @@ if(storedVer&&storedVer!==VER){
     <div class="search-title">Find a station</div>
     <div class="search-input-wrap">
       <span style="font-size:16px;">🔍</span>
-      <input class="search-input" id="search-input" type="text" placeholder="Search by brand or name…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="handleSearchInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();var v=this.value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}}"/>
+      <input class="search-input" id="search-input" type="text" placeholder="Try: cheapest diesel, Shell open now…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="handleSearchInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();var v=this.value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}}"/>
       <button onclick="clearSearch()" style="background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;padding:0;display:none;" id="search-clear-btn">✕</button>
       <button onclick="var v=document.getElementById('search-input').value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}" style="background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;padding:6px 10px;cursor:pointer;flex-shrink:0;">Search</button>
     </div>
@@ -3896,6 +3902,109 @@ function applySeedPrices(stations){
 
 function getReports(id){try{return JSON.parse(localStorage.getItem('reports_'+id)||'[]');}catch(e){return[];}}
 
+// ── Quick price report (one-tap from card) ───────────────────────────────────
+function quickReport(stationId){
+  var st=allStations.find(function(s){return String(s.id)===String(stationId);});
+  if(!st)return;
+  var av=getActiveVehicle();
+  var grade=av&&av.gasGrade?av.gasGrade:'regular';
+  var current=getLatestPrice(st);
+  var suggested=current.price.toFixed(2);
+  var price=parseFloat(prompt('💲 Report price at '+st.name+'\n('+grade+' gas, $/gal):', suggested));
+  if(isNaN(price)||price<2||price>10){if(!isNaN(price))alert('Price must be between $2 and $10');return;}
+  saveReport(stationId, grade, price);
+  // Show confirmation toast
+  showToast('✅ Thanks! Price reported: $'+price.toFixed(2)+'/gal');
+  renderAll();
+}
+
+// ── Toast notification ────────────────────────────────────────────────────────
+function showToast(msg,duration){
+  duration=duration||3000;
+  var t=document.getElementById('fm-toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='fm-toast';
+    t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.opacity='1';
+  clearTimeout(t._timer);
+  t._timer=setTimeout(function(){t.style.opacity='0';},duration);
+}
+
+// ── Price alerts ──────────────────────────────────────────────────────────────
+var _priceAlerts=JSON.parse(localStorage.getItem('fm_price_alerts')||'[]');
+
+function setPriceAlertPrompt(stationId, currentPrice){
+  var t=parseFloat(prompt('Set price alert\nNotify me when price drops below ($/gal):', currentPrice.toFixed ? currentPrice.toFixed(2) : currentPrice));
+  if(!isNaN(t)&&t>1&&t<10) setPriceAlert(stationId,t);
+  else if(!isNaN(t)) showToast('Enter a price between $1 and $10');
+}
+function setPriceAlert(stationId, targetPrice){
+  var st=allStations.find(function(s){return String(s.id)===String(stationId);});
+  if(!st)return;
+  _priceAlerts=_priceAlerts.filter(function(a){return a.id!==stationId;});
+  _priceAlerts.push({id:stationId,name:st.name,target:targetPrice,created:Date.now()});
+  localStorage.setItem('fm_price_alerts',JSON.stringify(_priceAlerts));
+  showToast('🔔 Alert set for $'+targetPrice.toFixed(2)+'/gal at '+st.name);
+}
+
+function checkPriceAlerts(){
+  if(!_priceAlerts.length)return;
+  _priceAlerts.forEach(function(alert){
+    var st=allStations.find(function(s){return String(s.id)===String(alert.id);});
+    if(!st)return;
+    var price=getLatestPrice(st).price;
+    if(price<=alert.target){
+      showToast('🔔 Price alert! '+alert.name+' is now $'+price.toFixed(2)+'/gal',6000);
+      // Remove triggered alert
+      _priceAlerts=_priceAlerts.filter(function(a){return a.id!==alert.id;});
+      localStorage.setItem('fm_price_alerts',JSON.stringify(_priceAlerts));
+    }
+  });
+}
+// Check alerts whenever prices refresh
+setInterval(checkPriceAlerts, 60000);
+
+// ── Usual Spots (most-visited stations) ───────────────────────────────────────
+function getUsualSpots(){
+  try{
+    var visits=JSON.parse(localStorage.getItem('fm_visits')||'{}');
+    var sorted=Object.keys(visits).sort(function(a,b){return visits[b]-visits[a];});
+    return sorted.slice(0,3).map(function(id){
+      return allStations.find(function(s){return String(s.id)===String(id);});
+    }).filter(Boolean);
+  }catch(e){return[];}
+}
+
+function renderUsualSpots(){
+  var el=document.getElementById('usual-spots');
+  if(!el)return;
+  var spots=getUsualSpots();
+  if(!spots.length){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML='<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;padding:0 12px 4px;">⭐ Your Spots</div>'
+    +'<div class="usual-spots-row">'
+    +spots.map(function(st){
+      var pi=getLatestPrice(st);
+      var isOpen=st.isOpen!==false;
+      var openColor=isOpen?'#15803d':'#dc2626';
+      var sid=JSON.stringify(st.id);
+      return '<div class="usual-spot-chip" onclick="var s=allStations.find(function(x){return String(x.id)===String('+sid+');});if(s)showDetail(s);">'
+        +'<div>'
+        +'<div class="usual-spot-name">'+st.name+'</div>'
+        +'<div style="font-size:10px;color:'+openColor+';">'+(isOpen?'Open':'Closed')+' · '+st.distanceMiles.toFixed(1)+'mi</div>'
+        +'</div>'
+        +'<div class="usual-spot-price">$'+pi.price.toFixed(2)+'</div>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+}
+
+
+
 function saveReport(id,ft,price){
   // 1. Save to localStorage immediately
   var r=getReports(id);
@@ -4103,6 +4212,8 @@ function initPricePinOverlay(){
     var pi=getLatestPrice(st);
     var isEV=st.type==='ev';
     var priceLabel=isEV?'⚡$'+pi.price.toFixed(2):'$'+pi.price.toFixed(2);
+    var _reports=getReports(st.id);
+    var reportDot=_reports.length>0?'<span style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#15803d;border:1.5px solid #fff;border-radius:50%;"></span>':'';
 
     // Get brand color for pin background
     var brandInfo=getBrandLogo(st.name,st.brand||st.network);
@@ -4120,9 +4231,11 @@ function initPricePinOverlay(){
     // Brand swatch as left accent badge using brand's actual color
     var brandBadge='<div style="background:'+pinBg+';border-radius:10px;padding:1px 5px;font-size:8px;font-weight:900;color:'+pinTextColor+';letter-spacing:-0.2px;flex-shrink:0;">'+brandLabel+'</div>';
     div.innerHTML=
+      '<div style="position:relative;display:inline-block;">'+
       '<div style="display:flex;align-items:center;background:'+valueColor+';border-radius:20px;padding:3px 8px 3px 4px;white-space:nowrap;border:2px solid #fff;gap:4px;">'+
         brandBadge+
         '<span style="font-size:11px;font-weight:800;color:#fff;letter-spacing:-0.3px;">'+priceLabel+'</span>'+
+      '</div>'+reportDot+
       '</div>'+
       '<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid '+valueColor+';margin:0 auto;"></div>';
 
@@ -4669,7 +4782,7 @@ function buildStationList(lat,lng,liveEV,liveGas){
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV';
-  clearLoading();applySeedPrices(allStations);renderAll();renderAlerts();
+  clearLoading();applySeedPrices(allStations);renderAll();renderAlerts();setTimeout(checkPriceAlerts,500);
   // Load cloud price reports so reported prices from any device show up
   loadCloudReports();
 
@@ -4786,17 +4899,47 @@ function buildStationList(lat,lng,liveEV,liveGas){
 }
 
 function getFiltered(){
-  return allStations.filter(function(s){if(currentFilter==='gas')return s.type==='gas';if(currentFilter==='ev')return s.type==='ev';return true;})
-    .sort(function(a,b){if(currentSort==='value')return b.score-a.score;if(currentSort==='price')return getLatestPrice(a).price-getLatestPrice(b).price;if(currentSort==='wait')return(a.busy||30)-(b.busy||30);if(currentSort==='distance')return a.distanceMiles-b.distanceMiles;return 0;});
+  var list=allStations.filter(function(s){
+    // Type filter
+    if(currentFilter==='gas')return s.type==='gas';
+    if(currentFilter==='ev')return s.type==='ev';
+    if(currentFilter==='diesel')return s.type==='gas'&&(s.hasDiesel||s.brand==='Valero'||s.brand==='76'||s.brand==='Shell'||s.brand==='Chevron');
+    return true;
+  });
+  // Toggle flags
+  if(window.filterFlag_openNow) list=list.filter(function(s){return s.isOpen!==false;});
+  if(window.filterFlag_cheap){
+    var prices=list.map(function(s){return getLatestPrice(s).price;}).filter(function(p){return p<90;});
+    var median=prices.sort(function(a,b){return a-b;})[Math.floor(prices.length/2)]||5;
+    list=list.filter(function(s){return getLatestPrice(s).price<=median;});
+  }
+  if(window.filterFlag_carwash) list=list.filter(function(s){return s.hasCarWash||s.amenities&&s.amenities.indexOf('carwash')>-1;});
+  return list.sort(function(a,b){
+    if(currentSort==='value')return b.score-a.score;
+    if(currentSort==='price')return getLatestPrice(a).price-getLatestPrice(b).price;
+    if(currentSort==='wait')return(a.busy||30)-(b.busy||30);
+    if(currentSort==='distance')return a.distanceMiles-b.distanceMiles;
+    return 0;
+  });
 }
 
 function renderFilters(){
-  var el=document.getElementById('filters');el.innerHTML='';
-  [['all','All','chip-all'],['gas','Gas',''],['ev','EV','chip-ev']].forEach(function(p){
+  var el=document.getElementById('filters');if(!el)return;el.innerHTML='';
+  // Primary type chips
+  [['all','⛽ All','chip-all'],['gas','Gas',''],['ev','⚡ EV','chip-ev'],['diesel','Diesel','']].forEach(function(p){
     var c=document.createElement('div');
     c.className='chip '+(p[2]||'')+(currentFilter===p[0]?' on':'');
     c.textContent=p[1];
     c.onclick=function(){currentFilter=p[0];autoFitMap=true;closeStationPreview();renderAll();};
+    el.appendChild(c);
+  });
+  // Toggle chips for open-now, cheap, has-carwash
+  [['openNow','🟢 Open Now'],['cheap','💚 Cheapest'],['carwash','🚿 Car Wash']].forEach(function(p){
+    var active=window['filterFlag_'+p[0]];
+    var c=document.createElement('div');
+    c.className='chip'+(active?' on':'');
+    c.textContent=p[1];
+    c.onclick=function(){window['filterFlag_'+p[0]]=!window['filterFlag_'+p[0]];closeStationPreview();renderAll();};
     el.appendChild(c);
   });
   var ribbon=document.getElementById('pge-ribbon');
@@ -4811,11 +4954,40 @@ function renderCards(){
     var pi=getLatestPrice(st);var pd=st.type==='ev'?'$'+pi.price.toFixed(2)+'/kWh':'$'+pi.price.toFixed(2)+'/gal';
     var sl=pi.source==='community'?'👤 Community':pi.source==='live'?'🔌 Live':'📊 EIA avg';
     var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
+    // Staleness indicator
+    var stalenessLabel='';
+    if(pi.source==='community'&&pi.ago){
+      var agoH=Math.round(pi.ago/3600000);
+      if(agoH<1)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ just now</span>';
+      else if(agoH<4)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ '+agoH+'h ago</span>';
+      else if(agoH<24)stalenessLabel='<span style="color:#d97706;font-size:9px;font-weight:700;">'+agoH+'h ago</span>';
+      else stalenessLabel='<span style="color:#9ca3af;font-size:9px;">'+Math.floor(agoH/24)+'d ago</span>';
+    } else {
+      stalenessLabel='<span style="color:#9ca3af;font-size:9px;">~ est.</span>';
+    }
+    // Sparkline from price history
+    var sparkHTML='';
+    var reports=getReports(st.id);
+    if(reports.length>=2){
+      var pts=reports.slice(0,6).reverse().map(function(r){return r.price;});
+      var mn=Math.min.apply(null,pts),mx=Math.max.apply(null,pts),rng=mx-mn||0.1;
+      var w=50,h=18;
+      var pathD=pts.map(function(p,i){
+        var x=Math.round((i/(pts.length-1))*w);
+        var y=Math.round(h-((p-mn)/rng)*h);
+        return(i===0?'M':'L')+x+' '+y;
+      }).join(' ');
+      var trend=pts[pts.length-1]<pts[0]?'#15803d':'#dc2626';
+      sparkHTML='<svg width="'+w+'" height="'+h+'" style="vertical-align:middle;margin-left:6px;">'
+        +'<path d="'+pathD+'" fill="none" stroke="'+trend+'" stroke-width="1.5" stroke-linecap="round"/>'
+        +'</svg>';
+    }
     var card=document.createElement('div');card.className='card'+(st.isLive?' live':'');
     var ratingStr=st.rating?'⭐ '+st.rating:'';
     // Show drive time if available, otherwise straight-line distance
     var distPart=st.driveDuration?'🚗 '+st.driveDuration+' min':st.distanceMiles.toFixed(1)+' mi';
     var distLabel=distPart+' · '+(st.type==='ev'?'EV':'GAS')+(st.isLive?' · 🔌':'')+( ratingStr?' · '+ratingStr:'');
+    var openBadge=st.isOpen===false?'<span style="color:#dc2626;font-size:9px;font-weight:700;margin-left:4px;">CLOSED</span>':st.open24h?'<span style="color:#15803d;font-size:9px;font-weight:700;margin-left:4px;">24H</span>':'';
     // Build grade prices row for gas stations
     var gradesHTML='';
     if(st.type==='gas'){
@@ -4862,18 +5034,32 @@ function renderCards(){
     var logoHtml=brandLogoImg(st.name,st.brand||st.network,26);
     card.innerHTML='<div class="card-top"><div style="display:flex;align-items:center;gap:8px;flex:1;padding-right:4px;">'
       +logoHtml
-      +'<div><div class="card-name">'+st.name+'</div><div class="card-dist">'+distLabel+'</div></div>'
+      +'<div><div class="card-name">'+st.name+openBadge+'</div><div class="card-dist">'+distLabel+'</div></div>'
       +'</div>'
       +'<div onclick="event.stopPropagation();toggleFavFromCard(this.dataset.sid)" style="font-size:16px;cursor:pointer;padding:2px 0 2px 4px;" id=\"fav-card-'+st.id+'\" data-sid='+JSON.stringify(st.id)+'>'+favStar+'</div>'
       +'</div>'
       +gradesRowHTML
       +(st.type!=='gas'?'<div class="card-price">'+pd+'</div><div class="card-price-source '+sc2+'">'+sl+'</div>':'')
-      +'<div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div></div>';
-    card.onclick=function(){closeStationPreview();showDetail(st);};el.appendChild(card);
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">'
+      +'<div>'+stalenessLabel+'</div>'+sparkHTML
+      +'</div>'
+      +'<div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div>'
+      +'<div class="stat-box" onclick="event.stopPropagation();quickReport('+JSON.stringify(st.id)+')" style="cursor:pointer;"><div class="stat-lbl">PRICE</div><div class="stat-val" style="color:#DC2626;font-size:11px;">📝</div></div>'
+      +'</div>';
+    card.onclick=function(){
+      closeStationPreview();
+      // Track visit frequency
+      try{
+        var visits=JSON.parse(localStorage.getItem('fm_visits')||'{}');
+        visits[st.id]=(visits[st.id]||0)+1;
+        localStorage.setItem('fm_visits',JSON.stringify(visits));
+      }catch(e){}
+      showDetail(st);
+    };el.appendChild(card);
   });
 }
 function renderAll(){
-  renderFilters();renderSorts();renderCards();
+  renderFilters();renderSorts();renderCards();renderUsualSpots();
   // Sync map pins with current filter
   var mappable=allStations.filter(function(s){
     if(!s.latitude||!s.longitude)return false;
@@ -4920,7 +5106,37 @@ function showDetail(station){
       }).join('')
       +'</div></div>';
   }
+  // Price trend sparkline for detail view
+  var detailReports=getReports(station.id);
+  var trendHTML='';
+  if(detailReports.length>=2){
+    var pts2=detailReports.slice(0,8).reverse().map(function(r){return r.price;});
+    var mn2=Math.min.apply(null,pts2),mx2=Math.max.apply(null,pts2),rng2=mx2-mn2||0.1;
+    var W=200,H=40;
+    var pathD2=pts2.map(function(p,i){
+      var x=Math.round((i/(pts2.length-1))*W);
+      var y=Math.round(H-((p-mn2)/rng2)*(H-4)+2);
+      return(i===0?'M':'L')+x+' '+y;
+    }).join(' ');
+    var trend2=pts2[pts2.length-1]<pts2[0]?'#15803d':'#dc2626';
+    var trendWord=pts2[pts2.length-1]<pts2[0]?'📉 Trending down':'📈 Trending up';
+    trendHTML='<div class="section"><div class="sec-title">'+trendWord+' (last '+pts2.length+' reports)</div>'
+      +'<svg width="'+W+'" height="'+H+'" style="width:100%;"><path d="'+pathD2+'" fill="none" stroke="'+trend2+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<circle cx="'+Math.round(((pts2.length-1)/(pts2.length-1))*W)+'" cy="'+Math.round(H-((pts2[pts2.length-1]-mn2)/rng2)*(H-4)+2)+'" r="3" fill="'+trend2+'"/>'
+      +'</svg>'
+      +'<div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-top:2px;"><span>$'+mn2.toFixed(2)+'</span><span>$'+mx2.toFixed(2)+'</span></div>'
+      +'</div>';
+  }
   var sl=pi.source==='community'?'👤 Community reported':pi.source==='live'?'🔌 Live data':'📊 EIA weekly average';
+  // Credit card recommendation based on brand
+  var cardPromo='';
+  var brand=(station.brand||'').toLowerCase();
+  if(brand.indexOf('costco')>-1)cardPromo='💳 Tip: Costco Visa gives 4% back on all gas.';
+  else if(brand.indexOf('shell')>-1)cardPromo='💳 Tip: Shell Fuel Rewards card saves up to 10¢/gal.';
+  else if(brand.indexOf('chevron')>-1)cardPromo='💳 Tip: Chevron Visa gives 3¢/gal + 10% back on Chevron buys.';
+  else if(brand.indexOf('arco')>-1||brand.indexOf('bp')>-1)cardPromo='💳 Tip: BPme Rewards app saves 5¢/gal on first fill.';
+  else cardPromo='💳 Tip: The Citi Custom Cash gives 5% back on your top gas station.';
+  
   var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
   var pgeMsg=station.type==='ev'?'Off-peak charging (9 PM–3 PM): $0.26/kWh vs. peak $0.57/kWh — a 54% saving.':pi.price<EIA_GAS_AVG?(EIA_GAS_AVG-pi.price).toFixed(2)+' below SF average — good value.':(pi.price-EIA_GAS_AVG).toFixed(2)+' above SF average.';
   var connHTML=station.connectorTypes&&station.connectorTypes.length>0?'<div class="connector-row">'+station.connectorTypes.map(function(c){return'<span class="connector-pill">'+c+'</span>';}).join('')+'</div>':'';
@@ -4942,7 +5158,25 @@ function showDetail(station){
   var as2=60;if(station.open24h)as2+=15;if(station.rating&&station.rating>=4.0)as2+=15;else if(station.rating&&station.rating>=3.5)as2+=8;as2=Math.min(100,as2);
   // Oil market note if significant adjustment active
   var mktNote=oilPriceAdjustment>=0.40?'<div style="font-size:11px;color:#b45309;background:#fef3c7;border-radius:6px;padding:4px 8px;margin-top:6px;">⚠️ Oil market elevated · WTI $'+(oilPriceData?oilPriceData.wti_price.toFixed(0):'111+')+'/bbl · prices ~$'+oilPriceAdjustment.toFixed(2)+'/gal above seasonal avg</div>':'';
-  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big" style="color:#DC2626;">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+mktNote+gradeTableHTML+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price (55%)',ps],['Wait (25%)',ws],['Distance (10%)',ds],['Amenities (10%)',as2]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
+  document.getElementById('detail-body').innerHTML='<div class="section"><div class="sec-title">Price</div><div class="price-big" style="color:#DC2626;">'+pd+'</div><div class="price-note">'+vsAvg+'</div><div class="price-source-row"><span class="price-source-badge '+sc2+'">'+sl+(pi.ago?' · '+pi.ago:'')+'</span></div>'+(station.pricing?'<div class="body-txt" style="margin-top:8px;font-size:12px;color:#666;">'+station.pricing+'</div>':'')+mktNote+gradeTableHTML
+      +trendHTML+'</div>'+(station.type==='ev'?'<div class="section"><div class="sec-title">Charging details</div>'+stallsHTML+connHTML+(station.network?'<div class="body-txt" style="margin-top:8px;">Network: '+station.network+'</div>':'')+'</div>':'')+vehicleTip+'<div class="section"><div class="sec-title">Community price reports</div><div class="community-reports">'+rHTML+'</div></div><div class="section"><div class="sec-title">Value score breakdown</div>'+[['Price (55%)',ps],['Wait (25%)',ws],['Distance (10%)',ds],['Amenities (10%)',as2]].map(function(p){return'<div class="factor-row"><div class="factor-lbl">'+p[0]+'</div><div class="track"><div class="fill" style="width:'+p[1]+'%;"></div></div><div class="factor-val">'+p[1]+'</div></div>';}).join('')+'</div><div class="section"><div class="sec-title">Wait time</div><div class="body-txt">'+(wm===0?'No wait — pull straight in':'~'+wm+' min estimated wait')+'</div></div><div class="section pge-box"><div class="sec-title pge-sec-title">PG&E tip</div><div class="body-txt pge-body">'+pgeMsg+'</div></div><div style="height:20px;"></div>';
+  // Inject action buttons + card promo at top of detail-body
+  var _db=document.getElementById('detail-body');
+  if(_db){
+    var _actDiv=document.createElement('div');
+    _actDiv.style.cssText='display:flex;gap:8px;margin:0 0 12px;';
+    var _sid=JSON.stringify(station.id);
+    var _pr=pi.price.toFixed(2);
+    _actDiv.innerHTML='<button onclick="quickReport('+_sid+')" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #15803d;background:#f0fdf4;color:#15803d;font-size:13px;font-weight:700;cursor:pointer;">📝 Report Price</button>'
+      +'<button onclick="setPriceAlertPrompt('+_sid+','+_pr+')" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #DC2626;background:#fff5f5;color:#DC2626;font-size:13px;font-weight:700;cursor:pointer;">🔔 Set Alert</button>';
+    _db.insertBefore(_actDiv, _db.firstChild);
+    if(cardPromo){
+      var _promoDiv=document.createElement('div');
+      _promoDiv.style.cssText='font-size:11px;color:#2563eb;background:#eff6ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;';
+      _promoDiv.textContent=cardPromo;
+      _db.insertBefore(_promoDiv, _actDiv.nextSibling);
+    }
+  }
   showScreen('detail');
   updateFavButtonForStation(station);
 }
@@ -6979,16 +7213,32 @@ function runSearch(query){
   if(!q)return;
   document.getElementById('search-results').innerHTML='<div style="text-align:center;padding:20px;color:#888;font-size:13px;">Searching…</div>';
 
+  // ── Smart query parsing ────────────────────────────────────────────────────
+  var wantCheap=q.indexOf('cheap')>-1||q.indexOf('lowest')>-1||q.indexOf('best price')>-1;
+  var wantOpen=q.indexOf('open')>-1||q.indexOf('24')>-1||q.indexOf('now')>-1;
+  var wantDiesel=q.indexOf('diesel')>-1;
+  var wantCarWash=q.indexOf('car wash')>-1||q.indexOf('carwash')>-1||q.indexOf('wash')>-1;
+  // Strip intent words to get brand/name
+  var cleanQ=q.replace(/cheap(est)?|lowest|best price|open now|24.?h(our)?s?|near me|diesel|car.?wash|gas|station/g,'').trim();
+
   // Helper: does this station match the query?
   function stationMatchesQuery(s, q){
+    if(!cleanQ&&!wantDiesel&&!wantCarWash) return true; // intent-only query, match all
     var name=(s.name||'').toLowerCase();
     var brand=(s.brand||s.network||'').toLowerCase();
     var addr=(s.address||'').toLowerCase();
-    return name.indexOf(q)>-1||brand.indexOf(q)>-1||addr.indexOf(q)>-1;
+    return !cleanQ||(name.indexOf(cleanQ)>-1||brand.indexOf(cleanQ)>-1||addr.indexOf(cleanQ)>-1);
   }
 
   // Search allStations (includes seeded) — strict name/brand match
-  var results=allStations.filter(function(s){return stationMatchesQuery(s,q);});
+  var results=allStations.filter(function(s){
+    if(!stationMatchesQuery(s,q))return false;
+    if(wantOpen&&s.isOpen===false)return false;
+    if(wantDiesel&&s.type!=='gas')return false;
+    if(wantCarWash&&!s.hasCarWash)return false;
+    return true;
+  });
+  if(wantCheap) results.sort(function(a,b){return getLatestPrice(a).price-getLatestPrice(b).price;});
 
   // Also fetch from Google Places — but FILTER results to only matching stations
   if(userLat&&userLng){
@@ -7295,6 +7545,7 @@ function showTab(name){
     document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
     var tabEl=document.getElementById('tab-'+name);
     if(tabEl)tabEl.classList.add('active');
+    if(name==='map'||name==='list')renderUsualSpots();
     if(name==='profile')renderProfile();
     if(name==='trip')renderTripPlanner();
     if(name==='favorites')renderFavorites();
