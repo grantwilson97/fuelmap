@@ -468,7 +468,7 @@ if('caches' in window){
   });
 }
 // Force reload if a newer version is available
-var VER='20260415215026';
+var VER='1777342645';
 var storedVer=sessionStorage.getItem('fm_ver');
 if(storedVer&&storedVer!==VER){
   sessionStorage.setItem('fm_ver',VER);
@@ -483,6 +483,7 @@ if(storedVer&&storedVer!==VER){
   <div class="auth-hero">
     <div class="auth-logo"><div><span style="color:#DC2626;">Fuel</span><span style="color:#FCD34D;">Map</span></div><div style="height:3.5px;background:linear-gradient(90deg,#DC2626,#FCD34D);border-radius:2px;width:100%;"></div></div>
     <div class="auth-tagline">SF Bay Area · Live fuel prices</div>
+    <div id="auth-status-note" style="display:none;background:#fef3c7;color:#92400e;font-size:11px;padding:6px 12px;text-align:center;"></div>
   </div>
   <div class="auth-body">
     <div class="auth-loading" id="auth-loading">
@@ -510,7 +511,7 @@ if(storedVer&&storedVer!==VER){
       <button class="auth-btn" id="auth-submit-btn" onclick="handleAuth()">Sign in</button>
       <div style="text-align:center;margin-top:10px;"><button onclick="showForgotPassword()" style="background:none;border:none;color:#1667d9;font-size:13px;font-weight:600;cursor:pointer;">Forgot password?</button></div>
       <div class="auth-divider">or</div>
-      <button class="auth-skip" onclick="skipAuth()">Continue without account</button>
+      <button onclick="skipAuth()" style="width:100%;background:#f0f9ff;border:2px solid #2563eb;color:#2563eb;font-weight:700;font-size:14px;padding:14px;border-radius:12px;cursor:pointer;margin-top:4px;">✓ Continue without account</button>
     </div>
   </div>
 </div>
@@ -3396,6 +3397,12 @@ function handleAuth(){
 }
 
 function signIn(email,password){
+  // 8s timeout on auth fetch
+  var _authTimeout=setTimeout(function(){
+    showAuthError('Sign in is taking too long. Try "Continue without account" to use the app now.');
+    document.getElementById('auth-submit-btn').disabled=false;
+    document.getElementById('auth-submit-btn').textContent='Sign in';
+  },8000);
   fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
     method:'POST',
     headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
@@ -3403,6 +3410,7 @@ function signIn(email,password){
   })
     .then(function(r){return r.json();})
     .then(function(data){
+      clearTimeout(_authTimeout);
       if(data.error||data.error_code){showAuthError(data.error_description||data.message||'Sign in failed.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Sign in';return;}
       currentSession=data;currentUser=data.user;
       localStorage.setItem('fm_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user}));
@@ -3416,9 +3424,9 @@ function signIn(email,password){
       onSignedIn();
     })
     .catch(function(err){
+    clearTimeout(_authTimeout);
     console.error('Auth fetch error:',err);
-    // If CORS blocked, retry without custom headers
-    showAuthError('Sign in failed. Check your connection and try again.');
+    showAuthError('Connection failed. You can still use FuelMap — tap "Continue without account" below.');
     document.getElementById('auth-submit-btn').disabled=false;
     document.getElementById('auth-submit-btn').textContent='Sign in';
   });
