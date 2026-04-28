@@ -642,7 +642,7 @@ if(storedVer&&storedVer!==VER){
     <div class="search-title">Find a station</div>
     <div class="search-input-wrap">
       <span style="font-size:16px;">🔍</span>
-      <input class="search-input" id="search-input" type="text" placeholder="Try: cheapest diesel, Shell open now…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="handleSearchInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();var v=this.value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}}"/>
+      <input class="search-input" id="search-input" type="text" placeholder="Try: cheapest diesel, Shell open now…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="handleSearchInput(this.value)" onkeydown="if(event.keyCode===13||event.key==='Enter'){event.preventDefault();var v=this.value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}}"/>
       <button onclick="clearSearch()" style="background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;padding:0;display:none;" id="search-clear-btn">✕</button>
       <button onclick="var v=document.getElementById('search-input').value.trim();if(v){document.getElementById('brand-dropdown').style.display='none';runSearch(v);}" style="background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;padding:6px 10px;cursor:pointer;flex-shrink:0;">Search</button>
     </div>
@@ -3681,7 +3681,7 @@ function saveTripHistory(entry){
   }catch(e){}
 }
 function replayTrip(dest){
-  dest=decodeURIComponent(dest);
+  // dest may be already decoded
   renderTripPlanner();
   setTimeout(function(){
     var inp=document.getElementById('trip-destination');
@@ -3695,26 +3695,19 @@ function shareTripPlan(){
   var r=tripResult;
   if(!r)return;
   var stop=selectedTripStop||r.bestStop;
-  var text='⛽ FuelMap Trip Plan
-';
-  text+='📍 To: '+r.destInput+'
-';
-  text+='🛣️ '+Math.round(r.totalMiles)+' mi · '+formatDuration(r.durationMin)+'
-';
+    var nl='\n';
+  var text='\u26fd FuelMap Trip Plan'+nl;
+  text+='\ud83d\udccd To: '+r.destInput+nl;
+  text+='\ud83d\udee3\ufe0f '+Math.round(r.totalMiles)+' mi \u00b7 '+formatDuration(r.durationMin)+nl;
   if(stop){
     var pi=getLatestPrice(stop);
-    text+='⛽ Fuel stop: '+stop.name+'
-';
-    text+='💲 $'+pi.price.toFixed(2)+'/gal
-';
-    if(stop.address) text+='📌 '+stop.address+'
-';
+    text+='\u26fd Fuel stop: '+stop.name+nl;
+    text+='\ud83d\udcb2 $'+pi.price.toFixed(2)+'/gal'+nl;
+    if(stop.address) text+='\ud83d\udccc '+stop.address+nl;
   }
-  if(r.fuelCost) text+='💰 Est. fuel cost: $'+r.fuelCost.toFixed(2)+'
-';
-  text+='🕐 ETA: '+formatTime(r.durationMin,true)+'
-';
-  text+='— Shared from FuelMap';
+  if(r.fuelCost) text+='\ud83d\udcb0 Est. fuel cost: $'+r.fuelCost.toFixed(2)+nl;
+  text+='\ud83d\udd50 ETA: '+formatTime(r.durationMin,true)+nl;
+  text+='\u2014 Shared from FuelMap';
   if(navigator.share){
     navigator.share({title:'FuelMap Trip Plan',text:text}).catch(function(){});
   } else if(navigator.clipboard){
@@ -5471,7 +5464,7 @@ function renderTripPlanner(){
     if(lvl2<=15) advisorMsg='<b>Fill up now.</b> You have only ~'+currentRange2+' mi of range left.';
     else if(lvl2<=30) advisorMsg='<b>Fill up before your trip.</b> Low fuel may not cover longer routes.';
     else if(nearestCostco&&getLatestPrice(nearestCostco).price<(livePrices.regular||5)-0.20) advisorMsg='<b>Optional:</b> Costco '+nearestCostco.name.replace('Costco','').trim()+' is '+nearestCostco.distanceMiles.toFixed(1)+' mi away at $'+getLatestPrice(nearestCostco).price.toFixed(2)+'/gal — worth a stop before you leave.';
-    else advisorMsg='<b>You're good.</b> ~'+currentRange2+' mi range · '+cheapNear+' if needed.';
+    else advisorMsg='<b>You\'re good.</b> ~'+currentRange2+' mi range · '+cheapNear+' if needed.';
     advisorHTML='<div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:12px 14px;margin-bottom:12px;">'
       +'<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">⚡ Smart Advisor</div>'
       +'<div style="display:flex;align-items:flex-start;gap:10px;">'
@@ -5489,7 +5482,8 @@ function renderTripPlanner(){
       +'<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">🕒 Recent Trips</div>'
       +'<div style="display:flex;flex-direction:column;gap:6px;">'
       +hist.slice(0,3).map(function(h){
-        return'<div onclick="replayTrip(''+encodeURIComponent(h.dest)+'')" style="background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">'
+        var encDest=encodeURIComponent(h.dest);
+        return'<div onclick="replayTrip(decodeURIComponent(\'' +encDest+ '\'))" style="background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">'
           +'<div>'
             +'<div style="font-size:13px;font-weight:700;color:#1a1a2e;">'+h.dest+'</div>'
             +'<div style="font-size:11px;color:#888;">'+Math.round(h.miles)+' mi'+(h.fuelCost?' · $'+h.fuelCost.toFixed(2)+' fuel':'')+(h.stopName?' · stopped at '+h.stopName:'')+'</div>'
@@ -5504,7 +5498,7 @@ function renderTripPlanner(){
     advisorHTML+
     '<div class="trip-form-card">'+
       '<div class="trip-form-title">Where are you going?</div>'+
-      '<input class="trip-input" id="trip-destination" placeholder="City, address, or landmark…" type="text" autocomplete="off" oninput="handleDestinationInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();planTrip();}"/>'+
+      '<input class="trip-input" id="trip-destination" placeholder="City, address, or landmark…" type="text" autocomplete="off" oninput="handleDestinationInput(this.value)" onkeydown="if(event.keyCode===13||event.keyCode===13){event.preventDefault();planTrip();}"/>'+
       '<div class="autocomplete-dropdown" id="ac-dropdown"></div>'+
       '<div class="trip-form-title" style="margin-top:4px;">Trip type</div>'+
       '<div class="trip-type-grid">'+typeOpts+'</div>'+
@@ -6264,7 +6258,7 @@ function renderTripResult(){
         var cost=[costNow,costRoute,costDest][i];
         var price=[priceNow,priceRoute,priceDest][i];
         var isBest=['now','route','dest'][i]===bestOption;
-        var subtitle=[nearestNow?nearestNow.name:'Nearest':r.bestStop.name,'Destination area'][i] || (i===0?(nearestNow?nearestNow.name:'Nearest'):i===1?r.bestStop.name:'Dest area');
+        var subtitle=i===0?(nearestNow?nearestNow.name:'Nearest'):i===1?r.bestStop.name:'Dest area';
         return'<div style="background:'+(isBest?'#f0fdf4':'#f9fafb')+';border:1.5px solid '+(isBest?'#86efac':'#e5e7eb')+';border-radius:10px;padding:8px;text-align:center;">'
           +(isBest?'<div style="font-size:9px;font-weight:800;color:#15803d;margin-bottom:2px;">✓ BEST</div>':'')
           +'<div style="font-size:11px;font-weight:700;color:#1a1a2e;">'+label+'</div>'
@@ -6290,7 +6284,7 @@ function renderTripResult(){
             +'<div style="font-size:13px;font-weight:700;">'+stop.name+'</div>'
             +'<div style="font-size:11px;color:#888;">~'+Math.round(stop.milesFromStart)+' mi in · $'+pi2.price.toFixed(2)+'/gal</div>'
           +'</div>'
-          +'<div onclick="selectTripStop(''+stop.id+'')" style="padding:6px 10px;background:#DC2626;color:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">Select</div>'
+          +'<div onclick="selectTripStop(this.dataset.sid)" data-sid=\''+stop.id+'\' style="padding:6px 10px;background:#DC2626;color:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">Select</div>'
           +'</div>';
       }).join('')
       +'</div></div>';
@@ -6319,7 +6313,7 @@ function renderTripResult(){
       +timelinePts.map(function(s){
         var sp=getLatestPrice(s);
         var isBest=r.bestStop&&s.id===r.bestStop.id;
-        return'<div onclick="selectTripStop(''+s.id+'')" style="background:'+(isBest?'#f0fdf4':'#f9fafb')+';border:1.5px solid '+(isBest?'#86efac':'#e5e7eb')+';border-radius:10px;padding:8px 10px;text-align:center;cursor:pointer;min-width:70px;">'
+        return'<div onclick="selectTripStop(this.dataset.sid)" data-sid=\''+s.id+'\' style="background:'+(isBest?'#f0fdf4':'#f9fafb')+';border:1.5px solid '+(isBest?'#86efac':'#e5e7eb')+';border-radius:10px;padding:8px 10px;text-align:center;cursor:pointer;min-width:70px;">'
           +'<div style="font-size:10px;color:#888;margin-bottom:2px;">'+Math.round(s.milesFromStart||0)+' mi</div>'
           +'<div style="font-size:15px;font-weight:800;color:'+(isBest?'#15803d':'#1a1a2e')+';">$'+sp.price.toFixed(2)+'</div>'
           +'<div style="font-size:9px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;">'+s.name.split(' ')[0]+'</div>'
@@ -6392,3 +6386,31 @@ function renderTripResult(){
 }
 
 
+
+// ── Session restore & initial auth check ─────────────────────────────────────
+(function(){
+  // Check for skip-auth flag (guest mode)
+  if(localStorage.getItem('fm_skip_auth')==='1'){
+    onSignedIn();
+    return;
+  }
+  // Check for stored Supabase session token
+  var token=localStorage.getItem('fm_token');
+  var userId=localStorage.getItem('fm_user_id');
+  var userName=localStorage.getItem('fm_user_name');
+  var userEmail=localStorage.getItem('fm_user_email');
+  if(token&&userId){
+    currentUser={id:userId,name:userName||'Driver',email:userEmail||''};
+    window._sessionRestored=true;
+    onSignedIn();
+    return;
+  }
+  // No session — show the auth form
+  var loadingEl=document.getElementById('auth-loading');
+  var formWrap=document.getElementById('auth-form-wrap');
+  if(loadingEl)loadingEl.style.display='none';
+  if(formWrap)formWrap.style.display='block';
+})();
+</script>
+</body>
+</html>
