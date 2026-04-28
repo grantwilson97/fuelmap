@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- FuelMap v1777344958 -->
+<!-- FuelMap v1777345330 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777344958</title>
+<title>FuelMap 1777345330</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -477,6 +477,9 @@ if('serviceWorker' in navigator){
       <div class="auth-loading-spinner"></div>
     </div>
     <div id="auth-form-wrap">
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#166534;text-align:center;line-height:1.5;">
+        <b>App works without an account.</b><br>Sign in to sync favorites across devices.
+      </div>
       <div class="auth-tabs">
         <button class="auth-tab on" id="tab-signin" onclick="switchAuthTab('signin')">Sign in</button>
         <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create account</button>
@@ -3385,10 +3388,15 @@ function handleAuth(){
 
 function signIn(email,password){
   // 8s timeout on auth fetch
+  var _email=document.getElementById('auth-email')?document.getElementById('auth-email').value:'';
   var _authTimeout=setTimeout(function(){
-    showAuthError('Sign in is taking too long. Try "Continue without account" to use the app now.');
-    document.getElementById('auth-submit-btn').disabled=false;
-    document.getElementById('auth-submit-btn').textContent='Sign in';
+    // Supabase taking too long — auto-proceed as guest
+    var name=_email?_email.split('@')[0]:'Driver';
+    currentUser={id:'local_'+Date.now(),name:name,email:_email,isLocal:true};
+    localStorage.setItem('fm_skip_auth','1');
+    localStorage.setItem('fm_user_name',name);
+    if(_email)localStorage.setItem('fm_user_email',_email);
+    onSignedIn();
   },8000);
   fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
     method:'POST',
@@ -3413,9 +3421,15 @@ function signIn(email,password){
     .catch(function(err){
     clearTimeout(_authTimeout);
     console.error('Auth fetch error:',err);
-    showAuthError('Connection failed. You can still use FuelMap — tap "Continue without account" below.');
-    document.getElementById('auth-submit-btn').disabled=false;
-    document.getElementById('auth-submit-btn').textContent='Sign in';
+    // Supabase is down/paused — auto-proceed as local guest
+    var email=document.getElementById('auth-email')?document.getElementById('auth-email').value:'';
+    var name=email?email.split('@')[0]:'Driver';
+    currentUser={id:'local_'+Date.now(),name:name,email:email,isLocal:true};
+    localStorage.setItem('fm_skip_auth','1');
+    localStorage.setItem('fm_user_name',name);
+    localStorage.setItem('fm_user_email',email);
+    showToastOnMap('Signed in locally — cloud sync unavailable');
+    onSignedIn();
   });
 }
 
@@ -3493,6 +3507,8 @@ function onSignedIn(){
   renderFavorites();
   updateLocationDisplay();
   renderTripPlanner();
+  // Show any pending toast (e.g. "signed in locally")
+  if(window._pendingToast){showToast(window._pendingToast,4000);window._pendingToast=null;}
   // Only sync to cloud if this is a fresh sign-in (not session restore)
   // Session restore already loaded cloud data above
   if(currentUser&&!window._sessionRestored){
@@ -4153,6 +4169,10 @@ function quickReport(stationId){
 }
 
 // ── Toast notification ────────────────────────────────────────────────────────
+function showToastOnMap(msg){
+  // Queues a toast to show once map is visible
+  window._pendingToast=msg;
+}
 function showToast(msg,duration){
   duration=duration||3000;
   var t=document.getElementById('fm-toast');
