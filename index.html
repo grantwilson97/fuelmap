@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777394884</title>
+<title>FuelMap 1777395140</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -4814,7 +4814,7 @@ function loadStations(){
   // Only show full overlay if map hasn't loaded yet
   if(!gMap){setLoading('Getting your location…');}
   var done=false;
-  var fallbackTimer=setTimeout(function(){if(!done){done=true;useFallbackLocation();}},6000);
+  var fallbackTimer=setTimeout(function(){if(!done){done=true;useFallbackLocation();}},3000);
   if(!navigator.geolocation){clearTimeout(fallbackTimer);done=true;useFallbackLocation();return;}
   navigator.geolocation.getCurrentPosition(
     function(pos){if(done)return;done=true;clearTimeout(fallbackTimer);userLat=pos.coords.latitude;userLng=pos.coords.longitude;updateLocationDisplay();ensureMap();updateMapCenter(userLat,userLng);
@@ -6689,9 +6689,11 @@ function hideTripMap(){
 
 // ── Session restore & initial auth check ─────────────────────────────────────
 (function(){
-  // Always clear skip-auth — login screen should always show unless user
-  // has a real saved session
+  // Clean up ALL legacy auth keys on every load
+  // Only fm_session (with real Supabase token) counts as a valid session
   localStorage.removeItem('fm_skip_auth');
+  localStorage.removeItem('fm_token');
+  localStorage.removeItem('fm_user_id');
 
   function showAuthForm(){
     var loadingEl=document.getElementById('auth-loading');
@@ -6700,36 +6702,27 @@ function hideTripMap(){
     if(formWrap)formWrap.style.display='block';
   }
 
-  // Check for a real saved session (from previous sign-in)
+  // Only restore session if we have a real Supabase session object
   try{
     var raw=localStorage.getItem('fm_session');
     if(raw){
       var sess=JSON.parse(raw);
-      if(sess&&sess.access_token&&sess.user){
+      if(sess&&sess.access_token&&sess.user&&sess.user.id){
         currentSession=sess;
         currentUser=sess.user;
         window._sessionRestored=true;
         onSignedIn();
         return;
+      } else {
+        // Invalid/stale session — clear it
+        localStorage.removeItem('fm_session');
       }
     }
-  }catch(e){}
-
-  // Legacy flat keys fallback
-  var token=localStorage.getItem('fm_token');
-  var userId=localStorage.getItem('fm_user_id');
-  if(token&&userId){
-    currentUser={
-      id:userId,
-      name:localStorage.getItem('fm_user_name')||'Driver',
-      email:localStorage.getItem('fm_user_email')||''
-    };
-    window._sessionRestored=true;
-    onSignedIn();
-    return;
+  }catch(e){
+    localStorage.removeItem('fm_session');
   }
 
-  // No saved session — show login screen
+  // No valid session — show login screen
   showAuthForm();
 })();
 </script>
