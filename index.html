@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777393055</title>
+<title>FuelMap 1777393693</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -3521,10 +3521,15 @@ function refreshSession(refreshToken){
 
 function skipAuth(){
   localStorage.setItem('fm_skip_auth','1');
+  var _ov=document.getElementById('loading-overlay');
+  if(_ov)_ov.style.display='none';
   onSignedIn();
 }
 
 function onSignedIn(){
+  // Immediately clear any loading overlay
+  var _ov=document.getElementById('loading-overlay');
+  if(_ov)_ov.style.display='none';
   document.getElementById('tab-bar').style.display='flex';
   showScreen('map');
   document.getElementById('tab-map').classList.add('active');
@@ -3533,14 +3538,9 @@ function onSignedIn(){
   if(typeof google!=='undefined'&&google.maps){initMap();}
   else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
   // Fetch live prices + oil market signal before loading stations
-  // Hard 4-second timeout so app never hangs on network failure
-  var _startupDone=false;
-  function _doStartup(){if(_startupDone)return;_startupDone=true;loadStations();}
-  setTimeout(_doStartup,4000);
-  Promise.all([
-    fetchLivePrices().catch(function(){return livePrices;}),
-    fetchOilPriceAdjustment().catch(function(){return 0;})
-  ]).then(_doStartup).catch(_doStartup);
+  // Fire loadStations immediately — don't wait for price APIs
+  // They update in background via applySeedPrices after stations load
+  loadStations();
   startPriceAutoRefresh();
   // Refresh oil price every 2 hours
   setInterval(function(){fetchOilPriceAdjustment();},2*60*60*1000);
@@ -4782,7 +4782,7 @@ function clearLoading(){
   document.getElementById('loading-overlay').style.display='none';
   document.getElementById('refresh-btn').style.display='block';
 }
-// Absolute safety net: if loading overlay is still showing after 8s, force-clear it
+// Absolute safety net: if loading overlay is still showing after 3s, force-clear it
 setTimeout(function(){
   var ov=document.getElementById('loading-overlay');
   if(ov&&ov.style.display!=='none'){
@@ -4794,7 +4794,7 @@ setTimeout(function(){
       buildStationList(lat,lng,[],[]);
     }
   }
-},8000);
+},3000);
 
 function loadStations(){
   setLoading('Getting your location…');
@@ -4848,7 +4848,7 @@ function useFallbackLocation(){
 }
 
 // ── Station fetch cache — prevents re-fetching same area ──────────────────────
-var _fetchCache={};   // key: "lat,lng,r" → timestamp
+var _fetchCache={}; // key: "lat,lng,r" → timestamp
 var _viewportFetchTimer=null;
 var _fetchCacheTTL=5*60*1000; // 5 min TTL
 
@@ -4858,7 +4858,10 @@ function _cacheKey(lat,lng,r){
 }
 
 function fetchOCM(lat,lng){
-  setLoading('Finding nearby stations…');
+  // Don't re-show spinner — seeded stations are already displayed
+  // Just update the status text quietly
+  var dsTxt=document.getElementById('data-source-txt');
+  if(dsTxt)dsTxt.textContent='🔄 Refreshing live data…';
   var av=getActiveVehicle();
   if(av&&av.fuelType==='electric')currentFilter='ev';
   else currentFilter='gas';
@@ -4868,24 +4871,10 @@ function fetchOCM(lat,lng){
   // Grid density scales with search radius
   // Each fetch point covers ~1.5mi radius → need grid spacing of ~2.5mi
   // Grid spacing in degrees: 2.5mi ≈ 0.036 lat, 0.050 lng (at SF latitude)
-  var gridSpacingLat=0.036;
-  var gridSpacingLng=0.050;
-  var fetchRadius=1.5; // miles per cell — tight enough to get dense results
-
-  // Build grid covering the full search area
-  var fetchPoints=[];
-  var steps=Math.ceil(searchRadius/2.5);
-  for(var i=-steps;i<=steps;i++){
-    for(var j=-steps;j<=steps;j++){
-      var ptLat=lat+i*gridSpacingLat;
-      var ptLng=lng+j*gridSpacingLng;
-      // Only include points within the search radius
-      if(distMiles(lat,lng,ptLat,ptLng)<=searchRadius){
-        fetchPoints.push({lat:Math.round(ptLat*10000)/10000,lng:Math.round(ptLng*10000)/10000});
-      }
-    }
-  }
-  if(fetchPoints.length===0)fetchPoints=[{lat:lat,lng:lng}];
+  var fetchRadius=searchRadius; // Use full radius in single call
+  // Single fetch point at user location — avoid firing 100+ API calls
+  // The viewport fetch (fetchForMapViewport) handles panning to new areas
+  var fetchPoints=[{lat:Math.round(lat*10000)/10000,lng:Math.round(lng*10000)/10000}];
 
   var seenGasIds={};
   var allLiveGas=[];
@@ -4911,8 +4900,12 @@ function fetchOCM(lat,lng){
       });
       return Promise.resolve();
     }
-    return fetch(GAS_API+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius='+fetchRadius)
-      .then(function(r){return r.json();})
+    // 5s timeout per API call
+    var gasCtrl=typeof AbortController!=='undefined'?new AbortController():null;
+    var gasTimer=gasCtrl?setTimeout(function(){gasCtrl.abort();},5000):null;
+    return fetch(GAS_API+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius='+fetchRadius,
+      gasCtrl?{signal:gasCtrl.signal}:{})
+      .then(function(r){if(gasTimer)clearTimeout(gasTimer);return r.json();})
       .then(function(data){
         (data.stations||[]).forEach(function(s){
           var id='gpl_'+s.id;
@@ -4949,11 +4942,28 @@ function fetchOCM(lat,lng){
     })
     .catch(function(){return[];});
 
+  // Race: resolve after 6s max regardless of API status
+  var _ocmDone=false;
+  var _ocmTimeout=setTimeout(function(){
+    if(_ocmDone)return;
+    _ocmDone=true;
+    // Show whatever we have so far (seeded + any live results)
+    buildStationList(lat,lng,[],allLiveGas);
+    if(gMap)setTimeout(fetchForMapViewport,1000);
+  },6000);
+
   Promise.all(gasPromises.concat([evPromise])).then(function(results){
+    if(_ocmDone)return;
+    _ocmDone=true;
+    clearTimeout(_ocmTimeout);
     var liveEV=results[results.length-1];
     buildStationList(lat,lng,liveEV,allLiveGas);
-    // After initial load, fetch for map viewport if user has panned
     if(gMap)setTimeout(fetchForMapViewport,1500);
+  }).catch(function(){
+    if(_ocmDone)return;
+    _ocmDone=true;
+    clearTimeout(_ocmTimeout);
+    buildStationList(lat,lng,[],allLiveGas);
   });
 }
 
@@ -5077,7 +5087,10 @@ function buildStationList(lat,lng,liveEV,liveGas){
   allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
   document.getElementById('station-count').textContent=allStations.length+' stations found';
   document.getElementById('data-source-txt').textContent='⛽ '+liveGas.length+' gas · 🔌 '+liveEV.length+' EV';
-  clearLoading();applySeedPrices(allStations);renderAll();renderAlerts();setTimeout(checkPriceAlerts,500);
+  try{clearLoading();}catch(e){}
+  try{applySeedPrices(allStations);}catch(e){}
+  try{renderAll();}catch(e){}
+  try{renderAlerts();}catch(e){}setTimeout(checkPriceAlerts,500);
   // Load cloud price reports so reported prices from any device show up
   loadCloudReports();
 
@@ -6670,6 +6683,8 @@ function hideTripMap(){
 
   // Guest / skip-auth mode
   if(localStorage.getItem('fm_skip_auth')==='1'){
+    var _ov2=document.getElementById('loading-overlay');
+    if(_ov2)_ov2.style.display='none';
     onSignedIn();
     return;
   }
