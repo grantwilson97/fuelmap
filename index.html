@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777395140</title>
+<title>FuelMap 1777395497</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -6684,6 +6684,104 @@ function removeActiveVehicle(){
 function hideTripMap(){
   var wrap=document.getElementById('trip-map-wrap');
   if(wrap)wrap.style.display='none';
+}
+
+
+
+// ── Brand logos ───────────────────────────────────────────────────────────────
+var BRAND_LOGOS={
+  'arco':       'https://logo.clearbit.com/arco.com',
+  'chevron':    'https://logo.clearbit.com/chevron.com',
+  'shell':      'https://logo.clearbit.com/shell.com',
+  '76':         'https://logo.clearbit.com/76.com',
+  'mobil':      'https://logo.clearbit.com/mobil.com',
+  'exxon':      'https://logo.clearbit.com/exxon.com',
+  'bp':         'https://logo.clearbit.com/bp.com',
+  'valero':     'https://logo.clearbit.com/valero.com',
+  'costco':     'https://logo.clearbit.com/costco.com',
+  'safeway':    'https://logo.clearbit.com/safeway.com',
+  'circle k':   'https://logo.clearbit.com/circlek.com',
+  'circle_k':   'https://logo.clearbit.com/circlek.com',
+  '7-eleven':   'https://logo.clearbit.com/7eleven.com',
+  '7eleven':    'https://logo.clearbit.com/7eleven.com',
+  'speedway':   'https://logo.clearbit.com/speedway.com',
+  'marathon':   'https://logo.clearbit.com/marathonbrand.com',
+  'sunoco':     'https://logo.clearbit.com/sunoco.com',
+  'texaco':     'https://logo.clearbit.com/texaco.com',
+  'citgo':      'https://logo.clearbit.com/citgo.com',
+  'phillips':   'https://logo.clearbit.com/phillips66.com',
+  'phillips 66':'https://logo.clearbit.com/phillips66.com',
+  'kwik':       'https://logo.clearbit.com/kwiktrip.com',
+  'pilot':      'https://logo.clearbit.com/pilotflyingj.com',
+  'loves':      'https://logo.clearbit.com/loves.com',
+  "love's":     'https://logo.clearbit.com/loves.com',
+  'flying j':   'https://logo.clearbit.com/pilotflyingj.com',
+  'ta ':        'https://logo.clearbit.com/ta-petro.com',
+  'petro':      'https://logo.clearbit.com/ta-petro.com'
+};
+
+function getBrandLogo(name, brand){
+  var key=(brand||name||'').toLowerCase().trim();
+  if(BRAND_LOGOS[key])return BRAND_LOGOS[key];
+  for(var k in BRAND_LOGOS){
+    if(key.indexOf(k)>-1||k.indexOf(key)>-1)return BRAND_LOGOS[k];
+  }
+  return null;
+}
+
+function brandLogoImg(name, brand, size){
+  size=size||28;
+  var url=getBrandLogo(name,brand);
+  if(!url)return'<div style="width:'+size+'px;height:'+size+'px;background:#f0f0f0;border-radius:6px;flex-shrink:0;"></div>';
+  return'<img src="'+url+'" style="width:'+size+'px;height:'+size+'px;object-fit:contain;border-radius:6px;flex-shrink:0;" onerror="this.style.display=\'none\'">';
+}
+
+// ── Favorites helpers ─────────────────────────────────────────────────────────
+function loadFavorites(){try{return JSON.parse(localStorage.getItem('fm_favorites')||'[]');}catch(e){return[];}}
+function saveFavorites(favs){localStorage.setItem('fm_favorites',JSON.stringify(favs));}
+function getFavorites(){
+  var favs=loadFavorites();
+  return favs.map(function(f){
+    // Enrich with live distance if available
+    var live=allStations.find(function(s){return String(s.id)===String(f.id);});
+    return live?Object.assign({},f,{distanceMiles:live.distanceMiles}):f;
+  });
+}
+function isFavorite(stationId){return loadFavorites().some(function(f){return String(f.id)===String(stationId);});}
+function toggleFavorite(station){
+  var favs=loadFavorites();
+  var idx=favs.findIndex(function(f){return String(f.id)===String(station.id);});
+  if(idx>-1){favs.splice(idx,1);}
+  else{favs.push({id:station.id,name:station.name,address:station.address,
+    type:station.type,brand:station.brand||station.network,
+    latitude:station.latitude,longitude:station.longitude,
+    basePrice:station.basePrice,score:station.score});}
+  saveFavorites(favs);
+  renderFavorites();
+}
+function toggleFav(stationId){
+  var st=allStations.find(function(s){return String(s.id)===String(stationId);});
+  if(st)toggleFavorite(st);
+}
+function toggleFavFromCard(stationId){
+  var st=allStations.find(function(s){return String(s.id)===String(stationId);});
+  if(!st)return;
+  toggleFavorite(st);
+  var el=document.getElementById('fav-card-'+stationId);
+  if(el)el.textContent=isFavorite(stationId)?'⭐':'☆';
+}
+function updateFavButtonForStation(station){
+  var btn=document.getElementById('fav-detail-btn');
+  if(btn)btn.textContent=isFavorite(station.id)?'⭐ Saved':'☆ Save';
+}
+
+// ── Bell badge ────────────────────────────────────────────────────────────────
+function updateBellBadge(){
+  var badge=document.getElementById('bell-badge');
+  if(!badge)return;
+  var count=(_priceAlerts&&_priceAlerts.length)||0;
+  if(count>0){badge.textContent=count;badge.style.display='flex';}
+  else{badge.style.display='none';}
 }
 
 
