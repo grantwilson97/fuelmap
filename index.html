@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- FuelMap v1777345330 -->
+<!-- FuelMap v1777345571 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777345330</title>
+<title>FuelMap 1777345571</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -478,8 +478,10 @@ if('serviceWorker' in navigator){
     </div>
     <div id="auth-form-wrap">
       <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#166534;text-align:center;line-height:1.5;">
-        <b>App works without an account.</b><br>Sign in to sync favorites across devices.
+        <b>App works without an account.</b><br>Tap below to jump straight in →
       </div>
+      <button onclick="skipAuth()" style="width:100%;padding:14px;background:#2563eb;border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:12px;">✓ Continue without account</button>
+      <div style="text-align:center;font-size:12px;color:#aaa;margin-bottom:12px;">— or sign in below —</div>
       <div class="auth-tabs">
         <button class="auth-tab on" id="tab-signin" onclick="switchAuthTab('signin')">Sign in</button>
         <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create account</button>
@@ -501,7 +503,7 @@ if('serviceWorker' in navigator){
       <button class="auth-btn" id="auth-submit-btn" onclick="handleAuth()">Sign in</button>
       <div style="text-align:center;margin-top:10px;"><button onclick="showForgotPassword()" style="background:none;border:none;color:#1667d9;font-size:13px;font-weight:600;cursor:pointer;">Forgot password?</button></div>
       <div class="auth-divider">or</div>
-      <button onclick="skipAuth()" style="width:100%;background:#f0f9ff;border:2px solid #2563eb;color:#2563eb;font-weight:700;font-size:14px;padding:14px;border-radius:12px;cursor:pointer;margin-top:4px;">✓ Continue without account</button>
+      <button onclick="skipAuth()" style="width:100%;background:#f7f7f9;border:1.5px solid #e0e0e0;color:#888;font-weight:600;font-size:13px;padding:12px;border-radius:12px;cursor:pointer;margin-top:4px;">Continue without account</button>
     </div>
   </div>
 </div>
@@ -3403,10 +3405,29 @@ function signIn(email,password){
     headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
     body:JSON.stringify({email:email,password:password})
   })
-    .then(function(r){return r.json();})
-    .then(function(data){
+    .then(function(r){
+      var _status=r.status;
+      return r.text().then(function(t){
+        try{return {d:JSON.parse(t),s:_status};}
+        catch(e){return {d:null,t:t,s:_status};}
+      });
+    })
+    .then(function(res){
       clearTimeout(_authTimeout);
-      if(data.error||data.error_code){showAuthError(data.error_description||data.message||'Sign in failed.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Sign in';return;}
+      var data=res.d;
+      if(!data){
+        showAuthError('Server error ('+res.s+'). Check your connection.');
+        document.getElementById('auth-submit-btn').disabled=false;
+        document.getElementById('auth-submit-btn').textContent='Sign in';
+        return;
+      }
+      if(data.error||data.error_code){
+        var msg=data.error_description||data.msg||data.message||data.error||'Sign in failed.';
+        showAuthError(msg);
+        document.getElementById('auth-submit-btn').disabled=false;
+        document.getElementById('auth-submit-btn').textContent='Sign in';
+        return;
+      }
       currentSession=data;currentUser=data.user;
       localStorage.setItem('fm_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user}));
       // Also save flat keys for backward compat
@@ -3420,16 +3441,16 @@ function signIn(email,password){
     })
     .catch(function(err){
     clearTimeout(_authTimeout);
-    console.error('Auth fetch error:',err);
-    // Supabase is down/paused — auto-proceed as local guest
-    var email=document.getElementById('auth-email')?document.getElementById('auth-email').value:'';
-    var name=email?email.split('@')[0]:'Driver';
-    currentUser={id:'local_'+Date.now(),name:name,email:email,isLocal:true};
-    localStorage.setItem('fm_skip_auth','1');
-    localStorage.setItem('fm_user_name',name);
-    localStorage.setItem('fm_user_email',email);
-    showToastOnMap('Signed in locally — cloud sync unavailable');
-    onSignedIn();
+    console.error('Auth error:',err);
+    var msg=err&&err.message?err.message:'';
+    // Show real error so we can debug
+    if(msg.toLowerCase().indexOf('fetch')>-1||msg.toLowerCase().indexOf('cors')>-1||msg===''||msg.toLowerCase().indexOf('failed')>-1){
+      showAuthError('Connection blocked. This is likely a CORS issue with your Supabase project. Try adding grantwilson97.github.io to Supabase allowed origins, or use Continue without account.');
+    } else {
+      showAuthError(msg||'Sign in failed. Please try again.');
+    }
+    document.getElementById('auth-submit-btn').disabled=false;
+    document.getElementById('auth-submit-btn').textContent='Sign in';
   });
 }
 
