@@ -3396,25 +3396,50 @@ function handleAuth(){
 }
 
 function signIn(email,password){
-  sbFetch('/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})})
+  fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+    method:'POST',
+    headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email:email,password:password})
+  })
     .then(function(r){return r.json();})
     .then(function(data){
       if(data.error||data.error_code){showAuthError(data.error_description||data.message||'Sign in failed.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Sign in';return;}
       currentSession=data;currentUser=data.user;
       localStorage.setItem('fm_session',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,user:data.user}));
+      // Also save flat keys for backward compat
+      if(data.user){
+        localStorage.setItem('fm_token',data.access_token);
+        localStorage.setItem('fm_user_id',data.user.id);
+        localStorage.setItem('fm_user_name',data.user.user_metadata&&data.user.user_metadata.name?data.user.user_metadata.name:'Driver');
+        localStorage.setItem('fm_user_email',data.user.email||'');
+      }
       onSignedIn();
     })
-    .catch(function(){showAuthError('Network error. Please try again.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Sign in';});
+    .catch(function(err){
+    console.error('Auth fetch error:',err);
+    // If CORS blocked, retry without custom headers
+    showAuthError('Sign in failed. Check your connection and try again.');
+    document.getElementById('auth-submit-btn').disabled=false;
+    document.getElementById('auth-submit-btn').textContent='Sign in';
+  });
 }
 
 function signUp(email,password,name){
-  sbFetch('/auth/v1/signup',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})})
+  fetch(SUPABASE_URL+'/auth/v1/signup',{
+    method:'POST',
+    headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email:email,password:password})
+  })
     .then(function(r){return r.json();})
     .then(function(data){
       if(data.error||data.error_code){showAuthError(data.msg||data.message||'Sign up failed.');document.getElementById('auth-submit-btn').disabled=false;document.getElementById('auth-submit-btn').textContent='Create account';return;}
       if(data.session){
         currentSession=data.session;currentUser=data.user||data.session.user;
         localStorage.setItem('fm_session',JSON.stringify({access_token:data.session.access_token,refresh_token:data.session.refresh_token,user:currentUser}));
+        localStorage.setItem('fm_token',data.session.access_token);
+        localStorage.setItem('fm_user_id',currentUser.id||'');
+        localStorage.setItem('fm_user_name',name||'Driver');
+        localStorage.setItem('fm_user_email',email||'');
         // Update profile name
         if(name&&name!=='Driver'){
           sbFetch('/rest/v1/profiles?id=eq.'+currentUser.id,{method:'PATCH',body:JSON.stringify({name:name,email:email})});
@@ -6389,27 +6414,50 @@ function renderTripResult(){
 
 // ── Session restore & initial auth check ─────────────────────────────────────
 (function(){
-  // Check for skip-auth flag (guest mode)
+  function showAuthForm(){
+    var loadingEl=document.getElementById('auth-loading');
+    var formWrap=document.getElementById('auth-form-wrap');
+    if(loadingEl)loadingEl.style.display='none';
+    if(formWrap)formWrap.style.display='block';
+  }
+
+  // Guest / skip-auth mode
   if(localStorage.getItem('fm_skip_auth')==='1'){
     onSignedIn();
     return;
   }
-  // Check for stored Supabase session token
+
+  // Try fm_session (saved by signIn/signUp)
+  try{
+    var raw=localStorage.getItem('fm_session');
+    if(raw){
+      var sess=JSON.parse(raw);
+      if(sess&&sess.access_token&&sess.user){
+        currentSession=sess;
+        currentUser=sess.user;
+        window._sessionRestored=true;
+        onSignedIn();
+        return;
+      }
+    }
+  }catch(e){}
+
+  // Legacy: try fm_token / fm_user_id (old format)
   var token=localStorage.getItem('fm_token');
   var userId=localStorage.getItem('fm_user_id');
-  var userName=localStorage.getItem('fm_user_name');
-  var userEmail=localStorage.getItem('fm_user_email');
   if(token&&userId){
-    currentUser={id:userId,name:userName||'Driver',email:userEmail||''};
+    currentUser={
+      id:userId,
+      name:localStorage.getItem('fm_user_name')||'Driver',
+      email:localStorage.getItem('fm_user_email')||''
+    };
     window._sessionRestored=true;
     onSignedIn();
     return;
   }
-  // No session — show the auth form
-  var loadingEl=document.getElementById('auth-loading');
-  var formWrap=document.getElementById('auth-form-wrap');
-  if(loadingEl)loadingEl.style.display='none';
-  if(formWrap)formWrap.style.display='block';
+
+  // No valid session found — show auth form
+  showAuthForm();
 })();
 </script>
 </body>
