@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777394659</title>
+<title>FuelMap 1777394884</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -3528,7 +3528,9 @@ function refreshSession(refreshToken){
 }
 
 function skipAuth(){
-  localStorage.setItem('fm_skip_auth','1');
+  // Guest mode — session only, not persisted
+  // So next open always shows login
+  currentUser={id:'guest_'+Date.now(),name:'Guest',isLocal:true};
   var _ov=document.getElementById('loading-overlay');
   if(_ov)_ov.style.display='none';
   onSignedIn();
@@ -6687,6 +6689,10 @@ function hideTripMap(){
 
 // ── Session restore & initial auth check ─────────────────────────────────────
 (function(){
+  // Always clear skip-auth — login screen should always show unless user
+  // has a real saved session
+  localStorage.removeItem('fm_skip_auth');
+
   function showAuthForm(){
     var loadingEl=document.getElementById('auth-loading');
     var formWrap=document.getElementById('auth-form-wrap');
@@ -6694,15 +6700,7 @@ function hideTripMap(){
     if(formWrap)formWrap.style.display='block';
   }
 
-  // Guest / skip-auth mode
-  if(localStorage.getItem('fm_skip_auth')==='1'){
-    var _ov2=document.getElementById('loading-overlay');
-    if(_ov2)_ov2.style.display='none';
-    onSignedIn();
-    return;
-  }
-
-  // Try fm_session (saved by signIn/signUp)
+  // Check for a real saved session (from previous sign-in)
   try{
     var raw=localStorage.getItem('fm_session');
     if(raw){
@@ -6717,7 +6715,7 @@ function hideTripMap(){
     }
   }catch(e){}
 
-  // Legacy: try fm_token / fm_user_id (old format)
+  // Legacy flat keys fallback
   var token=localStorage.getItem('fm_token');
   var userId=localStorage.getItem('fm_user_id');
   if(token&&userId){
@@ -6731,7 +6729,7 @@ function hideTripMap(){
     return;
   }
 
-  // No valid session found — show auth form
+  // No saved session — show login screen
   showAuthForm();
 })();
 </script>
