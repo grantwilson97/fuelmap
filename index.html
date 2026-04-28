@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777393693</title>
+<title>FuelMap 1777394659</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -525,7 +525,7 @@ if('serviceWorker' in navigator){
   </div>
   <div class="map-box" id="map-box" style="position:relative;padding:0;">
     <div id="google-map" style="width:100%;height:100%;"></div>
-    <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-overlay" id="loading-overlay" style="display:none;">
       <div class="loading-spinner"></div>
       <div class="loading-txt" id="loading-txt">Getting your location…</div>
     </div>
@@ -776,6 +776,14 @@ function showTab(name){
     if(name==='map'||name==='list') renderUsualSpots();
   }
 }
+
+// ── Global Google Maps callback ──────────────────────────────────────────────────
+// Must be defined before Google Maps script loads (it's async/defer)
+window.initMapCallback=function(){
+  if(typeof google==='undefined'||!google.maps)return;
+  initMap();
+  if(userLat&&userLng)updateMapCenter(userLat,userLng);
+};
 
 // ── Supabase config ───────────────────────────────────────────────────────────
 var SUPABASE_URL='https://puovjdcbgecvmhyilmvx.supabase.co';
@@ -3534,9 +3542,8 @@ function onSignedIn(){
   showScreen('map');
   document.getElementById('tab-map').classList.add('active');
   renderAlerts();renderCarbon();updateBellBadge();
-  // Initialize map as soon as Google Maps is ready
-  if(typeof google!=='undefined'&&google.maps){initMap();}
-  else{window.initMapCallback=function(){initMap();if(userLat&&userLng){updateMapCenter(userLat,userLng);}};}
+  // Initialize map (initMapCallback handles Google Maps async load)
+  if(typeof google!=='undefined'&&google.maps){ensureMap();}
   // Fetch live prices + oil market signal before loading stations
   // Fire loadStations immediately — don't wait for price APIs
   // They update in background via applySeedPrices after stations load
@@ -4797,7 +4804,13 @@ setTimeout(function(){
 },3000);
 
 function loadStations(){
-  setLoading('Getting your location…');
+  // Show subtle loading state without blocking the map
+  var dsTxt=document.getElementById('data-source-txt');
+  if(dsTxt)dsTxt.textContent='Getting your location…';
+  var stCount=document.getElementById('station-count');
+  if(stCount)stCount.textContent='Loading…';
+  // Only show full overlay if map hasn't loaded yet
+  if(!gMap){setLoading('Getting your location…');}
   var done=false;
   var fallbackTimer=setTimeout(function(){if(!done){done=true;useFallbackLocation();}},6000);
   if(!navigator.geolocation){clearTimeout(fallbackTimer);done=true;useFallbackLocation();return;}
@@ -4836,12 +4849,12 @@ function updateLocationDisplay(){
 
 function useFallbackLocation(){
   userLat=37.8044;userLng=-122.2712;
-  document.getElementById('map-title').textContent='SF Bay Area';
-  document.getElementById('location-txt').textContent='SF Bay Area';
+  try{document.getElementById('map-title').textContent='SF Bay Area';}catch(e){}
+  try{document.getElementById('location-txt').textContent='SF Bay Area';}catch(e){}
   ensureMap();
   updateMapCenter(userLat,userLng);
   if(gMap)gMap.setZoom(10);
-  // Show seeded stations immediately — don't wait for API
+  // Show seeded stations immediately — always clears loading
   buildStationList(userLat,userLng,[],[]);
   // Then try live fetch in background
   fetchOCM(userLat,userLng);
