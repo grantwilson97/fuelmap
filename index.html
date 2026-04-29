@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777395497</title>
+<title>FuelMap 1777425869</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -4402,7 +4402,7 @@ function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just 
 function getLatestPrice(station){
   var r=getReports(station.id);
   var rep=r.find(function(x){return x.fuelType==='regular'||x.fuelType==='ev_l2';});
-  if(rep)return{price:rep.price,source:'community',ago:timeAgo(rep.ts),estimated:false};
+  if(rep)return{price:rep.price,source:'community',ago:Date.now()-rep.ts,agoStr:timeAgo(rep.ts),estimated:false};
   // Real GasBuddy price
   if(station.realPrice){
     var ago=station.realPricePostedTime?timeAgo(new Date(station.realPricePostedTime).getTime()):null;
@@ -4519,21 +4519,26 @@ function initPricePinOverlay(){
     var _reports=getReports(st.id);
     var reportDot=_reports.length>0?'<span style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;background:#15803d;border:1.5px solid #fff;border-radius:50%;"></span>':'';
 
-    // Get brand color for pin background
-    var brandInfo=getBrandLogo(st.name,st.brand||st.network);
-    var pinBg=brandInfo?brandInfo.bg:pinColor(st.score);
-    var pinTextColor=brandInfo?brandInfo.text:'#fff';
-    // For EV stations always use teal
-    if(isEV){pinBg='#0d9488';pinTextColor='#fff';}
+    // Get brand name for pill label
+    var brandKey=(st.brand||st.network||st.name||'').toLowerCase().trim();
+    var brandShortMap={'arco':'ARCO','chevron':'CHEV','shell':'SHLL','76':'76',
+      'mobil':'MOBL','exxon':'EXXO','bp':'BP','valero':'VLRO','costco':'CSTCO',
+      'safeway':'SFWY','circle k':'CK','7-eleven':'7-11','speedway':'SPDWY',
+      'marathon':'MARA','texaco':'TEXC','citgo':'CITG','phillips':'P66',
+      'pilot':'PILOT',"love's":'LOVE','flying j':'FLJ'};
+    var pinBg=pinColor(st.score);
+    var pinTextColor='#fff';
+    if(isEV){pinBg='#0d9488';}
 
     var div=document.createElement('div');
     div.style.cssText='position:absolute;cursor:pointer;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));transition:transform 0.15s;';
 
     // Value color = main pill fill
     var valueColor=st.score>=75?'#16a34a':st.score>=50?'#f59e0b':'#DC2626';
-    var brandLabel=brandInfo?brandInfo.label:'⛽';
-    // Brand swatch as left accent badge using brand's actual color
-    var brandBadge='<div style="background:'+pinBg+';border-radius:10px;padding:1px 5px;font-size:8px;font-weight:900;color:'+pinTextColor+';letter-spacing:-0.2px;flex-shrink:0;">'+brandLabel+'</div>';
+    // Find short brand label
+    var brandLabel='⛽';
+    for(var bk in brandShortMap){if(brandKey.indexOf(bk)>-1){brandLabel=brandShortMap[bk];break;}}
+    var brandBadge='<div style="background:rgba(255,255,255,0.25);border-radius:10px;padding:1px 5px;font-size:8px;font-weight:900;color:#fff;letter-spacing:-0.2px;flex-shrink:0;">'+brandLabel+'</div>';
     div.innerHTML=
       '<div style="position:relative;display:inline-block;">'+
       '<div style="display:flex;align-items:center;background:'+valueColor+';border-radius:20px;padding:3px 8px 3px 4px;white-space:nowrap;border:2px solid #fff;gap:4px;">'+
@@ -5279,12 +5284,15 @@ function renderCards(){
     var sc2=pi.source==='community'?'src-community':pi.source==='live'?'src-live':'src-eia';
     // Staleness indicator
     var stalenessLabel='';
-    if(pi.source==='community'&&pi.ago){
-      var agoH=Math.round(pi.ago/3600000);
-      if(agoH<1)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ just now</span>';
-      else if(agoH<4)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ '+agoH+'h ago</span>';
-      else if(agoH<24)stalenessLabel='<span style="color:#d97706;font-size:9px;font-weight:700;">'+agoH+'h ago</span>';
-      else stalenessLabel='<span style="color:#9ca3af;font-size:9px;">'+Math.floor(agoH/24)+'d ago</span>';
+    if(pi.source==='community'&&pi.ago!=null){
+      var agoMs=typeof pi.ago==='number'?pi.ago:(Date.now()-0); // ago is ms since report
+      var agoH=agoMs/3600000;
+      if(agoH<0.1)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ just now</span>';
+      else if(agoH<4)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ '+(pi.agoStr||Math.round(agoH)+'h ago')+'</span>';
+      else if(agoH<24)stalenessLabel='<span style="color:#d97706;font-size:9px;font-weight:700;">'+(pi.agoStr||Math.round(agoH)+'h ago')+'</span>';
+      else stalenessLabel='<span style="color:#9ca3af;font-size:9px;">'+(pi.agoStr||Math.floor(agoH/24)+'d ago')+'</span>';
+    } else if(pi.source==='GasBuddy'&&pi.agoStr){
+      stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">GB '+pi.agoStr+'</span>';
     } else {
       stalenessLabel='<span style="color:#9ca3af;font-size:9px;">~ est.</span>';
     }
