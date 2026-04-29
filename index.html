@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777499795</title>
+<title>FuelMap 1777500165</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -6523,10 +6523,12 @@ function renderFavorites(){
   }
   var html='';
   favs.forEach(function(st){
-    var pi=getLatestPrice(st);
-    var distStr=st.distanceMiles!=null?st.distanceMiles.toFixed(1)+' mi':'';
-    var logoHtml=getBrandLogo?getBrandLogo(st.name,st.brand||st.network):'';
-    if(logoHtml&&logoHtml.html)logoHtml=logoHtml.html; else logoHtml='';
+    // Try to get live version for current price
+    var live=allStations.find(function(s){return String(s.id)===String(st.id);});
+    var stDisplay=live||st;
+    var pi=getLatestPrice(stDisplay);
+    var distStr=stDisplay.distanceMiles!=null&&stDisplay.distanceMiles<99?stDisplay.distanceMiles.toFixed(1)+' mi':'';
+    var logoHtml=brandLogoImg(stDisplay.name,stDisplay.brand||stDisplay.network,28);
     html+='<div class="card" onclick="showDetail('+JSON.stringify(st)+')" style="cursor:pointer;">'
       +'<div class="card-top">'
         +'<div style="display:flex;align-items:center;gap:8px;flex:1;">'
@@ -6548,103 +6550,98 @@ function renderFavorites(){
 function renderProfile(){
   var el=document.getElementById('profile-body');
   if(!el)return;
+
+  var profile=loadProfile()||{name:'Driver',email:'',emoji:'😊'};
+  var vehicles=loadVehicles();
   var av=getActiveVehicle();
   var user=currentUser;
-  var name=(user&&user.name)||localStorage.getItem('fm_user_name')||'Driver';
-  var email=(user&&user.email)||localStorage.getItem('fm_user_email')||'';
+
+  // Use real name/email from profile or currentUser
+  var displayName=profile.name||(user&&user.user_metadata&&user.user_metadata.name)||
+                  localStorage.getItem('fm_user_name')||'Driver';
+  var displayEmail=profile.email||(user&&user.email)||
+                   localStorage.getItem('fm_user_email')||'';
+  var emoji=profile.emoji||'😊';
   var isLocal=user&&user.isLocal;
-  
-  var html='<div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;">'
-    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'
-      +'<div style="width:48px;height:48px;background:#DC2626;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;">'
-        +name.charAt(0).toUpperCase()
-      +'</div>'
-      +'<div>'
-        +'<div style="font-size:16px;font-weight:700;">'+name+'</div>'
-        +'<div style="font-size:12px;color:#888;">'+(isLocal?'Guest mode':email)+'</div>'
+
+  var html='';
+
+  // ── User card ──────────────────────────────────────────────────────────────
+  html+='<div class="profile-section">'
+    +'<div class="profile-avatar-row">'
+      +'<div class="avatar-circle">'+emoji+'</div>'
+      +'<div class="profile-name-block">'
+        +'<div class="profile-name">'+displayName+'</div>'
+        +'<div class="profile-email">'+displayEmail+'</div>'
       +'</div>'
     +'</div>'
-    +(isLocal?
-      '<button onclick="localStorage.removeItem(\'fm_skip_auth\');showScreen(\'auth\');" style="width:100%;padding:10px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">Sign in / Create account</button>'
-      :'<button onclick="signOut()" style="width:100%;padding:10px;background:#f7f7f9;color:#DC2626;border:1.5px solid #DC2626;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">Sign out</button>'
+    +(isLocal
+      ?'<button onclick="localStorage.removeItem(\'fm_skip_auth\');localStorage.removeItem(\'fm_session\');showScreen(\'auth\');" style="width:100%;margin-top:12px;padding:11px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Sign in / Create account</button>'
+      :'<button onclick="signOut()" style="width:100%;margin-top:12px;padding:11px;background:#fff;color:#DC2626;border:1.5px solid #DC2626;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Sign out</button>'
     )
     +'</div>';
 
-  // Vehicle section
-  html+='<div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;">'
-    +'<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🚗 Your Vehicle</div>';
+  // ── Vehicle section ────────────────────────────────────────────────────────
+  html+='<div class="profile-section"><div class="profile-section-title">🚗 Your vehicle</div>';
+
   if(av){
-    var ft=FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||FUEL_TYPES[0];
+    var ft=FUEL_TYPES&&FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||{label:'Gasoline',mpg:30};
     var lvl=av.level||50;
-    html+='<div style="font-size:15px;font-weight:700;margin-bottom:4px;">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div>'
-      +'<div style="font-size:12px;color:#888;margin-bottom:12px;">'+ft.label+' · '+av.mpg+' mpg · '+av.tankSize+'gal tank</div>'
-      +'<div style="margin-bottom:8px;">'
+    var fc=fuelColor(lvl);
+    var mpgDisplay=av.mpg&&av.mpg>0?av.mpg+' mpg':'--';
+    var tankDisplay=av.tankSize?av.tankSize+' gal tank':'';
+    html+='<div style="font-size:17px;font-weight:700;margin-bottom:2px;">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div>'
+      +'<div style="font-size:12px;color:#888;margin-bottom:12px;">'+ft.label+' · '+mpgDisplay+(tankDisplay?' · '+tankDisplay:'')+'</div>'
+      +'<div style="margin-bottom:10px;">'
         +'<div style="display:flex;justify-content:space-between;margin-bottom:4px;">'
           +'<span style="font-size:12px;font-weight:600;">Fuel level</span>'
-          +'<span style="font-size:12px;color:#888;">'+lvl+'%</span>'
+          +'<span style="font-size:12px;color:'+fc+';font-weight:700;">'+lvl+'%</span>'
         +'</div>'
-        +'<input type="range" min="0" max="100" value="'+lvl+'" oninput="updateVehicleLevel(this.value)" style="width:100%;accent-color:#DC2626;">'
+        +'<input type="range" min="0" max="100" value="'+lvl+'" '
+          +'oninput="updateVehicleLevel(this.value)" '
+          +'style="width:100%;accent-color:'+fc+';">'
       +'</div>'
-      +'<button onclick="removeActiveVehicle();renderProfile();" style="padding:6px 12px;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:8px;font-size:12px;color:#888;cursor:pointer;">Remove vehicle</button>';
+      +'<button onclick="removeActiveVehicle();renderProfile();" '
+        +'style="padding:8px 14px;background:#f7f7f9;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;color:#666;cursor:pointer;">Remove vehicle</button>';
   } else {
-    html+='<div style="font-size:13px;color:#888;margin-bottom:12px;">No vehicle added yet.</div>'
-      +'<div id="add-vehicle-form">'
-        +'<input id="veh-year" type="number" placeholder="Year (e.g. 2022)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">'
-        +'<input id="veh-make" type="text" placeholder="Make (e.g. Toyota)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">'
-        +'<input id="veh-model" type="text" placeholder="Model (e.g. Camry)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">'
-        +'<input id="veh-mpg" type="number" placeholder="MPG (e.g. 32)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;">'
-        +'<button onclick="saveVehicleFromForm()" style="width:100%;padding:12px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Add vehicle</button>'
+    html+='<div style="font-size:13px;color:#888;margin-bottom:14px;">No vehicle saved yet.</div>'
+      +'<div>'
+        +'<input id="veh-year" type="number" placeholder="Year (e.g. 2024)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;margin-bottom:8px;box-sizing:border-box;">'
+        +'<input id="veh-make" type="text" placeholder="Make (e.g. Toyota)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;margin-bottom:8px;box-sizing:border-box;">'
+        +'<input id="veh-model" type="text" placeholder="Model (e.g. Tacoma)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;margin-bottom:8px;box-sizing:border-box;">'
+        +'<input id="veh-mpg" type="number" placeholder="MPG (e.g. 22)" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;margin-bottom:12px;box-sizing:border-box;">'
+        +'<button onclick="saveVehicleFromForm()" style="width:100%;padding:12px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Save vehicle</button>'
       +'</div>';
   }
   html+='</div>';
 
-  // Settings section
-  html+='<div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;">'
-    +'<div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">⚙️ Settings</div>'
-    +'<div style="font-size:13px;color:#888;text-align:center;">More settings coming soon.</div>'
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  var totalReports=0;
+  try{
+    Object.keys(localStorage).forEach(function(k){
+      if(k.startsWith('reports_'))totalReports+=JSON.parse(localStorage.getItem(k)||'[]').length;
+    });
+  }catch(e){}
+  var favCount=loadFavorites().length;
+
+  html+='<div class="profile-section"><div class="profile-section-title">📊 Your activity</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+      +'<div style="background:#f7f7f9;border-radius:10px;padding:12px;text-align:center;">'
+        +'<div style="font-size:22px;font-weight:800;color:#DC2626;">'+totalReports+'</div>'
+        +'<div style="font-size:11px;color:#888;">Price reports</div>'
+      +'</div>'
+      +'<div style="background:#f7f7f9;border-radius:10px;padding:12px;text-align:center;">'
+        +'<div style="font-size:22px;font-weight:800;color:#DC2626;">'+favCount+'</div>'
+        +'<div style="font-size:11px;color:#888;">Favorites</div>'
+      +'</div>'
+    +'</div>'
     +'</div>';
 
+  html+='<div style="height:20px;"></div>';
   el.innerHTML=html;
 }
 
-// ── New trip (reset trip planner) ─────────────────────────────────────────────
-function newTrip(){
-  tripResult=null;
-  selectedTripStop=null;
-  var bar=document.getElementById('selected-stop-bar');
-  if(bar)bar.style.display='none';
-  hideTripMap();
-  renderTripPlanner();
-}
 
-// ── Render alerts screen ──────────────────────────────────────────────────────
-function renderAlerts(){
-  var el=document.getElementById('alerts-body');
-  if(!el)return;
-  var alerts=_priceAlerts||[];
-  if(!alerts.length){
-    el.innerHTML='<div style="text-align:center;padding:40px 20px;color:#888;">'
-      +'<div style="font-size:40px;margin-bottom:12px;">🔔</div>'
-      +'<div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">No price alerts</div>'
-      +'<div style="font-size:13px;">Tap 🔔 on any station to set a price alert.</div>'
-      +'</div>';
-    return;
-  }
-  var html=alerts.map(function(a){
-    var st=allStations.find(function(s){return String(s.id)===String(a.id);});
-    var current=st?getLatestPrice(st).price:null;
-    return'<div style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">'
-      +'<div>'
-        +'<div style="font-size:14px;font-weight:700;">'+a.name+'</div>'
-        +'<div style="font-size:12px;color:#888;">Alert when ≤ $'+a.target.toFixed(2)+'/gal'+(current?' · Now: $'+current.toFixed(2):'')+'</div>'
-      +'</div>'
-      +'<button onclick="_priceAlerts=_priceAlerts.filter(function(x){return x.id!=='+JSON.stringify(a.id)+'});localStorage.setItem(\'fm_price_alerts\',JSON.stringify(_priceAlerts));renderAlerts();" style="background:none;border:none;font-size:18px;cursor:pointer;">✕</button>'
-      +'</div>';
-  }).join('');
-  el.innerHTML=html;
-}
-
-// ── Render carbon screen ──────────────────────────────────────────────────────
 function renderCarbon(){
   var el=document.getElementById('carbon-body');
   if(!el)return;
