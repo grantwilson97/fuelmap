@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777425869</title>
+<title>FuelMap 1777499795</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -314,11 +314,11 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .tvc-pct{font-size:11px;font-weight:800;color:#fff;min-width:32px;text-align:right;}
 .tvc-range{font-size:11px;color:rgba(255,255,255,0.8);font-weight:600;}
 .trip-body{padding:14px;}
-.trip-form-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;}
+.trip-form-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;overflow:visible;position:relative;z-index:10;}
 .trip-form-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
 .trip-input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;outline:none;margin-bottom:4px;}
 .trip-input:focus{border-color:#DC2626;}
-.autocomplete-dropdown{background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;overflow:hidden;margin-bottom:10px;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.autocomplete-dropdown{background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);position:relative;z-index:1000;}
 .autocomplete-item{padding:11px 14px;font-size:14px;color:#1a1a2e;border-bottom:0.5px solid #f0f0f0;cursor:pointer;}
 .autocomplete-item:last-child{border-bottom:none;}
 .trip-type-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
@@ -5535,8 +5535,11 @@ function handleDestinationInput(val){
   },350);
 }
 function selectPlace(description){
-  var input=document.getElementById('trip-destination');var dd=document.getElementById('ac-dropdown');
-  if(input)input.value=description;if(dd){dd.style.display='none';dd.innerHTML='';}
+  var input=document.getElementById('trip-destination');
+  var dd=document.getElementById('ac-dropdown');
+  if(input){input.value=description;input.blur();}
+  if(dd){dd.style.display='none';dd.innerHTML='';}
+  pendingDest=description;
 }
 
 // ── Trip planner ──────────────────────────────────────────────────────────────
