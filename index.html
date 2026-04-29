@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777500165</title>
+<title>FuelMap 1777500589</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -318,7 +318,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .trip-form-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
 .trip-input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;outline:none;margin-bottom:4px;}
 .trip-input:focus{border-color:#DC2626;}
-.autocomplete-dropdown{background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;margin-bottom:10px;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);position:relative;z-index:1000;}
+.autocomplete-dropdown{background:#fff;border:1.5px solid #e0e0e0;border-radius:12px;margin-top:4px;margin-bottom:10px;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.18);position:absolute;left:0;right:0;z-index:9999;}
 .autocomplete-item{padding:11px 14px;font-size:14px;color:#1a1a2e;border-bottom:0.5px solid #f0f0f0;cursor:pointer;}
 .autocomplete-item:last-child{border-bottom:none;}
 .trip-type-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;}
@@ -4802,11 +4802,15 @@ setTimeout(function(){
   if(ov&&ov.style.display!=='none'){
     console.warn('FuelMap: forced loading clear after timeout');
     clearLoading();
-    // Render seeded stations so user sees something
-    if(allStations.length===0&&typeof buildStationList==='function'){
-      var lat=userLat||37.8044,lng=userLng||-122.2712;
-      buildStationList(lat,lng,[],[]);
-    }
+    // Always try to render something
+    try{
+      if(allStations.length===0){
+        var lat=userLat||37.8044,lng=userLng||-122.2712;
+        buildStationList(lat,lng,[],[]);
+      } else {
+        renderAll();
+      }
+    }catch(e){console.error('Safety net render error:',e);}
   }
 },3000);
 
@@ -6510,9 +6514,11 @@ function renderTripResult(){
 
 // ── Favorites rendering ───────────────────────────────────────────────────────
 function renderFavorites(){
-  var el=document.getElementById('fav-body');
+  var el=document.getElementById('favorites-body');
   if(!el)return;
   var favs=getFavorites();
+  var countEl=document.getElementById('fav-count');
+  if(countEl)countEl.textContent=favs.length+' saved';
   if(!favs||favs.length===0){
     el.innerHTML='<div style="text-align:center;padding:40px 20px;color:#888;">'
       +'<div style="font-size:40px;margin-bottom:12px;">⭐</div>'
@@ -6566,15 +6572,20 @@ function renderProfile(){
 
   var html='';
 
-  // ── User card ──────────────────────────────────────────────────────────────
-  html+='<div class="profile-section">'
-    +'<div class="profile-avatar-row">'
+  // ── Hero header ────────────────────────────────────────────────────────────
+  var heroEl=document.getElementById('profile-hero');
+  if(heroEl){
+    heroEl.innerHTML='<div class="profile-avatar-row">'
       +'<div class="avatar-circle">'+emoji+'</div>'
       +'<div class="profile-name-block">'
         +'<div class="profile-name">'+displayName+'</div>'
         +'<div class="profile-email">'+displayEmail+'</div>'
       +'</div>'
-    +'</div>'
+    +'</div>';
+  }
+
+  // ── User card ──────────────────────────────────────────────────────────────
+  html+='<div class="profile-section">'
     +(isLocal
       ?'<button onclick="localStorage.removeItem(\'fm_skip_auth\');localStorage.removeItem(\'fm_session\');showScreen(\'auth\');" style="width:100%;margin-top:12px;padding:11px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Sign in / Create account</button>'
       :'<button onclick="signOut()" style="width:100%;margin-top:12px;padding:11px;background:#fff;color:#DC2626;border:1.5px solid #DC2626;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Sign out</button>'
@@ -6588,7 +6599,7 @@ function renderProfile(){
     var ft=FUEL_TYPES&&FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||{label:'Gasoline',mpg:30};
     var lvl=av.level||50;
     var fc=fuelColor(lvl);
-    var mpgDisplay=av.mpg&&av.mpg>0?av.mpg+' mpg':'--';
+    var mpgDisplay=(av.mpg&&av.mpg>0)?av.mpg+' mpg':(av.city_mpg?av.city_mpg+' mpg city':'--');
     var tankDisplay=av.tankSize?av.tankSize+' gal tank':'';
     html+='<div style="font-size:17px;font-weight:700;margin-bottom:2px;">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div>'
       +'<div style="font-size:12px;color:#888;margin-bottom:12px;">'+ft.label+' · '+mpgDisplay+(tankDisplay?' · '+tankDisplay:'')+'</div>'
