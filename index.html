@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1777500589</title>
+<title>FuelMap 1778090943</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -31,7 +31,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .chip.on{background:#DC2626;border-color:#DC2626;color:#fff;}
 .chip-all.on{background:#2563eb;border-color:#2563eb;color:#fff;}
 .chip-ev.on{background:#16a34a;border-color:#16a34a;color:#fff;}
-.map-box{flex:1;background:#f0f4ff;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.map-box{flex:1;background:#f0f4ff;position:relative;overflow:hidden;min-height:200px;}
 .station-preview{display:none;background:#fff;border-radius:12px;padding:10px 12px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin:0 10px 0;border:1.5px solid #f0f0f0;}
 .station-preview.visible{display:block;}
 .preview-drag{width:30px;height:3px;background:#e0e0e0;border-radius:2px;margin:0 auto 8px;cursor:pointer;}
@@ -314,7 +314,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .tvc-pct{font-size:11px;font-weight:800;color:#fff;min-width:32px;text-align:right;}
 .tvc-range{font-size:11px;color:rgba(255,255,255,0.8);font-weight:600;}
 .trip-body{padding:14px;}
-.trip-form-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;overflow:visible;position:relative;z-index:10;}
+.trip-form-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;border:1.5px solid #eee;position:relative;}
 .trip-form-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:12px;}
 .trip-input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;color:#1a1a2e;outline:none;margin-bottom:4px;}
 .trip-input:focus{border-color:#DC2626;}
@@ -524,7 +524,7 @@ if('serviceWorker' in navigator){
     <div class="filter-row" id="filters"></div>
   </div>
   <div class="map-box" id="map-box" style="position:relative;padding:0;">
-    <div id="google-map" style="width:100%;height:100%;"></div>
+    <div id="google-map" style="position:absolute;top:0;left:0;right:0;bottom:0;"></div>
     <div class="loading-overlay" id="loading-overlay" style="display:none;">
       <div class="loading-spinner"></div>
       <div class="loading-txt" id="loading-txt">Getting your location…</div>
@@ -3730,7 +3730,29 @@ function loadPrefs(){try{return JSON.parse(localStorage.getItem('fm_prefs')||'nu
 function savePrefs(p){localStorage.setItem('fm_prefs',JSON.stringify(p));}
 function getSearchRadius(){var p=loadPrefs();return p&&p.radius?p.radius:15;}
 function loadVehicles(){return loadLocalVehicles();}
-function getActiveVehicle(){var v=loadVehicles();return v.find(function(x){return x.active;})||v[0]||null;}
+function getActiveVehicle(){
+  var v=loadVehicles();
+  var av=v.find(function(x){return x.active;})||v[0]||null;
+  if(!av)return null;
+  // Normalize mpg field — handle all variants the original app may have saved
+  if(!av.mpg||av.mpg<=0){
+    av.mpg=av.combined_mpg||av.city_mpg||av.hwy_mpg||av.fuel_economy||
+           (av.city_mpg&&av.hwy_mpg?Math.round((av.city_mpg+av.hwy_mpg)/2):0)||0;
+  }
+  // Normalize tank size
+  if(!av.tankSize||av.tankSize<=0){
+    av.tankSize=av.tank_size||av.fuelCapacity||av.fuel_capacity||15;
+  }
+  // Normalize fuel type
+  if(!av.fuelType){
+    av.fuelType=av.fuel_type||av.type||'gas';
+  }
+  // Normalize emoji
+  if(!av.emoji){
+    av.emoji=av.fuelType==='electric'?'⚡':'🚗';
+  }
+  return av;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function scoreColor(s){return s>=80?'#16a34a':s>=65?'#d97706':'#dc2626';}
@@ -4793,8 +4815,13 @@ function setLoading(msg){
   if(dsTxt&&!dsTxt.textContent)dsTxt.textContent='Loading stations…';
 }
 function clearLoading(){
-  document.getElementById('loading-overlay').style.display='none';
-  document.getElementById('refresh-btn').style.display='block';
+  try{document.getElementById('loading-overlay').style.display='none';}catch(e){}
+  try{document.getElementById('refresh-btn').style.display='block';}catch(e){}
+  // Clear any "Loading..." text from station count
+  var sc=document.getElementById('station-count');
+  if(sc&&sc.textContent==='Loading…')sc.textContent='';
+  var ds=document.getElementById('data-source-txt');
+  if(ds&&ds.textContent==='Getting your location…')ds.textContent='';
 }
 // Absolute safety net: if loading overlay is still showing after 3s, force-clear it
 setTimeout(function(){
@@ -4812,7 +4839,7 @@ setTimeout(function(){
       }
     }catch(e){console.error('Safety net render error:',e);}
   }
-},3000);
+},5000);
 
 function loadStations(){
   // Show subtle loading state without blocking the map
@@ -5530,9 +5557,30 @@ function handleDestinationInput(val){
         dd.innerHTML=preds.slice(0,5).map(function(p){
           var main=p.structured_formatting?p.structured_formatting.main_text:p.description;
           var sec=p.structured_formatting?p.structured_formatting.secondary_text:'';
-          var desc=p.description.replace(/'/g,'&#39;');
-          return'<div class="autocomplete-item" onclick="selectPlace(\''+desc+'\')"><span style="font-weight:600;">'+main+'</span> <span style="color:#888;font-size:12px;">'+sec+'</span></div>';
+          var desc=p.description.replace(/"/g,'&quot;').replace(/'/g,"&#39;");
+          return'<div style="padding:12px 14px;font-size:14px;border-bottom:1px solid #f0f0f0;cursor:pointer;" onclick="selectPlace(\''+desc+'\')" ontouchend="event.preventDefault();selectPlace(\''+desc+'\')">'+'<span style="font-weight:600;">'+main+'</span> <span style="color:#888;font-size:12px;">'+sec+'</span></div>';
         }).join('');
+        // Move dropdown to body to escape all clipping contexts
+        if(dd.parentNode!==document.body){
+          document.body.appendChild(dd);
+        }
+        var inp=document.getElementById('trip-destination');
+        if(inp){
+          var rect=inp.getBoundingClientRect();
+          // Use visualViewport offset on iOS when keyboard is shown
+          var vvTop=window.visualViewport?window.visualViewport.offsetTop:0;
+          dd.style.position='fixed';
+          dd.style.top=(rect.bottom+2+vvTop)+'px';
+          dd.style.left=rect.left+'px';
+          dd.style.width=rect.width+'px';
+          dd.style.zIndex='99999';
+          dd.style.background='#fff';
+          dd.style.border='1.5px solid #ddd';
+          dd.style.borderRadius='12px';
+          dd.style.boxShadow='0 8px 24px rgba(0,0,0,0.18)';
+          dd.style.maxHeight='220px';
+          dd.style.overflowY='auto';
+        }
         dd.style.display='block';
       })
       .catch(function(){dd.style.display='none';});
@@ -5542,7 +5590,11 @@ function selectPlace(description){
   var input=document.getElementById('trip-destination');
   var dd=document.getElementById('ac-dropdown');
   if(input){input.value=description;input.blur();}
-  if(dd){dd.style.display='none';dd.innerHTML='';}
+  if(dd){dd.style.display='none';dd.innerHTML='';
+    // Move back inside form if it was moved to body
+    var formDiv=input&&input.parentNode;
+    if(formDiv&&dd.parentNode===document.body)formDiv.appendChild(dd);
+  }
   pendingDest=description;
 }
 
@@ -6520,39 +6572,39 @@ function renderFavorites(){
   var countEl=document.getElementById('fav-count');
   if(countEl)countEl.textContent=favs.length+' saved';
   if(!favs||favs.length===0){
-    el.innerHTML='<div style="text-align:center;padding:40px 20px;color:#888;">'
-      +'<div style="font-size:40px;margin-bottom:12px;">⭐</div>'
-      +'<div style="font-size:15px;font-weight:700;color:#333;margin-bottom:8px;">No favorites yet</div>'
-      +'<div style="font-size:13px;">Tap the ⭐ on any station to save it here.</div>'
+    el.innerHTML='<div style="text-align:center;padding:60px 20px;color:#888;">'
+      +'<div style="font-size:48px;margin-bottom:16px;">⭐</div>'
+      +'<div style="font-size:16px;font-weight:700;color:#333;margin-bottom:8px;">No favorites yet</div>'
+      +'<div style="font-size:13px;line-height:1.5;">Tap the ☆ on any station card to save it here.</div>'
       +'</div>';
     return;
   }
-  var html='';
+  var html='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
   favs.forEach(function(st){
-    // Try to get live version for current price
     var live=allStations.find(function(s){return String(s.id)===String(st.id);});
     var stDisplay=live||st;
     var pi=getLatestPrice(stDisplay);
-    var distStr=stDisplay.distanceMiles!=null&&stDisplay.distanceMiles<99?stDisplay.distanceMiles.toFixed(1)+' mi':'';
-    var logoHtml=brandLogoImg(stDisplay.name,stDisplay.brand||stDisplay.network,28);
-    html+='<div class="card" onclick="showDetail('+JSON.stringify(st)+')" style="cursor:pointer;">'
-      +'<div class="card-top">'
-        +'<div style="display:flex;align-items:center;gap:8px;flex:1;">'
-          +logoHtml
-          +'<div>'
-            +'<div class="card-name">'+st.name+'</div>'
-            +'<div class="card-dist">'+distStr+(distStr?' · ':'')+st.address+'</div>'
-          +'</div>'
-        +'</div>'
-        +'<div onclick="event.stopPropagation();toggleFav('+JSON.stringify(st.id)+')" style="font-size:20px;cursor:pointer;padding:4px;">⭐</div>'
+    var distStr=stDisplay.distanceMiles!=null&&stDisplay.distanceMiles<99?'📍 '+stDisplay.distanceMiles.toFixed(1)+' mi away':'';
+    var logo=brandLogoImg(stDisplay.name,stDisplay.brand||stDisplay.network,32);
+    var isFav=true;
+    html+='<div onclick="showDetail('+JSON.stringify(stDisplay)+')" style="background:#fff;border-radius:14px;border:1.5px solid #eee;padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.06);">'
+      +logo
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:15px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+stDisplay.name+'</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+stDisplay.address+'</div>'
+        +(distStr?'<div style="font-size:11px;color:#2563eb;margin-top:2px;">'+distStr+'</div>':'')
       +'</div>'
-      +(pi?'<div style="font-size:18px;font-weight:800;color:#DC2626;margin-top:4px;">$'+pi.price.toFixed(2)+'/gal</div>':'')
-      +'</div>';
+      +'<div style="text-align:right;flex-shrink:0;">'
+        +'<div style="font-size:20px;font-weight:800;color:#DC2626;">$'+pi.price.toFixed(2)+'</div>'
+        +'<div style="font-size:10px;color:#888;">/gal</div>'
+        +'<div onclick="event.stopPropagation();toggleFav('+JSON.stringify(stDisplay.id)+')" style="font-size:18px;margin-top:4px;cursor:pointer;">⭐</div>'
+      +'</div>'
+    +'</div>';
   });
+  html+='</div>';
   el.innerHTML=html;
 }
 
-// ── Profile rendering ─────────────────────────────────────────────────────────
 function renderProfile(){
   var el=document.getElementById('profile-body');
   if(!el)return;
@@ -6804,6 +6856,49 @@ function updateBellBadge(){
 }
 
 
+// ── Session restore & initial auth check ─────────────────────────────────────
+(function(){
+  // Clean up ALL legacy auth keys on every load
+  // Only fm_session (with real Supabase token) counts as a valid session
+  localStorage.removeItem('fm_skip_auth');
+  localStorage.removeItem('fm_token');
+  localStorage.removeItem('fm_user_id');
+
+  function showAuthForm(){
+    var loadingEl=document.getElementById('auth-loading');
+    var formWrap=document.getElementById('auth-form-wrap');
+    if(loadingEl)loadingEl.style.display='none';
+    if(formWrap)formWrap.style.display='block';
+  }
+
+  // Only restore session if we have a real Supabase session object
+  try{
+    var raw=localStorage.getItem('fm_session');
+    if(raw){
+      var sess=JSON.parse(raw);
+      if(sess&&sess.access_token&&sess.user&&sess.user.id){
+        currentSession=sess;
+        currentUser=sess.user;
+        window._sessionRestored=true;
+        onSignedIn();
+        return;
+      } else {
+        // Invalid/stale session — clear it
+        localStorage.removeItem('fm_session');
+      }
+    }
+  }catch(e){
+    localStorage.removeItem('fm_session');
+  }
+
+  // No valid session — show login screen
+  showAuthForm();
+})();
+</script>
+</body>
+</htmlfunction openVehiclePicker(){
+  showTab('profile');
+}
 // ── Session restore & initial auth check ─────────────────────────────────────
 (function(){
   // Clean up ALL legacy auth keys on every load
