@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778090943</title>
+<title>FuelMap 1778091235</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -3543,7 +3543,9 @@ function onSignedIn(){
   document.getElementById('tab-bar').style.display='flex';
   showScreen('map');
   document.getElementById('tab-map').classList.add('active');
-  renderAlerts();renderCarbon();updateBellBadge();
+  try{renderAlerts();}catch(e){}
+  try{renderCarbon();}catch(e){}
+  try{updateBellBadge();}catch(e){}
   // Initialize map (initMapCallback handles Google Maps async load)
   if(typeof google!=='undefined'&&google.maps){ensureMap();}
   // Fetch live prices + oil market signal before loading stations
@@ -3562,13 +3564,15 @@ function onSignedIn(){
   // Only sync to cloud if this is a fresh sign-in (not session restore)
   // Session restore already loaded cloud data above
   if(currentUser&&!window._sessionRestored){
-    syncLocalToCloud();
-    loadCloudFavorites().then(function(favs){
-      if(favs&&favs.length>0){
-        localStorage.setItem('fm_favorites',JSON.stringify(favs));
-        renderFavorites();
-      }
-    }).catch(function(){});
+    try{syncLocalToCloud();}catch(e){}
+    try{
+      loadCloudFavorites().then(function(favs){
+        if(favs&&favs.length>0){
+          localStorage.setItem('fm_favorites',JSON.stringify(favs));
+          renderFavorites();
+        }
+      }).catch(function(){});
+    }catch(e){}
   }
 }
 
@@ -6856,6 +6860,55 @@ function updateBellBadge(){
 }
 
 
+
+// ── Render alerts screen ──────────────────────────────────────────────────────
+function renderAlerts(){
+  var el=document.getElementById('alerts-body');
+  if(!el)return;
+  updateBellBadge();
+  var alerts=_priceAlerts||[];
+  if(!alerts.length){
+    el.innerHTML='<div style="text-align:center;padding:60px 20px;color:#888;">'
+      +'<div style="font-size:48px;margin-bottom:16px;">🔔</div>'
+      +'<div style="font-size:16px;font-weight:700;color:#333;margin-bottom:8px;">No price alerts</div>'
+      +'<div style="font-size:13px;line-height:1.5;">Tap 🔔 on any station to get notified when the price drops.</div>'
+      +'</div>';
+    return;
+  }
+  el.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0;">'
+    +alerts.map(function(a){
+      var st=allStations.find(function(s){return String(s.id)===String(a.id);});
+      var current=st?getLatestPrice(st).price:null;
+      return'<div style="background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 4px rgba(0,0,0,0.06);">'
+        +'<div style="flex:1;">'
+          +'<div style="font-size:14px;font-weight:700;">'+a.name+'</div>'
+          +'<div style="font-size:12px;color:#888;margin-top:2px;">Alert when ≤ <b>$'+a.target.toFixed(2)+'</b>/gal'
+            +(current?' · Now $'+current.toFixed(2):'')+'</div>'
+        +'</div>'
+        +'<button onclick="(function(){'
+          +'_priceAlerts=_priceAlerts.filter(function(x){return x.id!==\''+a.id+'\';});'
+          +'localStorage.setItem(\'fm_price_alerts\',JSON.stringify(_priceAlerts));'
+          +'renderAlerts();'
+        +'})()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;padding:4px;">✕</button>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+}
+
+// ── Load cloud favorites ───────────────────────────────────────────────────────
+function loadCloudFavorites(){
+  if(!currentUser||!currentUser.id||currentUser.isLocal){
+    return Promise.resolve([]);
+  }
+  return sbFetch('/rest/v1/favorites?user_id=eq.'+currentUser.id,{
+    method:'GET',
+    headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(currentSession&&currentSession.access_token||SUPABASE_ANON_KEY)}
+  })
+  .then(function(r){return r.ok?r.json():[];})
+  .catch(function(){return[];});
+}
+
+
 // ── Session restore & initial auth check ─────────────────────────────────────
 (function(){
   // Clean up ALL legacy auth keys on every load
@@ -6899,6 +6952,55 @@ function updateBellBadge(){
 </htmlfunction openVehiclePicker(){
   showTab('profile');
 }
+
+// ── Render alerts screen ──────────────────────────────────────────────────────
+function renderAlerts(){
+  var el=document.getElementById('alerts-body');
+  if(!el)return;
+  updateBellBadge();
+  var alerts=_priceAlerts||[];
+  if(!alerts.length){
+    el.innerHTML='<div style="text-align:center;padding:60px 20px;color:#888;">'
+      +'<div style="font-size:48px;margin-bottom:16px;">🔔</div>'
+      +'<div style="font-size:16px;font-weight:700;color:#333;margin-bottom:8px;">No price alerts</div>'
+      +'<div style="font-size:13px;line-height:1.5;">Tap 🔔 on any station to get notified when the price drops.</div>'
+      +'</div>';
+    return;
+  }
+  el.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0;">'
+    +alerts.map(function(a){
+      var st=allStations.find(function(s){return String(s.id)===String(a.id);});
+      var current=st?getLatestPrice(st).price:null;
+      return'<div style="background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 4px rgba(0,0,0,0.06);">'
+        +'<div style="flex:1;">'
+          +'<div style="font-size:14px;font-weight:700;">'+a.name+'</div>'
+          +'<div style="font-size:12px;color:#888;margin-top:2px;">Alert when ≤ <b>$'+a.target.toFixed(2)+'</b>/gal'
+            +(current?' · Now $'+current.toFixed(2):'')+'</div>'
+        +'</div>'
+        +'<button onclick="(function(){'
+          +'_priceAlerts=_priceAlerts.filter(function(x){return x.id!==\''+a.id+'\';});'
+          +'localStorage.setItem(\'fm_price_alerts\',JSON.stringify(_priceAlerts));'
+          +'renderAlerts();'
+        +'})()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;padding:4px;">✕</button>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+}
+
+// ── Load cloud favorites ───────────────────────────────────────────────────────
+function loadCloudFavorites(){
+  if(!currentUser||!currentUser.id||currentUser.isLocal){
+    return Promise.resolve([]);
+  }
+  return sbFetch('/rest/v1/favorites?user_id=eq.'+currentUser.id,{
+    method:'GET',
+    headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(currentSession&&currentSession.access_token||SUPABASE_ANON_KEY)}
+  })
+  .then(function(r){return r.ok?r.json():[];})
+  .catch(function(){return[];});
+}
+
+
 // ── Session restore & initial auth check ─────────────────────────────────────
 (function(){
   // Clean up ALL legacy auth keys on every load
