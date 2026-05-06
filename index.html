@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778091952</title>
+<title>FuelMap 1778092282</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -6016,17 +6016,25 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
   document.getElementById('trip-body').innerHTML='<div class="trip-planning"><div class="trip-planning-spinner"></div><div class="trip-planning-txt">Finding best fuel stops along your route…</div></div>';
 
   // ── Smart corridor search ─────────────────────────────────────────────────
-  // Always search regardless of whether user can make it
-  // Search window: from 10% of trip to 90%, prefer middle sections
-  var searchWindowStart=Math.max(totalMiles*0.10, Math.min(currentRange*0.35, totalMiles*0.40));
-  var searchWindowEnd=Math.min(totalMiles*0.90, currentRange*0.85);
-  if(searchWindowStart>=searchWindowEnd){
-    searchWindowStart=totalMiles*0.20;
-    searchWindowEnd=totalMiles*0.80;
+  // Search window based on actual range — find stops user can actually reach
+  var searchWindowStart, searchWindowEnd;
+  if(needsStop){
+    // Must stop: search from 30% of range to 85% of range (where they'll need gas)
+    searchWindowStart=Math.max(totalMiles*0.05, currentRange*0.30);
+    searchWindowEnd=Math.min(totalMiles*0.90, currentRange*0.80);
+  } else {
+    // Optional stop: spread across the whole route
+    searchWindowStart=totalMiles*0.15;
+    searchWindowEnd=totalMiles*0.85;
+  }
+  if(searchWindowStart>=searchWindowEnd||searchWindowEnd-searchWindowStart<10){
+    searchWindowStart=totalMiles*0.10;
+    searchWindowEnd=Math.min(totalMiles*0.90, Math.max(currentRange*0.75, totalMiles*0.50));
   }
 
   var samplePoints=[];
-  var numSamples=4;
+  // More samples for longer routes to cover more of the corridor
+  var numSamples=totalMiles<50?3:totalMiles<150?6:8;
   for(var i=0;i<numSamples;i++){
     var fraction=(searchWindowStart+(searchWindowEnd-searchWindowStart)*(i/(numSamples-1)))/totalMiles;
     fraction=Math.max(0.05,Math.min(0.95,fraction));
@@ -6046,8 +6054,8 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
 
   // Use polyline for precise corridor if available
   var routePath=polylinePoints||samplePoints;
-  // Max detour off route: tight corridor
-  var maxDetour=totalMiles<30?1.2:2.0;
+  // Max detour off route — wider for highway trips where stations cluster near exits
+  var maxDetour=totalMiles<30?1.5:totalMiles<100?3.0:5.0;
 
   // Helper: find minimum distance from a station to the actual route polyline
   function distToRoute(sLat,sLng){
@@ -6071,8 +6079,33 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     return Math.round((bestIdx/routePath.length)*totalMiles);
   }
 
+  // ── Step 1: Search seeded + loaded stations along route corridor ─────────────
+  // This is fast (no network) and covers our 1,966 seeded CA stations
+  var stationsToCheck=allStations.filter(function(s){
+    return isEVVehicle?(s.type==='ev'):(s.type==='gas'||!s.type);
+  });
+
+  stationsToCheck.forEach(function(s){
+    if(!s.latitude||!s.longitude)return;
+    if(allCandidates.find(function(c){return String(c.id)===String(s.id);}))return;
+
+    var detour=distToRoute(s.latitude,s.longitude);
+    if(detour>maxDetour)return;
+
+    var milesIn=milesAlongRoute(s.latitude,s.longitude);
+    if(milesIn<1)return;
+    if(milesIn>totalMiles*0.95)return;
+
+    allCandidates.push(Object.assign({},s,{
+      distanceMiles:distMiles(userLat,userLng,s.latitude,s.longitude),
+      detourFromRoute:Math.round(detour*10)/10,
+      milesFromStart:milesIn
+    }));
+  });
+
+  // ── Step 2: Also fetch live stations from API along sample points ──────────
   var fetches=samplePoints.map(function(pt){
-    return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=5')
+    return fetch(apiUrl+'?latitude='+pt.lat+'&longitude='+pt.lng+'&radius=8')
       .then(function(r){return r.json();})
       .then(function(data){
         var stations=data.stations||[];
@@ -6082,14 +6115,10 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
           if(allCandidates.find(function(c){return c.id===sid;}))return;
 
           var detour=distToRoute(s.latitude,s.longitude);
-          // Strict: must be within maxDetour of actual route polyline
           if(detour>maxDetour)return;
 
-          // Must be AHEAD of start — station must be at least 0.5mi along route
           var milesIn=milesAlongRoute(s.latitude,s.longitude);
-          if(milesIn<0.5)return;
-
-          // Must be BEFORE destination — not past the end
+          if(milesIn<1)return;
           if(milesIn>totalMiles*0.95)return;
 
           allCandidates.push(Object.assign({},s,{
