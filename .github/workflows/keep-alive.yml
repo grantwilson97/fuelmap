@@ -1,0 +1,17 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 12 */5 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            "https://puovjdcbgecvmhyilmvx.supabase.co/auth/v1/health" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1b3ZqZGNiZ2Vjdm1oeWlsbXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMDc5NzcsImV4cCI6MjA5MDU4Mzk3N30.ZN4Ch7x8es6xehsOmQc-Rc_-XKXrhb9Hy7jz3mN43V4"
+          echo "Supabase pinged successfully"
