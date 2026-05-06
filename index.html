@@ -6910,46 +6910,7 @@ function loadCloudFavorites(){
 
 
 // ── Session restore & initial auth check ─────────────────────────────────────
-(function(){
-  // Clean up ALL legacy auth keys on every load
-  // Only fm_session (with real Supabase token) counts as a valid session
-  localStorage.removeItem('fm_skip_auth');
-  localStorage.removeItem('fm_token');
-  localStorage.removeItem('fm_user_id');
-
-  function showAuthForm(){
-    var loadingEl=document.getElementById('auth-loading');
-    var formWrap=document.getElementById('auth-form-wrap');
-    if(loadingEl)loadingEl.style.display='none';
-    if(formWrap)formWrap.style.display='block';
-  }
-
-  // Only restore session if we have a real Supabase session object
-  try{
-    var raw=localStorage.getItem('fm_session');
-    if(raw){
-      var sess=JSON.parse(raw);
-      if(sess&&sess.access_token&&sess.user&&sess.user.id){
-        currentSession=sess;
-        currentUser=sess.user;
-        window._sessionRestored=true;
-        onSignedIn();
-        return;
-      } else {
-        // Invalid/stale session — clear it
-        localStorage.removeItem('fm_session');
-      }
-    }
-  }catch(e){
-    localStorage.removeItem('fm_session');
-  }
-
-  // No valid session — show login screen
-  showAuthForm();
-})();
-</script>
-</body>
-</htmlfunction openVehiclePicker(){
+function openVehiclePicker(){
   showTab('profile');
 }
 
@@ -7001,7 +6962,47 @@ function loadCloudFavorites(){
 }
 
 
+
+
 // ── Session restore & initial auth check ─────────────────────────────────────
+(function(){
+  // Clean up ALL legacy auth keys on every load
+  // Only fm_session (with real Supabase token) counts as a valid session
+  localStorage.removeItem('fm_skip_auth');
+  localStorage.removeItem('fm_token');
+  localStorage.removeItem('fm_user_id');
+
+  function showAuthForm(){
+    var loadingEl=document.getElementById('auth-loading');
+    var formWrap=document.getElementById('auth-form-wrap');
+    if(loadingEl)loadingEl.style.display='none';
+    if(formWrap)formWrap.style.display='block';
+  }
+
+  // Only restore session if we have a real Supabase session object
+  try{
+    var raw=localStorage.getItem('fm_session');
+    if(raw){
+      var sess=JSON.parse(raw);
+      if(sess&&sess.access_token&&sess.user&&sess.user.id){
+        currentSession=sess;
+        currentUser=sess.user;
+        window._sessionRestored=true;
+        onSignedIn();
+        return;
+      } else {
+        // Invalid/stale session — clear it
+        localStorage.removeItem('fm_session');
+      }
+    }
+  }catch(e){
+    localStorage.removeItem('fm_session');
+  }
+
+  // No valid session — show login screen
+  showAuthForm();
+})();
+
 (function(){
   // Clean up ALL legacy auth keys on every load
   // Only fm_session (with real Supabase token) counts as a valid session
