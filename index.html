@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778091235</title>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&callback=initMapCallback" async defer></script>
+<title>FuelMap 1778091952</title>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -3738,22 +3738,34 @@ function getActiveVehicle(){
   var v=loadVehicles();
   var av=v.find(function(x){return x.active;})||v[0]||null;
   if(!av)return null;
-  // Normalize mpg field — handle all variants the original app may have saved
+  // Normalize ALL possible mpg field names from any app version
   if(!av.mpg||av.mpg<=0){
-    av.mpg=av.combined_mpg||av.city_mpg||av.hwy_mpg||av.fuel_economy||
-           (av.city_mpg&&av.hwy_mpg?Math.round((av.city_mpg+av.hwy_mpg)/2):0)||0;
+    var mpgSources=[av.combined_mpg,av.city_mpg,av.hwy_mpg,av.fuel_economy,
+                    av.mpgCombined,av.mpgCity,av.mpgHwy,av.fuelEconomy,
+                    av.averageMpg,av.avgMpg];
+    if(av.city_mpg&&av.hwy_mpg) mpgSources.unshift(Math.round((parseFloat(av.city_mpg)+parseFloat(av.hwy_mpg))/2));
+    for(var _mi=0;_mi<mpgSources.length;_mi++){
+      var _v=parseFloat(mpgSources[_mi]);
+      if(_v&&_v>0){av.mpg=Math.round(_v);break;}
+    }
   }
+  if(av.mpg) av.mpg=parseFloat(av.mpg)||0;
   // Normalize tank size
   if(!av.tankSize||av.tankSize<=0){
-    av.tankSize=av.tank_size||av.fuelCapacity||av.fuel_capacity||15;
+    var tankSources=[av.tank_size,av.fuelCapacity,av.fuel_capacity,av.tankCapacity,av.fuelTankCapacity];
+    for(var _ti=0;_ti<tankSources.length;_ti++){
+      var _tv=parseFloat(tankSources[_ti]);
+      if(_tv&&_tv>0){av.tankSize=_tv;break;}
+    }
+    if(!av.tankSize||av.tankSize<=0) av.tankSize=15;
   }
   // Normalize fuel type
   if(!av.fuelType){
-    av.fuelType=av.fuel_type||av.type||'gas';
+    av.fuelType=av.fuel_type||av.type||av.fueltype||'gas';
   }
   // Normalize emoji
   if(!av.emoji){
-    av.emoji=av.fuelType==='electric'?'⚡':'🚗';
+    av.emoji=av.fuelType==='electric'?'⚡':av.fuelType==='diesel'?'🚛':'🚗';
   }
   return av;
 }
@@ -5550,55 +5562,99 @@ function showDetail(station){
 // ── Autocomplete ──────────────────────────────────────────────────────────────
 function handleDestinationInput(val){
   clearTimeout(autocompleteTimer);
-  var dd=document.getElementById('ac-dropdown');if(!dd)return;
-  if(val.length<3){dd.style.display='none';dd.innerHTML='';return;}
+  if(val.length<3){hideTripDropdown();return;}
   autocompleteTimer=setTimeout(function(){
-    fetch(AUTOCOMPLETE_API+'?input='+encodeURIComponent(val))
-      .then(function(r){return r.json();})
-      .then(function(data){
-        var preds=data.predictions||[];
-        if(!preds.length){dd.style.display='none';return;}
-        dd.innerHTML=preds.slice(0,5).map(function(p){
-          var main=p.structured_formatting?p.structured_formatting.main_text:p.description;
-          var sec=p.structured_formatting?p.structured_formatting.secondary_text:'';
-          var desc=p.description.replace(/"/g,'&quot;').replace(/'/g,"&#39;");
-          return'<div style="padding:12px 14px;font-size:14px;border-bottom:1px solid #f0f0f0;cursor:pointer;" onclick="selectPlace(\''+desc+'\')" ontouchend="event.preventDefault();selectPlace(\''+desc+'\')">'+'<span style="font-weight:600;">'+main+'</span> <span style="color:#888;font-size:12px;">'+sec+'</span></div>';
-        }).join('');
-        // Move dropdown to body to escape all clipping contexts
-        if(dd.parentNode!==document.body){
-          document.body.appendChild(dd);
+    // Try Google Maps Places Autocomplete first (most reliable on iOS)
+    if(typeof google!=='undefined'&&google.maps&&google.maps.places){
+      if(!window._acService) window._acService=new google.maps.places.AutocompleteService();
+      window._acService.getPlacePredictions(
+        {input:val,componentRestrictions:{country:'us'},types:['geocode','establishment']},
+        function(preds,status){
+          if(status!==google.maps.places.PlacesServiceStatus.OK||!preds||!preds.length){
+            hideTripDropdown();return;
+          }
+          showTripDropdown(preds.map(function(p){
+            return{main:p.structured_formatting?p.structured_formatting.main_text:p.description,
+                   sec:p.structured_formatting?p.structured_formatting.secondary_text:'',
+                   desc:p.description};
+          }));
         }
-        var inp=document.getElementById('trip-destination');
-        if(inp){
-          var rect=inp.getBoundingClientRect();
-          // Use visualViewport offset on iOS when keyboard is shown
-          var vvTop=window.visualViewport?window.visualViewport.offsetTop:0;
-          dd.style.position='fixed';
-          dd.style.top=(rect.bottom+2+vvTop)+'px';
-          dd.style.left=rect.left+'px';
-          dd.style.width=rect.width+'px';
-          dd.style.zIndex='99999';
-          dd.style.background='#fff';
-          dd.style.border='1.5px solid #ddd';
-          dd.style.borderRadius='12px';
-          dd.style.boxShadow='0 8px 24px rgba(0,0,0,0.18)';
-          dd.style.maxHeight='220px';
-          dd.style.overflowY='auto';
-        }
-        dd.style.display='block';
-      })
-      .catch(function(){dd.style.display='none';});
-  },350);
+      );
+    } else {
+      // Fallback to our API
+      fetch(AUTOCOMPLETE_API+'?input='+encodeURIComponent(val))
+        .then(function(r){return r.json();})
+        .then(function(data){
+          var preds=data.predictions||[];
+          if(!preds.length){hideTripDropdown();return;}
+          showTripDropdown(preds.map(function(p){
+            return{main:p.structured_formatting?p.structured_formatting.main_text:p.description,
+                   sec:p.structured_formatting?p.structured_formatting.secondary_text:'',
+                   desc:p.description};
+          }));
+        })
+        .catch(function(){hideTripDropdown();});
+    }
+  },300);
+}
+
+function hideTripDropdown(){
+  // Remove any existing dropdown from body
+  var existing=document.getElementById('trip-ac-float');
+  if(existing)existing.remove();
+}
+
+function showTripDropdown(items){
+  hideTripDropdown();
+  var inp=document.getElementById('trip-destination');
+  if(!inp||!items.length)return;
+  var rect=inp.getBoundingClientRect();
+  var vvOffset=window.visualViewport?window.visualViewport.offsetTop:0;
+
+  var dd=document.createElement('div');
+  dd.id='trip-ac-float';
+  dd.style.cssText='position:fixed;background:#fff;border:1.5px solid #e0e0e0;'
+    +'border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18);'
+    +'z-index:999999;overflow:hidden;'
+    +'top:'+(rect.bottom+4+vvOffset)+'px;'
+    +'left:'+rect.left+'px;'
+    +'width:'+rect.width+'px;'
+    +'max-height:240px;overflow-y:auto;';
+
+  items.forEach(function(item){
+    var row=document.createElement('div');
+    row.style.cssText='padding:13px 14px;font-size:14px;border-bottom:1px solid #f5f5f5;cursor:pointer;';
+    row.innerHTML='<div style="font-weight:600;color:#1a1a2e;">'+item.main+'</div>'
+      +(item.sec?'<div style="font-size:12px;color:#888;margin-top:1px;">'+item.sec+'</div>':'');
+    row.addEventListener('touchend',function(e){
+      e.preventDefault();
+      selectPlace(item.desc);
+    });
+    row.addEventListener('click',function(){
+      selectPlace(item.desc);
+    });
+    // Highlight on touch
+    row.addEventListener('touchstart',function(){row.style.background='#f5f5f5';},{passive:true});
+    row.addEventListener('touchend',function(){row.style.background='';});
+    dd.appendChild(row);
+  });
+
+  document.body.appendChild(dd);
+
+  // Auto-hide when tapping outside
+  setTimeout(function(){
+    document.addEventListener('touchend',function handler(e){
+      if(!dd.contains(e.target)&&e.target!==inp){
+        hideTripDropdown();
+        document.removeEventListener('touchend',handler);
+      }
+    });
+  },100);
 }
 function selectPlace(description){
   var input=document.getElementById('trip-destination');
-  var dd=document.getElementById('ac-dropdown');
   if(input){input.value=description;input.blur();}
-  if(dd){dd.style.display='none';dd.innerHTML='';
-    // Move back inside form if it was moved to body
-    var formDiv=input&&input.parentNode;
-    if(formDiv&&dd.parentNode===document.body)formDiv.appendChild(dd);
-  }
+  hideTripDropdown();
   pendingDest=description;
 }
 
@@ -6655,7 +6711,15 @@ function renderProfile(){
     var ft=FUEL_TYPES&&FUEL_TYPES.find(function(f){return f.key===av.fuelType;})||{label:'Gasoline',mpg:30};
     var lvl=av.level||50;
     var fc=fuelColor(lvl);
-    var mpgDisplay=(av.mpg&&av.mpg>0)?av.mpg+' mpg':(av.city_mpg?av.city_mpg+' mpg city':'--');
+    // Build mpg display from any available field
+    var _mpg=av.mpg||av.combined_mpg||av.city_mpg||av.mpgCombined||0;
+    var _cityMpg=av.city_mpg||av.mpgCity||0;
+    var _hwyMpg=av.hwy_mpg||av.mpgHwy||0;
+    var mpgDisplay='--';
+    if(_mpg>0) mpgDisplay=Math.round(_mpg)+' mpg';
+    else if(_cityMpg>0&&_hwyMpg>0) mpgDisplay=Math.round(_cityMpg)+' city / '+Math.round(_hwyMpg)+' hwy mpg';
+    else if(_cityMpg>0) mpgDisplay=Math.round(_cityMpg)+' mpg city';
+    else if(_hwyMpg>0) mpgDisplay=Math.round(_hwyMpg)+' mpg hwy';
     var tankDisplay=av.tankSize?av.tankSize+' gal tank':'';
     html+='<div style="font-size:17px;font-weight:700;margin-bottom:2px;">'+av.emoji+' '+av.year+' '+av.make+' '+av.model+'</div>'
       +'<div style="font-size:12px;color:#888;margin-bottom:12px;">'+ft.label+' · '+mpgDisplay+(tankDisplay?' · '+tankDisplay:'')+'</div>'
