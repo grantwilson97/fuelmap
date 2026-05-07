@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778168224</title>
+<title>FuelMap 1778183781</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -31,7 +31,13 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .chip.on{background:#DC2626;border-color:#DC2626;color:#fff;}
 .chip-all.on{background:#2563eb;border-color:#2563eb;color:#fff;}
 .chip-ev.on{background:#16a34a;border-color:#16a34a;color:#fff;}
-.map-box{flex:1;background:#f0f4ff;position:relative;overflow:hidden;min-height:200px;}
+.map-box{
+  flex:1;
+  background:#f0f4ff;
+  position:relative;
+  overflow:hidden;
+}
+#screen-map{position:relative;}
 .station-preview{display:none;background:#fff;border-radius:12px;padding:10px 12px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin:0 10px 0;border:1.5px solid #f0f0f0;}
 .station-preview.visible{display:block;}
 .preview-drag{width:30px;height:3px;background:#e0e0e0;border-radius:2px;margin:0 auto 8px;cursor:pointer;}
@@ -49,8 +55,39 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .usual-spot-name{font-size:11px;font-weight:600;color:#333;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-txt{font-size:13px;color:#DC2626;font-weight:600;}
-.sheet{background:#fff;border-top:0.5px solid #e5e5e5;}
-.drag{width:40px;height:4px;background:#ddd;border-radius:2px;margin:8px auto;}
+.sheet{
+  background:#fff;
+  border-top:0.5px solid #e5e5e5;
+  border-radius:18px 18px 0 0;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.12);
+  position:absolute;
+  left:0;right:0;bottom:0;
+  z-index:50;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  transition:height 0.28s cubic-bezier(0.4,0,0.2,1);
+  height:50%;
+  max-height:85%;
+  min-height:80px;
+  touch-action:none;
+}
+.sheet.no-anim{transition:none !important;}
+.drag{
+  width:44px;
+  height:5px;
+  background:#ccc;
+  border-radius:3px;
+  margin:10px auto 6px;
+  flex-shrink:0;
+  cursor:grab;
+}
+.drag-area{
+  width:100%;
+  padding:4px 0 0;
+  touch-action:none;
+  flex-shrink:0;
+}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;}
 .sheet-title{font-size:14px;font-weight:700;color:#1a1a2e;}
 .sort-row{display:flex;gap:5px;}
@@ -547,8 +584,10 @@ if('serviceWorker' in navigator){
     <div class="preview-drag" onclick="closeStationPreview()"></div>
     <div id="station-preview-content"></div>
   </div>
-  <div class="sheet">
-    <div class="drag"></div>
+  <div class="sheet" id="map-sheet">
+    <div class="drag-area" id="sheet-drag-area">
+      <div class="drag"></div>
+    </div>
     <div class="sheet-head">
       <div class="sheet-title" id="sheet-title">Loading…</div>
       <div class="sort-row" id="sorts"></div>
@@ -7016,6 +7055,139 @@ function loadCloudFavorites(){
 }
 
 
+
+// ── Bottom sheet swipe gestures ──────────────────────────────────────────────
+(function(){
+  var SNAP_PEEK=15;   // % screen height — sheet collapsed (map dominant)
+  var SNAP_HALF=50;   // % screen height — default split
+  var SNAP_FULL=85;   // % screen height — full station list
+  var currentSnap=SNAP_HALF;
+  var sheet=null, dragArea=null;
+  var startY=0, startH=0, dragging=false;
+
+  function getSheet(){
+    if(!sheet) sheet=document.getElementById('map-sheet');
+    if(!dragArea) dragArea=document.getElementById('sheet-drag-area');
+    return sheet;
+  }
+
+  function setSheetSnap(pct, animate){
+    var s=getSheet();
+    if(!s)return;
+    if(animate===false) s.classList.add('no-anim');
+    else s.classList.remove('no-anim');
+    s.style.height=pct+'%';
+    currentSnap=pct;
+    // Trigger map resize so Google Maps re-centers
+    if(animate!==false){
+      setTimeout(function(){
+        if(window.google&&google.maps&&window.gMap){
+          google.maps.event.trigger(window.gMap,'resize');
+        }
+      },300);
+    }
+    // Update drag handle visual based on state
+    var drag=document.querySelector('.drag');
+    if(drag){
+      if(pct<=SNAP_PEEK+5) drag.style.background='#999';
+      else if(pct>=SNAP_FULL-5) drag.style.background='#DC2626';
+      else drag.style.background='#ccc';
+    }
+  }
+
+  function nearestSnap(pct){
+    var snaps=[SNAP_PEEK,SNAP_HALF,SNAP_FULL];
+    return snaps.reduce(function(best,cur){
+      return Math.abs(cur-pct)<Math.abs(best-pct)?cur:best;
+    });
+  }
+
+  function onStart(e){
+    var s=getSheet();
+    if(!s)return;
+    var touch=e.touches?e.touches[0]:e;
+    startY=touch.clientY;
+    startH=s.offsetHeight;
+    dragging=true;
+    s.classList.add('no-anim');
+    if(e.cancelable) e.preventDefault();
+  }
+
+  function onMove(e){
+    if(!dragging)return;
+    var s=getSheet();
+    if(!s)return;
+    var touch=e.touches?e.touches[0]:e;
+    var dy=startY-touch.clientY;
+    var winH=window.innerHeight;
+    var newH=Math.max(80, Math.min(winH*0.9, startH+dy));
+    var pct=(newH/winH)*100;
+    s.style.height=pct+'%';
+    if(e.cancelable) e.preventDefault();
+  }
+
+  function onEnd(e){
+    if(!dragging)return;
+    dragging=false;
+    var s=getSheet();
+    if(!s)return;
+    s.classList.remove('no-anim');
+    var winH=window.innerHeight;
+    var pct=(s.offsetHeight/winH)*100;
+
+    // Velocity-based snap: if the user dragged significantly, prefer next snap
+    var touch=e.changedTouches?e.changedTouches[0]:e;
+    var dy=startY-(touch?touch.clientY:startY);
+    var snap;
+    if(Math.abs(dy)<20){
+      // Treat as a tap — cycle through snaps
+      if(currentSnap<=SNAP_PEEK+5) snap=SNAP_HALF;
+      else if(currentSnap<=SNAP_HALF+5) snap=SNAP_FULL;
+      else snap=SNAP_PEEK;
+    } else {
+      snap=nearestSnap(pct);
+    }
+    setSheetSnap(snap, true);
+  }
+
+  function init(){
+    if(!getSheet()) return;
+    if(dragArea._wired) return;
+    dragArea._wired=true;
+
+    // Touch events
+    dragArea.addEventListener('touchstart', onStart, {passive:false});
+    dragArea.addEventListener('touchmove',  onMove,  {passive:false});
+    dragArea.addEventListener('touchend',   onEnd);
+    dragArea.addEventListener('touchcancel',onEnd);
+    // Mouse events for desktop testing
+    dragArea.addEventListener('mousedown', onStart);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onEnd);
+
+    // Set initial snap
+    setSheetSnap(SNAP_HALF, false);
+  }
+
+  // Initialize when map screen is shown
+  function tryInit(){
+    if(document.getElementById('map-sheet')){init();}
+    else setTimeout(tryInit, 200);
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', tryInit);
+  } else {
+    tryInit();
+  }
+
+  // Expose for external use
+  window._setSheetSnap=setSheetSnap;
+  window._SNAP_PEEK=SNAP_PEEK;
+  window._SNAP_HALF=SNAP_HALF;
+  window._SNAP_FULL=SNAP_FULL;
+})();
+
+
 // ── Session restore & initial auth check ─────────────────────────────────────
 function openVehiclePicker(){
   showTab('profile');
@@ -7069,6 +7241,139 @@ function loadCloudFavorites(){
 }
 
 
+
+
+
+// ── Bottom sheet swipe gestures ──────────────────────────────────────────────
+(function(){
+  var SNAP_PEEK=15;   // % screen height — sheet collapsed (map dominant)
+  var SNAP_HALF=50;   // % screen height — default split
+  var SNAP_FULL=85;   // % screen height — full station list
+  var currentSnap=SNAP_HALF;
+  var sheet=null, dragArea=null;
+  var startY=0, startH=0, dragging=false;
+
+  function getSheet(){
+    if(!sheet) sheet=document.getElementById('map-sheet');
+    if(!dragArea) dragArea=document.getElementById('sheet-drag-area');
+    return sheet;
+  }
+
+  function setSheetSnap(pct, animate){
+    var s=getSheet();
+    if(!s)return;
+    if(animate===false) s.classList.add('no-anim');
+    else s.classList.remove('no-anim');
+    s.style.height=pct+'%';
+    currentSnap=pct;
+    // Trigger map resize so Google Maps re-centers
+    if(animate!==false){
+      setTimeout(function(){
+        if(window.google&&google.maps&&window.gMap){
+          google.maps.event.trigger(window.gMap,'resize');
+        }
+      },300);
+    }
+    // Update drag handle visual based on state
+    var drag=document.querySelector('.drag');
+    if(drag){
+      if(pct<=SNAP_PEEK+5) drag.style.background='#999';
+      else if(pct>=SNAP_FULL-5) drag.style.background='#DC2626';
+      else drag.style.background='#ccc';
+    }
+  }
+
+  function nearestSnap(pct){
+    var snaps=[SNAP_PEEK,SNAP_HALF,SNAP_FULL];
+    return snaps.reduce(function(best,cur){
+      return Math.abs(cur-pct)<Math.abs(best-pct)?cur:best;
+    });
+  }
+
+  function onStart(e){
+    var s=getSheet();
+    if(!s)return;
+    var touch=e.touches?e.touches[0]:e;
+    startY=touch.clientY;
+    startH=s.offsetHeight;
+    dragging=true;
+    s.classList.add('no-anim');
+    if(e.cancelable) e.preventDefault();
+  }
+
+  function onMove(e){
+    if(!dragging)return;
+    var s=getSheet();
+    if(!s)return;
+    var touch=e.touches?e.touches[0]:e;
+    var dy=startY-touch.clientY;
+    var winH=window.innerHeight;
+    var newH=Math.max(80, Math.min(winH*0.9, startH+dy));
+    var pct=(newH/winH)*100;
+    s.style.height=pct+'%';
+    if(e.cancelable) e.preventDefault();
+  }
+
+  function onEnd(e){
+    if(!dragging)return;
+    dragging=false;
+    var s=getSheet();
+    if(!s)return;
+    s.classList.remove('no-anim');
+    var winH=window.innerHeight;
+    var pct=(s.offsetHeight/winH)*100;
+
+    // Velocity-based snap: if the user dragged significantly, prefer next snap
+    var touch=e.changedTouches?e.changedTouches[0]:e;
+    var dy=startY-(touch?touch.clientY:startY);
+    var snap;
+    if(Math.abs(dy)<20){
+      // Treat as a tap — cycle through snaps
+      if(currentSnap<=SNAP_PEEK+5) snap=SNAP_HALF;
+      else if(currentSnap<=SNAP_HALF+5) snap=SNAP_FULL;
+      else snap=SNAP_PEEK;
+    } else {
+      snap=nearestSnap(pct);
+    }
+    setSheetSnap(snap, true);
+  }
+
+  function init(){
+    if(!getSheet()) return;
+    if(dragArea._wired) return;
+    dragArea._wired=true;
+
+    // Touch events
+    dragArea.addEventListener('touchstart', onStart, {passive:false});
+    dragArea.addEventListener('touchmove',  onMove,  {passive:false});
+    dragArea.addEventListener('touchend',   onEnd);
+    dragArea.addEventListener('touchcancel',onEnd);
+    // Mouse events for desktop testing
+    dragArea.addEventListener('mousedown', onStart);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onEnd);
+
+    // Set initial snap
+    setSheetSnap(SNAP_HALF, false);
+  }
+
+  // Initialize when map screen is shown
+  function tryInit(){
+    if(document.getElementById('map-sheet')){init();}
+    else setTimeout(tryInit, 200);
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', tryInit);
+  } else {
+    tryInit();
+  }
+
+  // Expose for external use
+  window._setSheetSnap=setSheetSnap;
+  window._SNAP_PEEK=SNAP_PEEK;
+  window._SNAP_HALF=SNAP_HALF;
+  window._SNAP_FULL=SNAP_FULL;
+})();
 
 
 // ── Session restore & initial auth check ─────────────────────────────────────
