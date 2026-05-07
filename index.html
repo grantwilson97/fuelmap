@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778092282</title>
+<title>FuelMap 1778168224</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -3376,7 +3376,7 @@ var currentSession=null;
 var allStations=[],currentFilter='gas',currentSort='value',currentStation=null,autoFitMap=false;
 var alerts=[],userLat=null,userLng=null,modalFuelType='regular';
 var editingVehicleId=null,selectedVehicleEmoji='🚗',selectedFuelType='gas',selectedProfileEmoji='😊',selectedGasGrade='regular';
-var selectedTripType='commute',tripResult=null,autocompleteTimer=null;
+var selectedTripType='commute',tripResult=null,autocompleteTimer=null,pendingDest=null;
 var authMode='signin';
 
 // ── Supabase API helpers ──────────────────────────────────────────────────────
@@ -5659,6 +5659,20 @@ function selectPlace(description){
 }
 
 // ── Trip planner ──────────────────────────────────────────────────────────────
+function newTrip(){
+  // Reset trip state and return to planning screen
+  tripResult=null;
+  selectedTripStop=null;
+  pendingDest=null;
+  // Hide selected stop bar
+  var bar=document.getElementById('selected-stop-bar');
+  if(bar)bar.style.display='none';
+  // Hide trip map
+  if(typeof hideTripMap==='function') hideTripMap();
+  // Re-render trip planner (back to form)
+  renderTripPlanner();
+}
+
 function renderTripPlanner(){
   var av=getActiveVehicle();
   if(av){
