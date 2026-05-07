@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778183781</title>
+<title>FuelMap 1778191611</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -88,6 +88,50 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   touch-action:none;
   flex-shrink:0;
 }
+.peek-summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:6px 16px 10px;
+  cursor:pointer;
+}
+.peek-summary-left{flex:1;min-width:0;}
+.peek-count{
+  font-size:14px;
+  font-weight:700;
+  color:#1a1a2e;
+  line-height:1.2;
+}
+.peek-cheapest{
+  font-size:11px;
+  color:#888;
+  margin-top:2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.peek-cheapest .peek-price{
+  color:#15803d;
+  font-weight:700;
+}
+.peek-hint{
+  font-size:11px;
+  color:#DC2626;
+  font-weight:600;
+  background:#fff5f5;
+  padding:5px 10px;
+  border-radius:12px;
+  white-space:nowrap;
+  flex-shrink:0;
+  margin-left:8px;
+}
+/* Hide peek summary when sheet is expanded */
+.sheet:not(.peek-mode) .peek-summary{display:none;}
+/* Hide regular sheet head when in peek mode */
+.sheet.peek-mode .sheet-head,
+.sheet.peek-mode #usual-spots,
+.sheet.peek-mode .cards,
+.sheet.peek-mode #pge-ribbon{display:none;}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;}
 .sheet-title{font-size:14px;font-weight:700;color:#1a1a2e;}
 .sort-row{display:flex;gap:5px;}
@@ -587,6 +631,13 @@ if('serviceWorker' in navigator){
   <div class="sheet" id="map-sheet">
     <div class="drag-area" id="sheet-drag-area">
       <div class="drag"></div>
+      <div class="peek-summary" id="peek-summary">
+        <div class="peek-summary-left">
+          <div class="peek-count" id="peek-count">Loading stations…</div>
+          <div class="peek-cheapest" id="peek-cheapest"></div>
+        </div>
+        <div class="peek-hint">↑ Swipe up</div>
+      </div>
     </div>
     <div class="sheet-head">
       <div class="sheet-title" id="sheet-title">Loading…</div>
@@ -5477,6 +5528,14 @@ function renderCards(){
 }
 function renderAll(){
   renderFilters();renderSorts();renderCards();renderUsualSpots();
+  // Update peek summary if sheet is in peek mode
+  if(window._setSheetSnap&&document.getElementById('map-sheet')){
+    var s=document.getElementById('map-sheet');
+    if(s.classList.contains('peek-mode')){
+      var fn=window._updatePeekSummary;
+      if(fn)fn();
+    }
+  }
   // Sync map pins with current filter
   var mappable=allStations.filter(function(s){
     if(!s.latitude||!s.longitude)return false;
@@ -7078,6 +7137,13 @@ function loadCloudFavorites(){
     else s.classList.remove('no-anim');
     s.style.height=pct+'%';
     currentSnap=pct;
+    // Toggle peek mode for compact summary
+    if(pct<=SNAP_PEEK+5){
+      s.classList.add('peek-mode');
+      updatePeekSummary();
+    } else {
+      s.classList.remove('peek-mode');
+    }
     // Trigger map resize so Google Maps re-centers
     if(animate!==false){
       setTimeout(function(){
@@ -7092,6 +7158,32 @@ function loadCloudFavorites(){
       if(pct<=SNAP_PEEK+5) drag.style.background='#999';
       else if(pct>=SNAP_FULL-5) drag.style.background='#DC2626';
       else drag.style.background='#ccc';
+    }
+  }
+
+  function updatePeekSummary(){
+    var countEl=document.getElementById('peek-count');
+    var cheapEl=document.getElementById('peek-cheapest');
+    if(!countEl||!cheapEl)return;
+    if(typeof allStations==='undefined'||!allStations||!allStations.length){
+      countEl.textContent='Loading stations…';
+      cheapEl.textContent='';
+      return;
+    }
+    var nGas=allStations.filter(function(s){return s.type==='gas'||!s.type;}).length;
+    var nEV=allStations.filter(function(s){return s.type==='ev';}).length;
+    countEl.textContent=allStations.length+' stations nearby';
+    // Find cheapest gas
+    var gasStations=allStations.filter(function(s){return (s.type==='gas'||!s.type);});
+    if(gasStations.length&&typeof getLatestPrice==='function'){
+      var cheapest=gasStations.reduce(function(a,b){
+        var pa=getLatestPrice(a).price,pb=getLatestPrice(b).price;
+        return pa<pb?a:b;
+      });
+      var pi=getLatestPrice(cheapest);
+      cheapEl.innerHTML='Cheapest: <span class="peek-price">$'+pi.price.toFixed(2)+'</span> at '+cheapest.name;
+    } else {
+      cheapEl.textContent='Tap or swipe up for full list';
     }
   }
 
@@ -7182,6 +7274,7 @@ function loadCloudFavorites(){
 
   // Expose for external use
   window._setSheetSnap=setSheetSnap;
+  window._updatePeekSummary=updatePeekSummary;
   window._SNAP_PEEK=SNAP_PEEK;
   window._SNAP_HALF=SNAP_HALF;
   window._SNAP_FULL=SNAP_FULL;
@@ -7266,6 +7359,13 @@ function loadCloudFavorites(){
     else s.classList.remove('no-anim');
     s.style.height=pct+'%';
     currentSnap=pct;
+    // Toggle peek mode for compact summary
+    if(pct<=SNAP_PEEK+5){
+      s.classList.add('peek-mode');
+      updatePeekSummary();
+    } else {
+      s.classList.remove('peek-mode');
+    }
     // Trigger map resize so Google Maps re-centers
     if(animate!==false){
       setTimeout(function(){
@@ -7280,6 +7380,32 @@ function loadCloudFavorites(){
       if(pct<=SNAP_PEEK+5) drag.style.background='#999';
       else if(pct>=SNAP_FULL-5) drag.style.background='#DC2626';
       else drag.style.background='#ccc';
+    }
+  }
+
+  function updatePeekSummary(){
+    var countEl=document.getElementById('peek-count');
+    var cheapEl=document.getElementById('peek-cheapest');
+    if(!countEl||!cheapEl)return;
+    if(typeof allStations==='undefined'||!allStations||!allStations.length){
+      countEl.textContent='Loading stations…';
+      cheapEl.textContent='';
+      return;
+    }
+    var nGas=allStations.filter(function(s){return s.type==='gas'||!s.type;}).length;
+    var nEV=allStations.filter(function(s){return s.type==='ev';}).length;
+    countEl.textContent=allStations.length+' stations nearby';
+    // Find cheapest gas
+    var gasStations=allStations.filter(function(s){return (s.type==='gas'||!s.type);});
+    if(gasStations.length&&typeof getLatestPrice==='function'){
+      var cheapest=gasStations.reduce(function(a,b){
+        var pa=getLatestPrice(a).price,pb=getLatestPrice(b).price;
+        return pa<pb?a:b;
+      });
+      var pi=getLatestPrice(cheapest);
+      cheapEl.innerHTML='Cheapest: <span class="peek-price">$'+pi.price.toFixed(2)+'</span> at '+cheapest.name;
+    } else {
+      cheapEl.textContent='Tap or swipe up for full list';
     }
   }
 
@@ -7370,6 +7496,7 @@ function loadCloudFavorites(){
 
   // Expose for external use
   window._setSheetSnap=setSheetSnap;
+  window._updatePeekSummary=updatePeekSummary;
   window._SNAP_PEEK=SNAP_PEEK;
   window._SNAP_HALF=SNAP_HALF;
   window._SNAP_FULL=SNAP_FULL;
