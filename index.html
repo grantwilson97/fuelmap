@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778270194</title>
+<title>FuelMap 1778270739</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -38,7 +38,19 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   overflow:hidden;
 }
 #screen-map{position:relative;}
-.station-preview{display:none;background:#fff;border-radius:12px;padding:10px 12px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin:0 10px 0;border:1.5px solid #f0f0f0;}
+.station-preview{
+  display:none;
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:8px;
+  background:#fff;
+  border-radius:14px;
+  padding:12px 14px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.18);
+  border:1.5px solid #eee;
+  z-index:60;
+}
 .station-preview.visible{display:block;}
 .preview-drag{width:30px;height:3px;background:#e0e0e0;border-radius:2px;margin:0 auto 8px;cursor:pointer;}
 .map-icon{font-size:48px;}
@@ -675,12 +687,12 @@ if('serviceWorker' in navigator){
         </div>
       </div>
     </div>
+    <div class="station-preview" id="station-preview">
+      <div class="preview-drag" onclick="closeStationPreview()"></div>
+      <div id="station-preview-content"></div>
+    </div>
   </div>
-  <!-- Station preview — shown above cards when pin is tapped -->
-  <div class="station-preview" id="station-preview" style="margin-top:8px;">
-    <div class="preview-drag" onclick="closeStationPreview()"></div>
-    <div id="station-preview-content"></div>
-  </div>
+
   <div class="sheet" id="map-sheet">
     <div class="drag-area" id="sheet-drag-area">
       <div class="drag"></div>
@@ -4475,10 +4487,13 @@ setInterval(checkPriceAlerts, 60000);
 // ── Usual Spots (most-visited stations) ───────────────────────────────────────
 function getUsualSpots(){
   try{
-    var visits=JSON.parse(localStorage.getItem('fm_visits')||'{}');
-    var sorted=Object.keys(visits).sort(function(a,b){return visits[b]-visits[a];});
-    return sorted.slice(0,3).map(function(id){
-      return allStations.find(function(s){return String(s.id)===String(id);});
+    // Show favorites only (not most-visited)
+    var favs=JSON.parse(localStorage.getItem('fm_favorites')||'[]');
+    if(!favs||!favs.length)return[];
+    return favs.slice(0,3).map(function(f){
+      // Try to find the live station first, fall back to stored fav
+      var live=allStations.find(function(s){return String(s.id)===String(f.id);});
+      return live||f;
     }).filter(Boolean);
   }catch(e){return[];}
 }
@@ -4487,24 +4502,32 @@ function renderUsualSpots(){
   var el=document.getElementById('usual-spots');
   if(!el)return;
   var spots=getUsualSpots();
-  if(!spots.length){el.style.display='none';return;}
+  if(!spots.length){el.style.display='none';el.innerHTML='';return;}
   el.style.display='block';
-  el.innerHTML='<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;padding:0 12px 4px;">⭐ Your Spots</div>'
+  el.innerHTML='<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;padding:0 12px 4px;">⭐ Favorites</div>'
     +'<div class="usual-spots-row">'
-    +spots.map(function(st){
+    +spots.map(function(st,i){
       var pi=getLatestPrice(st);
       var isOpen=st.isOpen!==false;
       var openColor=isOpen?'#15803d':'#dc2626';
-      var sid=JSON.stringify(st.id);
-      return '<div class="usual-spot-chip" onclick="var s=allStations.find(function(x){return String(x.id)===String('+sid+');});if(s)showDetail(s);">'
-        +'<div>'
+      var dist=st.distanceMiles!=null&&st.distanceMiles<99?st.distanceMiles.toFixed(1)+'mi':'';
+      return '<div class="usual-spot-chip" data-spot-idx="'+i+'">'
+        +'<div style="flex:1;min-width:0;">'
         +'<div class="usual-spot-name">'+st.name+'</div>'
-        +'<div style="font-size:10px;color:'+openColor+';">'+(isOpen?'Open':'Closed')+' · '+st.distanceMiles.toFixed(1)+'mi</div>'
+        +'<div style="font-size:10px;color:'+openColor+';">'+(isOpen?'Open':'Closed')+(dist?' · '+dist:'')+'</div>'
         +'</div>'
         +'<div class="usual-spot-price">$'+pi.price.toFixed(2)+'</div>'
         +'</div>';
     }).join('')
     +'</div>';
+  // Wire up click handlers using event delegation
+  var chips=el.querySelectorAll('.usual-spot-chip');
+  chips.forEach(function(chip,idx){
+    chip.onclick=function(){
+      var st=spots[idx];
+      if(st)showDetail(st);
+    };
+  });
 }
 
 
@@ -4838,6 +4861,10 @@ function openPricePin(st){
   var sheet=document.getElementById('station-preview');
   if(sheet)sheet.classList.add('visible');
   if(gMap)gMap.panTo({lat:st.latitude,lng:st.longitude});
+  // Snap sheet to peek mode so preview is fully visible
+  if(window._setSheetSnap&&window._SNAP_PEEK){
+    window._setSheetSnap(window._SNAP_PEEK,true);
+  }
 }
 
 function previewToggleFav(btn){
