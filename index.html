@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778191611</title>
+<title>FuelMap 1778266640</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -90,10 +90,15 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 }
 .peek-summary{
   display:flex;
+  flex-direction:column;
+  padding:4px 0 10px;
+  cursor:pointer;
+}
+.peek-summary-row{
+  display:flex;
   align-items:center;
   justify-content:space-between;
-  padding:6px 16px 10px;
-  cursor:pointer;
+  padding:0 16px 8px;
 }
 .peek-summary-left{flex:1;min-width:0;}
 .peek-count{
@@ -124,6 +129,53 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   white-space:nowrap;
   flex-shrink:0;
   margin-left:8px;
+}
+.peek-mini-cards{
+  display:flex;
+  gap:8px;
+  padding:0 14px 4px;
+  overflow-x:auto;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.peek-mini-cards::-webkit-scrollbar{display:none;}
+.peek-mini-card{
+  flex-shrink:0;
+  background:#fff;
+  border:1.5px solid #eee;
+  border-radius:10px;
+  padding:8px 10px;
+  min-width:120px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  cursor:pointer;
+}
+.peek-mini-card-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:3px;
+}
+.peek-mini-name{
+  font-size:11px;
+  font-weight:700;
+  color:#1a1a2e;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:80px;
+}
+.peek-mini-price{
+  font-size:14px;
+  font-weight:800;
+  color:#DC2626;
+  line-height:1;
+}
+.peek-mini-meta{
+  font-size:10px;
+  color:#888;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 /* Hide peek summary when sheet is expanded */
 .sheet:not(.peek-mode) .peek-summary{display:none;}
@@ -632,11 +684,14 @@ if('serviceWorker' in navigator){
     <div class="drag-area" id="sheet-drag-area">
       <div class="drag"></div>
       <div class="peek-summary" id="peek-summary">
-        <div class="peek-summary-left">
-          <div class="peek-count" id="peek-count">Loading stations…</div>
-          <div class="peek-cheapest" id="peek-cheapest"></div>
+        <div class="peek-summary-row">
+          <div class="peek-summary-left">
+            <div class="peek-count" id="peek-count">Loading stations…</div>
+            <div class="peek-cheapest" id="peek-cheapest"></div>
+          </div>
+          <div class="peek-hint">↑ Swipe up</div>
         </div>
-        <div class="peek-hint">↑ Swipe up</div>
+        <div class="peek-mini-cards" id="peek-mini-cards"></div>
       </div>
     </div>
     <div class="sheet-head">
@@ -7117,8 +7172,8 @@ function loadCloudFavorites(){
 
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
-  var SNAP_PEEK=15;   // % screen height — sheet collapsed (map dominant)
-  var SNAP_HALF=50;   // % screen height — default split
+  var SNAP_PEEK=20;   // % screen height — compact preview (map dominant)
+  var SNAP_HALF=37;   // % screen height — fits one row of cards cleanly
   var SNAP_FULL=85;   // % screen height — full station list
   var currentSnap=SNAP_HALF;
   var sheet=null, dragArea=null;
@@ -7164,26 +7219,43 @@ function loadCloudFavorites(){
   function updatePeekSummary(){
     var countEl=document.getElementById('peek-count');
     var cheapEl=document.getElementById('peek-cheapest');
+    var miniEl=document.getElementById('peek-mini-cards');
     if(!countEl||!cheapEl)return;
     if(typeof allStations==='undefined'||!allStations||!allStations.length){
       countEl.textContent='Loading stations…';
       cheapEl.textContent='';
+      if(miniEl) miniEl.innerHTML='';
       return;
     }
-    var nGas=allStations.filter(function(s){return s.type==='gas'||!s.type;}).length;
-    var nEV=allStations.filter(function(s){return s.type==='ev';}).length;
     countEl.textContent=allStations.length+' stations nearby';
     // Find cheapest gas
     var gasStations=allStations.filter(function(s){return (s.type==='gas'||!s.type);});
     if(gasStations.length&&typeof getLatestPrice==='function'){
-      var cheapest=gasStations.reduce(function(a,b){
-        var pa=getLatestPrice(a).price,pb=getLatestPrice(b).price;
-        return pa<pb?a:b;
+      // Sort by price ascending
+      var sorted=gasStations.slice().sort(function(a,b){
+        return getLatestPrice(a).price-getLatestPrice(b).price;
       });
+      var cheapest=sorted[0];
       var pi=getLatestPrice(cheapest);
       cheapEl.innerHTML='Cheapest: <span class="peek-price">$'+pi.price.toFixed(2)+'</span> at '+cheapest.name;
+
+      // Render mini cards (top 4 cheapest)
+      if(miniEl){
+        var html='';
+        sorted.slice(0,4).forEach(function(st){
+          var p=getLatestPrice(st);
+          var dist=st.distanceMiles!=null&&st.distanceMiles<99?st.distanceMiles.toFixed(1)+'mi':'';
+          html+='<div class="peek-mini-card" onclick="event.stopPropagation();showDetail('+JSON.stringify(st)+');">'
+            +'<div class="peek-mini-row"><div class="peek-mini-price">$'+p.price.toFixed(2)+'</div></div>'
+            +'<div class="peek-mini-name">'+st.name+'</div>'
+            +'<div class="peek-mini-meta">'+dist+(dist?' · ':'')+(st.brand||'GAS')+'</div>'
+            +'</div>';
+        });
+        miniEl.innerHTML=html;
+      }
     } else {
       cheapEl.textContent='Tap or swipe up for full list';
+      if(miniEl) miniEl.innerHTML='';
     }
   }
 
@@ -7339,8 +7411,8 @@ function loadCloudFavorites(){
 
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
-  var SNAP_PEEK=15;   // % screen height — sheet collapsed (map dominant)
-  var SNAP_HALF=50;   // % screen height — default split
+  var SNAP_PEEK=20;   // % screen height — compact preview (map dominant)
+  var SNAP_HALF=37;   // % screen height — fits one row of cards cleanly
   var SNAP_FULL=85;   // % screen height — full station list
   var currentSnap=SNAP_HALF;
   var sheet=null, dragArea=null;
@@ -7386,26 +7458,43 @@ function loadCloudFavorites(){
   function updatePeekSummary(){
     var countEl=document.getElementById('peek-count');
     var cheapEl=document.getElementById('peek-cheapest');
+    var miniEl=document.getElementById('peek-mini-cards');
     if(!countEl||!cheapEl)return;
     if(typeof allStations==='undefined'||!allStations||!allStations.length){
       countEl.textContent='Loading stations…';
       cheapEl.textContent='';
+      if(miniEl) miniEl.innerHTML='';
       return;
     }
-    var nGas=allStations.filter(function(s){return s.type==='gas'||!s.type;}).length;
-    var nEV=allStations.filter(function(s){return s.type==='ev';}).length;
     countEl.textContent=allStations.length+' stations nearby';
     // Find cheapest gas
     var gasStations=allStations.filter(function(s){return (s.type==='gas'||!s.type);});
     if(gasStations.length&&typeof getLatestPrice==='function'){
-      var cheapest=gasStations.reduce(function(a,b){
-        var pa=getLatestPrice(a).price,pb=getLatestPrice(b).price;
-        return pa<pb?a:b;
+      // Sort by price ascending
+      var sorted=gasStations.slice().sort(function(a,b){
+        return getLatestPrice(a).price-getLatestPrice(b).price;
       });
+      var cheapest=sorted[0];
       var pi=getLatestPrice(cheapest);
       cheapEl.innerHTML='Cheapest: <span class="peek-price">$'+pi.price.toFixed(2)+'</span> at '+cheapest.name;
+
+      // Render mini cards (top 4 cheapest)
+      if(miniEl){
+        var html='';
+        sorted.slice(0,4).forEach(function(st){
+          var p=getLatestPrice(st);
+          var dist=st.distanceMiles!=null&&st.distanceMiles<99?st.distanceMiles.toFixed(1)+'mi':'';
+          html+='<div class="peek-mini-card" onclick="event.stopPropagation();showDetail('+JSON.stringify(st)+');">'
+            +'<div class="peek-mini-row"><div class="peek-mini-price">$'+p.price.toFixed(2)+'</div></div>'
+            +'<div class="peek-mini-name">'+st.name+'</div>'
+            +'<div class="peek-mini-meta">'+dist+(dist?' · ':'')+(st.brand||'GAS')+'</div>'
+            +'</div>';
+        });
+        miniEl.innerHTML=html;
+      }
     } else {
       cheapEl.textContent='Tap or swipe up for full list';
+      if(miniEl) miniEl.innerHTML='';
     }
   }
 
