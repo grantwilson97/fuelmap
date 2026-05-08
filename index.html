@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778273005</title>
+<title>FuelMap 1778273271</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -84,6 +84,15 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
   touch-action:none;
 }
 .sheet.no-anim{transition:none !important;}
+.sheet-scroll{
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  min-height:0;
+}
+.sheet-scroll::-webkit-scrollbar{display:none;}
+
 .drag{
   width:44px;
   height:5px;
@@ -192,9 +201,7 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .sheet:not(.peek-mode) .peek-summary{display:none;}
 /* Hide regular sheet head when in peek mode */
 .sheet.peek-mode .sheet-head,
-.sheet.peek-mode #usual-spots,
-.sheet.peek-mode .cards,
-.sheet.peek-mode #pge-ribbon{display:none;}
+.sheet.peek-mode .sheet-scroll{display:none;}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:2px 14px 10px;flex-shrink:0;}
 .sheet-title{font-size:14px;font-weight:700;color:#1a1a2e;}
 .sort-row{display:flex;gap:5px;}
@@ -710,9 +717,11 @@ if('serviceWorker' in navigator){
       <div class="sheet-title" id="sheet-title">Loading…</div>
       <div class="sort-row" id="sorts"></div>
     </div>
-    <div id="usual-spots" style="display:none;padding:8px 12px 4px;"></div>
-    <div class="cards" id="cards"></div>
-    <div class="pge-chip" id="pge-ribbon" style="margin:0 14px 10px;display:none;"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh · Charge off-peak to save 54%</span></div>
+    <div class="sheet-scroll" id="sheet-scroll">
+      <div id="usual-spots" style="display:none;padding:8px 12px 4px;"></div>
+      <div class="cards" id="cards"></div>
+      <div class="pge-chip" id="pge-ribbon" style="margin:0 14px 10px;display:none;"><span class="pge-chip-txt">⚡ PG&E peak: 4–9 PM · $0.57/kWh · Charge off-peak to save 54%</span></div>
+    </div>
   </div>
 </div>
 
@@ -7365,7 +7374,7 @@ function clearPinHighlight(){
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
   var SNAP_PEEK=22;   // % screen height — compact preview (map dominant)
-  var SNAP_HALF=44;   // % screen height — fits favorites + full cards
+  var SNAP_HALF=42;   // % screen height — fits favorites + full cards (scrolls if needed)
   var SNAP_FULL=85;   // % screen height — full station list
   var currentSnap=SNAP_HALF;
   var sheet=null, dragArea=null;
@@ -7682,7 +7691,7 @@ function clearPinHighlight(){
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
   var SNAP_PEEK=22;   // % screen height — compact preview (map dominant)
-  var SNAP_HALF=44;   // % screen height — fits favorites + full cards
+  var SNAP_HALF=42;   // % screen height — fits favorites + full cards (scrolls if needed)
   var SNAP_FULL=85;   // % screen height — full station list
   var currentSnap=SNAP_HALF;
   var sheet=null, dragArea=null;
