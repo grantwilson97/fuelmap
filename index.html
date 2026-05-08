@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778268613</title>
+<title>FuelMap 1778269699</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -4807,25 +4807,32 @@ function openPricePin(st){
   if(!el)return;
   window._previewStation=st;
   el.innerHTML=
-    // Row 1: logo + name/addr + fav + score
-    '<div style="display:flex;align-items:center;gap:8px;">'
-      +brandLogoImg(st.name,st.brand||st.network,30)
-      +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-size:13px;font-weight:800;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+st.name+'</div>'
-        +'<div style="font-size:10px;color:#888;">'+dist+(st.address?' · '+(st.address.split(',')[0]):'')+'</div>'
+    // Whole card is tappable — opens full details
+    '<div onclick="showDetailFromMap(window._previewStation.id)" style="cursor:pointer;">'
+      // Row 1: logo + name/addr + fav + score
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+        +brandLogoImg(st.name,st.brand||st.network,36)
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:14px;font-weight:800;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+st.name+'</div>'
+          +'<div style="font-size:11px;color:#888;">'+dist+(st.address?' · '+(st.address.split(',')[0]):'')+'</div>'
+        +'</div>'
+        +'<button onclick="event.stopPropagation();previewToggleFav(this)" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 4px;flex-shrink:0;">'+(isFav?'⭐':'☆')+'</button>'
+        +'<div style="background:'+sc+'22;color:'+sc+';font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;">'+st.score+'</div>'
       +'</div>'
-      +'<button onclick="previewToggleFav(this)" style="background:none;border:none;font-size:18px;cursor:pointer;padding:0 2px;flex-shrink:0;">'+(isFav?'⭐':'☆')+'</button>'
-      +'<div style="background:'+sc+'22;color:'+sc+';font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;">'+st.score+'</div>'
-    +'</div>'
-    // Row 2: price | wait | rating + button
-    +'<div style="display:flex;align-items:center;gap:6px;margin-top:8px;">'
-      +'<div style="flex:1;">'
-        +'<span style="font-size:17px;font-weight:800;color:#DC2626;">'+priceStr+'</span>'
-        +'<span style="font-size:9px;color:'+(isReported?'#15803d':'#888')+';margin-left:4px;">'+(isReported?'✓ Reported':'~ est.')+'</span>'
+      // Row 2: big price | reported badge | wait/rating
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:10px;">'
+        +'<div style="flex:1;">'
+          +'<span style="font-size:22px;font-weight:800;color:#DC2626;">'+priceStr+'</span>'
+          +'<span style="font-size:10px;color:'+(isReported?'#15803d':'#888')+';margin-left:6px;font-weight:700;">'+(isReported?'✓ Reported':'~ est.')+'</span>'
+        +'</div>'
+        +(wait>0?'<div style="font-size:11px;color:#555;font-weight:600;background:#f7f7f9;padding:4px 8px;border-radius:8px;">⏱ '+wait+'m</div>':'')
+        +(st.rating?'<div style="font-size:11px;color:#555;font-weight:600;background:#f7f7f9;padding:4px 8px;border-radius:8px;">⭐'+st.rating+'</div>':'')
       +'</div>'
-      +(wait>0?'<div style="font-size:11px;color:#555;font-weight:600;">'+wait+'m wait</div>':'')
-      +(st.rating?'<div style="font-size:11px;color:#555;font-weight:600;">⭐'+st.rating+'</div>':'')
-      +'<button onclick="showDetailFromMap(window._previewStation.id)" style="padding:7px 14px;background:#DC2626;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">Details →</button>'
+      // Row 3: "Tap for details" hint with arrow
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;">'
+        +'<div style="font-size:11px;color:#888;">Tap for full details</div>'
+        +'<div style="font-size:14px;color:#DC2626;font-weight:700;">→</div>'
+      +'</div>'
     +'</div>';
   var sheet=document.getElementById('station-preview');
   if(sheet)sheet.classList.add('visible');
