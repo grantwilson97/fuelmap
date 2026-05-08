@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778267988</title>
+<title>FuelMap 1778268613</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -4749,6 +4749,8 @@ function initPricePinOverlay(){
 
     div.addEventListener('click',function(e){
       e.stopPropagation();
+      // Map → List sync: scroll matching card into view
+      syncToList(st);
       openPricePin(st);
     });
     div.addEventListener('mouseenter',function(){div.style.transform='translate(-50%,-100%) scale(1.1)';div.style.zIndex='999';});
@@ -4903,6 +4905,7 @@ function updateMapPins(stations){
     if(m.setMap)m.setMap(null);
   });
   gMarkers=[];
+  window._priceOverlays=[];
   if(selectedInfoWindow){selectedInfoWindow.close();selectedInfoWindow=null;}
 
   // Init overlay prototype once
@@ -4938,6 +4941,7 @@ function updateMapPins(stations){
     if(pricePinOverlayReady){
       var overlay=new PricePinOverlay(st,gMap);
       gMarkers.push(overlay);
+      window._priceOverlays.push(overlay);
     } else {
       // Fallback to standard marker if overlay not ready
       var color=pinColor(st.score);
@@ -5644,15 +5648,17 @@ function renderCards(){
       +'<div class="stat-row"><div class="stat-box"><div class="stat-lbl">WAIT</div><div class="stat-val" style="color:'+cc+';">'+wm+'m</div></div><div class="stat-box"><div class="stat-lbl">CROWD</div><div class="stat-val" style="color:'+cc+';">'+crowdLabel(st.busy||30)+'</div></div>'
       +'<div class="stat-box" onclick="event.stopPropagation();quickReport('+JSON.stringify(st.id)+')" style="cursor:pointer;"><div class="stat-lbl">PRICE</div><div class="stat-val" style="color:#DC2626;font-size:11px;">📝</div></div>'
       +'</div>';
+    // Add station ID to card for sync targeting
+    card.setAttribute('data-station-id', String(st.id));
     card.onclick=function(){
-      closeStationPreview();
-      // Track visit frequency
+      // Track visit
       try{
         var visits=JSON.parse(localStorage.getItem('fm_visits')||'{}');
         visits[st.id]=(visits[st.id]||0)+1;
         localStorage.setItem('fm_visits',JSON.stringify(visits));
       }catch(e){}
-      showDetail(st);
+      // List → Map sync: highlight on map and snap sheet to peek
+      syncToMap(st);
     };el.appendChild(card);
   });
 }
@@ -7245,6 +7251,82 @@ function loadCloudFavorites(){
 
 
 
+
+// ── Map ↔ List sync helpers (Zillow-style) ───────────────────────────────────
+var _syncedPinId=null;
+
+function syncToMap(st){
+  // Snap sheet to peek so map is dominant
+  if(window._setSheetSnap&&window._SNAP_PEEK){
+    window._setSheetSnap(window._SNAP_PEEK, true);
+  }
+  // Pan map and open the pin preview
+  if(gMap&&st.latitude&&st.longitude){
+    gMap.panTo({lat:st.latitude,lng:st.longitude});
+    // Wait for snap animation, then open pin
+    setTimeout(function(){
+      openPricePin(st);
+      highlightPinOnMap(st.id);
+    }, 320);
+  } else {
+    openPricePin(st);
+  }
+}
+
+function syncToList(st){
+  // Find the matching card and scroll it into view
+  var card=document.querySelector('[data-station-id="'+st.id+'"]');
+  if(!card)return;
+  // Highlight briefly
+  card.style.transition='all 0.3s';
+  card.style.transform='scale(1.04)';
+  card.style.boxShadow='0 4px 16px rgba(220,38,38,0.3)';
+  card.style.borderColor='#DC2626';
+  setTimeout(function(){
+    card.style.transform='';
+    card.style.boxShadow='';
+    card.style.borderColor='';
+  }, 1000);
+  // Scroll the cards container so this card is visible
+  var cards=document.getElementById('cards');
+  if(cards){
+    var cardRect=card.getBoundingClientRect();
+    var cardsRect=cards.getBoundingClientRect();
+    var scrollLeft=cards.scrollLeft+(cardRect.left-cardsRect.left)-(cardsRect.width/2)+(cardRect.width/2);
+    cards.scrollTo({left:scrollLeft,behavior:'smooth'});
+  }
+}
+
+function highlightPinOnMap(stationId){
+  // Find all pin overlays and highlight the matching one
+  if(!window._priceOverlays)return;
+  _syncedPinId=stationId;
+  window._priceOverlays.forEach(function(ov){
+    if(!ov.div)return;
+    if(String(ov.station.id)===String(stationId)){
+      ov.div.style.transform='translate(-50%,-100%) scale(1.25)';
+      ov.div.style.zIndex='9999';
+      ov.div.style.filter='drop-shadow(0 4px 8px rgba(220,38,38,0.5))';
+    } else {
+      ov.div.style.transform='translate(-50%,-100%) scale(1)';
+      ov.div.style.zIndex='100';
+      ov.div.style.filter='drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+    }
+  });
+}
+
+function clearPinHighlight(){
+  _syncedPinId=null;
+  if(!window._priceOverlays)return;
+  window._priceOverlays.forEach(function(ov){
+    if(!ov.div)return;
+    ov.div.style.transform='translate(-50%,-100%) scale(1)';
+    ov.div.style.zIndex='100';
+    ov.div.style.filter='drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+  });
+}
+
+
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
   var SNAP_PEEK=20;   // % screen height — compact preview (map dominant)
@@ -7273,6 +7355,8 @@ function loadCloudFavorites(){
       updatePeekSummary();
     } else {
       s.classList.remove('peek-mode');
+      // Clear pin highlight when expanding sheet
+      if(typeof clearPinHighlight==='function')clearPinHighlight();
     }
     // Trigger map resize so Google Maps re-centers
     if(animate!==false){
@@ -7484,6 +7568,82 @@ function loadCloudFavorites(){
 
 
 
+
+// ── Map ↔ List sync helpers (Zillow-style) ───────────────────────────────────
+var _syncedPinId=null;
+
+function syncToMap(st){
+  // Snap sheet to peek so map is dominant
+  if(window._setSheetSnap&&window._SNAP_PEEK){
+    window._setSheetSnap(window._SNAP_PEEK, true);
+  }
+  // Pan map and open the pin preview
+  if(gMap&&st.latitude&&st.longitude){
+    gMap.panTo({lat:st.latitude,lng:st.longitude});
+    // Wait for snap animation, then open pin
+    setTimeout(function(){
+      openPricePin(st);
+      highlightPinOnMap(st.id);
+    }, 320);
+  } else {
+    openPricePin(st);
+  }
+}
+
+function syncToList(st){
+  // Find the matching card and scroll it into view
+  var card=document.querySelector('[data-station-id="'+st.id+'"]');
+  if(!card)return;
+  // Highlight briefly
+  card.style.transition='all 0.3s';
+  card.style.transform='scale(1.04)';
+  card.style.boxShadow='0 4px 16px rgba(220,38,38,0.3)';
+  card.style.borderColor='#DC2626';
+  setTimeout(function(){
+    card.style.transform='';
+    card.style.boxShadow='';
+    card.style.borderColor='';
+  }, 1000);
+  // Scroll the cards container so this card is visible
+  var cards=document.getElementById('cards');
+  if(cards){
+    var cardRect=card.getBoundingClientRect();
+    var cardsRect=cards.getBoundingClientRect();
+    var scrollLeft=cards.scrollLeft+(cardRect.left-cardsRect.left)-(cardsRect.width/2)+(cardRect.width/2);
+    cards.scrollTo({left:scrollLeft,behavior:'smooth'});
+  }
+}
+
+function highlightPinOnMap(stationId){
+  // Find all pin overlays and highlight the matching one
+  if(!window._priceOverlays)return;
+  _syncedPinId=stationId;
+  window._priceOverlays.forEach(function(ov){
+    if(!ov.div)return;
+    if(String(ov.station.id)===String(stationId)){
+      ov.div.style.transform='translate(-50%,-100%) scale(1.25)';
+      ov.div.style.zIndex='9999';
+      ov.div.style.filter='drop-shadow(0 4px 8px rgba(220,38,38,0.5))';
+    } else {
+      ov.div.style.transform='translate(-50%,-100%) scale(1)';
+      ov.div.style.zIndex='100';
+      ov.div.style.filter='drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+    }
+  });
+}
+
+function clearPinHighlight(){
+  _syncedPinId=null;
+  if(!window._priceOverlays)return;
+  window._priceOverlays.forEach(function(ov){
+    if(!ov.div)return;
+    ov.div.style.transform='translate(-50%,-100%) scale(1)';
+    ov.div.style.zIndex='100';
+    ov.div.style.filter='drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+  });
+}
+
+
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
   var SNAP_PEEK=20;   // % screen height — compact preview (map dominant)
@@ -7512,6 +7672,8 @@ function loadCloudFavorites(){
       updatePeekSummary();
     } else {
       s.classList.remove('peek-mode');
+      // Clear pin highlight when expanding sheet
+      if(typeof clearPinHighlight==='function')clearPinHighlight();
     }
     // Trigger map resize so Google Maps re-centers
     if(animate!==false){
