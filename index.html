@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778266640</title>
+<title>FuelMap 1778267988</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -1043,6 +1043,22 @@ function fetchApifyDirect(zip){
 // Cache of Apify real prices keyed by station name (lowercase)
 var apifyPriceCache={};
 var apifyPriceCacheZip=null;
+var APIFY_CACHE_TTL=6*60*60*1000; // 6 hours
+
+// Try to load cached Apify prices on startup
+(function(){
+  try{
+    var cached=localStorage.getItem('fm_apify_cache');
+    if(cached){
+      var parsed=JSON.parse(cached);
+      if(parsed&&parsed.ts&&Date.now()-parsed.ts<APIFY_CACHE_TTL){
+        apifyPriceCache=parsed.data||{};
+        apifyPriceCacheZip=parsed.zip||null;
+        console.log('Loaded',Object.keys(apifyPriceCache).length,'Apify prices from cache (age:',Math.round((Date.now()-parsed.ts)/60000),'min)');
+      }
+    }
+  }catch(e){}
+})();
 
 // Convert lat/lng to approximate ZIP using reverse geocode or known SF ZIPs
 function getZipFromLatLng(lat,lng){
@@ -5319,7 +5335,42 @@ function buildStationList(lat,lng,liveEV,liveGas){
     gMap.setZoom(zoom);
   }
   // Fetch real GasBuddy prices from Apify for multiple nearby ZIPs
-  if(userLat&&userLng){
+  // Skip if cache is fresh (loaded from localStorage)
+  var cacheIsStale=true;
+  try{
+    var c=localStorage.getItem('fm_apify_cache');
+    if(c){
+      var p=JSON.parse(c);
+      if(p&&p.ts&&Date.now()-p.ts<APIFY_CACHE_TTL&&Object.keys(p.data||{}).length>10){
+        cacheIsStale=false;
+        // Apply cached prices immediately
+        allStations.forEach(function(s){
+          if(s.type!=='gas')return;
+          var ap=getApifyPrice(s);
+          if(ap&&ap.price){
+            s.realPrice=ap.price;
+            s.realPriceType=ap.priceType;
+            s.realPricePostedTime=ap.postedTime;
+            s.realPriceSource='GasBuddy';
+            s.score=calcScore(s);
+          }
+        });
+        var matched=allStations.filter(function(s){return s.realPrice;}).length;
+        var dsTxt=document.getElementById('data-source-txt');
+        var gasCount=allStations.filter(function(s){return s.type==='gas';}).length;
+        var evCount=allStations.filter(function(s){return s.type==='ev';}).length;
+        if(dsTxt&&matched>0){
+          dsTxt.innerHTML='⛽ '+gasCount+' · 🔌 '+evCount+' · <span style="color:#15803d;">✓ '+matched+' live (cached)</span>';
+        }
+        if(matched>0){
+          allStations.forEach(function(s){s.score=calcScore(s);});
+          if(typeof renderAll==='function')renderAll();
+        }
+        console.log('Used cached Apify prices:',matched,'matched');
+      }
+    }
+  }catch(e){}
+  if(cacheIsStale&&userLat&&userLng){
     getZipFromLatLng(userLat,userLng).then(function(userZip){
       // Collect unique ZIPs from loaded stations + user ZIP
       var stationZips={};
@@ -5330,7 +5381,18 @@ function buildStationList(lat,lng,liveEV,liveGas){
         var zipMatch=(s.address||'').match(/(\d{5})/);
         if(zipMatch)stationZips[zipMatch[1]]=true;
       });
-      var zips=Object.keys(stationZips).slice(0,3); // max 3 ZIP calls
+      // Prioritize ZIPs near user (sorted by station count in that ZIP)
+      var zipCounts={};
+      Object.keys(stationZips).forEach(function(z){zipCounts[z]=0;});
+      allStations.forEach(function(s){
+        var m=(s.address||'').match(/\b(\d{5})\b/);
+        if(m&&zipCounts[m[1]]!=null)zipCounts[m[1]]++;
+      });
+      var zips=Object.keys(stationZips).sort(function(a,b){
+        if(a===userZip)return-1;
+        if(b===userZip)return 1;
+        return(zipCounts[b]||0)-(zipCounts[a]||0);
+      }).slice(0,8); // top 8 ZIPs by station density
       console.log('Fetching Apify prices directly for ZIPs:',zips);
       // Fetch sequentially to avoid overwhelming Apify
       var allResults=[];
@@ -5373,6 +5435,12 @@ function buildStationList(lat,lng,liveEV,liveGas){
         });
       });
       var cacheSize=Object.keys(apifyPriceCache).length;
+      // Save to localStorage for next session
+      try{
+        localStorage.setItem('fm_apify_cache',JSON.stringify({
+          ts:Date.now(),zip:userZip,data:apifyPriceCache
+        }));
+      }catch(e){}
       // Apply to stations
       var matched=0;
       allStations.forEach(function(s){
@@ -5391,7 +5459,14 @@ function buildStationList(lat,lng,liveEV,liveGas){
       var dsTxt=document.getElementById('data-source-txt');
       var gasCount=allStations.filter(function(s){return s.type==="gas";}).length;
       var evCount=allStations.filter(function(s){return s.type==="ev";}).length;
-      if(dsTxt)dsTxt.textContent='⛽ '+gasCount+' gas · 🔌 '+evCount+' EV';
+      if(dsTxt){
+        if(matched>0){
+          dsTxt.innerHTML='⛽ '+gasCount+' · 🔌 '+evCount+' · <span style="color:#15803d;">✓ '+matched+' live</span>';
+          dsTxt.style.color='#15803d';
+        } else {
+          dsTxt.textContent='⛽ '+gasCount+' gas · 🔌 '+evCount+' EV';
+        }
+      }
       if(matched>0){
         allStations.forEach(function(s){s.score=calcScore(s);});
         allStations.sort(function(a,b){return a.distanceMiles-b.distanceMiles;});
