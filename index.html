@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1779226908</title>
+<title>FuelMap 1779227197</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -1065,7 +1065,7 @@ function fetchApifyDirect(zip){
 // Cache of Apify real prices keyed by station name (lowercase)
 var apifyPriceCache={};
 var apifyPriceCacheZip=null;
-var APIFY_CACHE_TTL=6*60*60*1000; // 6 hours
+var APIFY_CACHE_TTL=3*60*60*1000; // 3 hours (was 6) for fresher prices
 
 // Try to load cached Apify prices on startup
 (function(){
@@ -1465,21 +1465,28 @@ function startPriceAutoRefresh(){
         renderAll();
       }
     });
-  },60*60*1000); // 60 minutes
+  },20*60*1000); // 20 minutes (was 60) for fresher market signals
 }
 
-// Also refresh when tab becomes visible after being backgrounded
+// Refresh prices when user returns to the app
 document.addEventListener('visibilitychange',function(){
-  if(!document.hidden){
-    // App came back to foreground — check if price data is stale (>1 hour old)
-    var lastUpdated=livePrices.updated;
-    if(lastUpdated){
-      var hoursSince=(Date.now()-new Date(lastUpdated+'T00:00:00').getTime())/(1000*60*60);
-      if(hoursSince>1){fetchLivePrices();}
-    } else {
-      fetchLivePrices();
+  if(document.hidden)return;
+  // Fetch fresh market signals (EIA, oil)
+  fetchLivePrices().catch(function(){});
+  fetchMarketSignals().catch(function(){});
+  fetchOilPriceAdjustment().catch(function(){});
+  // Check if Apify cache is stale — refresh if so
+  try{
+    var c=localStorage.getItem('fm_apify_cache');
+    if(c){
+      var p=JSON.parse(c);
+      if(p&&p.ts&&Date.now()-p.ts>APIFY_CACHE_TTL){
+        // Cache stale — trigger fresh Apify fetch
+        console.log('Apify cache stale on return — refetching');
+        if(typeof refetchApifyPrices==='function')refetchApifyPrices();
+      }
     }
-  }
+  }catch(e){}
 });
 
 // Estimate per-station price for a given grade using city average + price_level delta
@@ -4633,21 +4640,50 @@ function loadCloudReports(){
 }
 function timeAgo(ts){var m=Math.round((Date.now()-ts)/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
 function getLatestPrice(station){
-  var r=getReports(station.id);
-  var rep=r.find(function(x){return x.fuelType==='regular'||x.fuelType==='ev_l2';});
-  if(rep)return{price:rep.price,source:'community',ago:Date.now()-rep.ts,agoStr:timeAgo(rep.ts),estimated:false};
-  // Real GasBuddy price
-  if(station.realPrice){
-    var ago=station.realPricePostedTime?timeAgo(new Date(station.realPricePostedTime).getTime()):null;
-    return{price:station.realPrice,source:'GasBuddy',ago:ago,estimated:false};
+  // Freshness thresholds (in ms)
+  var FRESH=24*60*60*1000;   // 24 hours = fresh, trust it
+  var STALE=72*60*60*1000;   // 72 hours = stale, prefer estimate
+
+  var now=Date.now();
+  var reports=getReports(station.id);
+  // Find the most recent community report (sorted by timestamp desc)
+  var validReports=reports.filter(function(x){return(x.fuelType==='regular'||x.fuelType==='ev_l2')&&x.ts;});
+  validReports.sort(function(a,b){return b.ts-a.ts;});
+  var rep=validReports[0]||null;
+  var repAge=rep?now-rep.ts:null;
+
+  // Real GasBuddy price age
+  var gbAge=null;
+  if(station.realPricePostedTime){
+    var gbTs=new Date(station.realPricePostedTime).getTime();
+    if(!isNaN(gbTs))gbAge=now-gbTs;
   }
+
+  // PRIORITY 1: Fresh community report (<24h) — most trustworthy
+  if(rep&&repAge<FRESH){
+    return{price:rep.price,source:'community',ago:repAge,agoStr:timeAgo(rep.ts),estimated:false,fresh:true};
+  }
+  // PRIORITY 2: Fresh GasBuddy price (<24h)
+  if(station.realPrice&&(gbAge==null||gbAge<FRESH)){
+    return{price:station.realPrice,source:'GasBuddy',ago:gbAge,agoStr:gbAge?timeAgo(now-gbAge):'recent',estimated:false,fresh:true};
+  }
+  // PRIORITY 3: Moderately fresh community report (24-72h) — still useful
+  if(rep&&repAge<STALE){
+    return{price:rep.price,source:'community',ago:repAge,agoStr:timeAgo(rep.ts),estimated:false,fresh:false};
+  }
+  // PRIORITY 4: Moderately fresh GasBuddy (24-72h)
+  if(station.realPrice&&gbAge&&gbAge<STALE){
+    return{price:station.realPrice,source:'GasBuddy',ago:gbAge,agoStr:timeAgo(now-gbAge),estimated:false,fresh:false};
+  }
+  // PRIORITY 5: Estimated from EIA + brand + location + oil
+  // Falls through for: stale community/GasBuddy data, or no data at all
   if(station.type==='gas'){
     var brandDelta=getPriceDelta(station.priceLevel,station.brand||station.network);
     var locDelta=getLocationDelta(station.latitude,station.longitude);
     var locCapped=Math.max(-0.50,Math.min(0.50,locDelta));
     var oilAdj=oilPriceAdjustment||0;
     var estimated=Math.round((livePrices.regular+brandDelta+locCapped+oilAdj)*100)/100;
-    return{price:estimated,source:livePrices.source||'EIA',estimated:true};
+    return{price:estimated,source:livePrices.source||'EIA',estimated:true,fresh:false};
   }
   return{price:station.basePrice||station.price||EIA_EV_L2_AVG,source:station.isLive?'live':'eia',estimated:false};
 }
@@ -5631,14 +5667,18 @@ function renderCards(){
     // Staleness indicator
     var stalenessLabel='';
     if(pi.source==='community'&&pi.ago!=null){
-      var agoMs=typeof pi.ago==='number'?pi.ago:(Date.now()-0); // ago is ms since report
-      var agoH=agoMs/3600000;
-      if(agoH<0.1)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ just now</span>';
-      else if(agoH<4)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ '+(pi.agoStr||Math.round(agoH)+'h ago')+'</span>';
-      else if(agoH<24)stalenessLabel='<span style="color:#d97706;font-size:9px;font-weight:700;">'+(pi.agoStr||Math.round(agoH)+'h ago')+'</span>';
-      else stalenessLabel='<span style="color:#9ca3af;font-size:9px;">'+(pi.agoStr||Math.floor(agoH/24)+'d ago')+'</span>';
-    } else if(pi.source==='GasBuddy'&&pi.agoStr){
-      stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">GB '+pi.agoStr+'</span>';
+      var agoH=(typeof pi.ago==='number'?pi.ago:0)/3600000;
+      if(agoH<0.5)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">● LIVE</span>';
+      else if(agoH<6)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ '+Math.round(agoH)+'h ago</span>';
+      else if(agoH<24)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">✓ '+Math.round(agoH)+'h ago</span>';
+      else if(agoH<48)stalenessLabel='<span style="color:#d97706;font-size:9px;font-weight:700;">'+Math.round(agoH)+'h ago</span>';
+      else if(agoH<72)stalenessLabel='<span style="color:#d97706;font-size:9px;">'+Math.floor(agoH/24)+'d ago</span>';
+      else stalenessLabel='<span style="color:#9ca3af;font-size:9px;">est. (stale)</span>';
+    } else if(pi.source==='GasBuddy'){
+      var gbH=pi.ago?pi.ago/3600000:0;
+      if(gbH<6)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">● GB live</span>';
+      else if(gbH<24)stalenessLabel='<span style="color:#15803d;font-size:9px;font-weight:700;">GB '+Math.round(gbH)+'h</span>';
+      else stalenessLabel='<span style="color:#d97706;font-size:9px;">GB '+Math.round(gbH)+'h</span>';
     } else {
       stalenessLabel='<span style="color:#9ca3af;font-size:9px;">~ est.</span>';
     }
@@ -7405,6 +7445,82 @@ function clearPinHighlight(){
 
 
 
+
+// ── Force refresh of Apify (real-time) prices ────────────────────────────────
+function refetchApifyPrices(){
+  // Clear the cache to force refetch
+  try{localStorage.removeItem('fm_apify_cache');}catch(e){}
+  apifyPriceCache={};
+  // Clear in-memory price tags on stations
+  allStations.forEach(function(s){
+    s.realPrice=null;s.realPricePostedTime=null;
+  });
+  // Update status
+  var dsTxt=document.getElementById('data-source-txt');
+  if(dsTxt)dsTxt.innerHTML='⏳ Refreshing live prices...';
+  // Refire the Apify fetch — replicate the logic from initial load
+  if(userLat&&userLng&&typeof getZipFromLatLng==='function'){
+    getZipFromLatLng(userLat,userLng).then(function(userZip){
+      var stationZips={};
+      stationZips[userZip]=true;
+      allStations.forEach(function(s){
+        if(!s.address)return;
+        var m=s.address.match(/\b(\d{5})\b/);
+        if(m)stationZips[m[1]]=true;
+      });
+      var zipCounts={};
+      Object.keys(stationZips).forEach(function(z){zipCounts[z]=0;});
+      allStations.forEach(function(s){
+        var m=(s.address||'').match(/\b(\d{5})\b/);
+        if(m&&zipCounts[m[1]]!=null)zipCounts[m[1]]++;
+      });
+      var zips=Object.keys(stationZips).sort(function(a,b){
+        if(a===userZip)return-1;
+        if(b===userZip)return 1;
+        return(zipCounts[b]||0)-(zipCounts[a]||0);
+      }).slice(0,8);
+      // Sequential fetches
+      var allResults=[];
+      function fetchNext(i){
+        if(i>=zips.length)return Promise.resolve(allResults);
+        return fetchApifyDirect(zips[i]).then(function(results){
+          allResults=allResults.concat(results);
+          return fetchNext(i+1);
+        }).catch(function(){return fetchNext(i+1);});
+      }
+      return fetchNext(0).then(function(){
+        // Apply prices to stations
+        allStations.forEach(function(s){
+          if(s.type!=='gas')return;
+          var ap=getApifyPrice(s);
+          if(ap&&ap.price){
+            s.realPrice=ap.price;
+            s.realPriceType=ap.priceType;
+            s.realPricePostedTime=ap.postedTime;
+            s.realPriceSource='GasBuddy';
+            s.score=calcScore(s);
+          }
+        });
+        // Save fresh cache
+        try{
+          localStorage.setItem('fm_apify_cache',JSON.stringify({
+            ts:Date.now(),zip:userZip,data:apifyPriceCache
+          }));
+        }catch(e){}
+        var matched=allStations.filter(function(s){return s.realPrice;}).length;
+        var gasCount=allStations.filter(function(s){return s.type==='gas';}).length;
+        var evCount=allStations.filter(function(s){return s.type==='ev';}).length;
+        var dsTxt=document.getElementById('data-source-txt');
+        if(dsTxt&&matched>0){
+          dsTxt.innerHTML='⛽ '+gasCount+' · 🔌 '+evCount+' · <span style="color:#15803d;">✓ '+matched+' live (just now)</span>';
+        }
+        renderAll();
+        showToast('✓ Refreshed '+matched+' live prices');
+      });
+    });
+  }
+}
+
 // ── "Search this area" button (Zillow-style) ─────────────────────────────────
 var _lastSearchCenter=null;
 
@@ -7769,6 +7885,82 @@ function clearPinHighlight(){
 }
 
 
+
+
+// ── Force refresh of Apify (real-time) prices ────────────────────────────────
+function refetchApifyPrices(){
+  // Clear the cache to force refetch
+  try{localStorage.removeItem('fm_apify_cache');}catch(e){}
+  apifyPriceCache={};
+  // Clear in-memory price tags on stations
+  allStations.forEach(function(s){
+    s.realPrice=null;s.realPricePostedTime=null;
+  });
+  // Update status
+  var dsTxt=document.getElementById('data-source-txt');
+  if(dsTxt)dsTxt.innerHTML='⏳ Refreshing live prices...';
+  // Refire the Apify fetch — replicate the logic from initial load
+  if(userLat&&userLng&&typeof getZipFromLatLng==='function'){
+    getZipFromLatLng(userLat,userLng).then(function(userZip){
+      var stationZips={};
+      stationZips[userZip]=true;
+      allStations.forEach(function(s){
+        if(!s.address)return;
+        var m=s.address.match(/\b(\d{5})\b/);
+        if(m)stationZips[m[1]]=true;
+      });
+      var zipCounts={};
+      Object.keys(stationZips).forEach(function(z){zipCounts[z]=0;});
+      allStations.forEach(function(s){
+        var m=(s.address||'').match(/\b(\d{5})\b/);
+        if(m&&zipCounts[m[1]]!=null)zipCounts[m[1]]++;
+      });
+      var zips=Object.keys(stationZips).sort(function(a,b){
+        if(a===userZip)return-1;
+        if(b===userZip)return 1;
+        return(zipCounts[b]||0)-(zipCounts[a]||0);
+      }).slice(0,8);
+      // Sequential fetches
+      var allResults=[];
+      function fetchNext(i){
+        if(i>=zips.length)return Promise.resolve(allResults);
+        return fetchApifyDirect(zips[i]).then(function(results){
+          allResults=allResults.concat(results);
+          return fetchNext(i+1);
+        }).catch(function(){return fetchNext(i+1);});
+      }
+      return fetchNext(0).then(function(){
+        // Apply prices to stations
+        allStations.forEach(function(s){
+          if(s.type!=='gas')return;
+          var ap=getApifyPrice(s);
+          if(ap&&ap.price){
+            s.realPrice=ap.price;
+            s.realPriceType=ap.priceType;
+            s.realPricePostedTime=ap.postedTime;
+            s.realPriceSource='GasBuddy';
+            s.score=calcScore(s);
+          }
+        });
+        // Save fresh cache
+        try{
+          localStorage.setItem('fm_apify_cache',JSON.stringify({
+            ts:Date.now(),zip:userZip,data:apifyPriceCache
+          }));
+        }catch(e){}
+        var matched=allStations.filter(function(s){return s.realPrice;}).length;
+        var gasCount=allStations.filter(function(s){return s.type==='gas';}).length;
+        var evCount=allStations.filter(function(s){return s.type==='ev';}).length;
+        var dsTxt=document.getElementById('data-source-txt');
+        if(dsTxt&&matched>0){
+          dsTxt.innerHTML='⛽ '+gasCount+' · 🔌 '+evCount+' · <span style="color:#15803d;">✓ '+matched+' live (just now)</span>';
+        }
+        renderAll();
+        showToast('✓ Refreshed '+matched+' live prices');
+      });
+    });
+  }
+}
 
 // ── "Search this area" button (Zillow-style) ─────────────────────────────────
 var _lastSearchCenter=null;
