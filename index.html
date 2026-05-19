@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1778273271</title>
+<title>FuelMap 1779226241</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -3555,7 +3555,7 @@ var TRIP_TYPES=[
 // ── App state ─────────────────────────────────────────────────────────────────
 var currentUser=null;
 var currentSession=null;
-var allStations=[],currentFilter='gas',currentSort='value',currentStation=null,autoFitMap=false;
+var allStations=[],currentFilter='gas',currentSort='price',currentStation=null,autoFitMap=false;
 var alerts=[],userLat=null,userLng=null,modalFuelType='regular';
 var editingVehicleId=null,selectedVehicleEmoji='🚗',selectedFuelType='gas',selectedProfileEmoji='😊',selectedGasGrade='regular';
 var selectedTripType='commute',tripResult=null,autocompleteTimer=null,pendingDest=null;
@@ -4507,11 +4507,12 @@ function getUsualSpots(){
 }
 
 function renderUsualSpots(){
+  // Favorites are now accessed via the sort row's "⭐ Favorites" button
+  // Hide the in-sheet favorites section so cards have full space
   var el=document.getElementById('usual-spots');
-  if(!el)return;
-  var spots=getUsualSpots();
-  if(!spots.length){el.style.display='none';el.innerHTML='';return;}
-  el.style.display='block';
+  if(el){el.style.display='none';el.innerHTML='';}
+  return;
+  // legacy below — never executes
   el.innerHTML='<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;padding:0 12px 4px;">⭐ Favorites</div>'
     +'<div class="usual-spots-row">'
     +spots.map(function(st,i){
@@ -5548,6 +5549,10 @@ function getFiltered(){
     if(currentFilter==='diesel')return s.type==='gas'&&(s.hasDiesel||s.brand==='Valero'||s.brand==='76'||s.brand==='Shell'||s.brand==='Chevron');
     return true;
   });
+  // Favorites sort: filter to ONLY favorited stations
+  if(currentSort==='favorites'){
+    list=list.filter(function(s){return isFavorite(s.id);});
+  }
   // Toggle flags
   if(window.filterFlag_openNow) list=list.filter(function(s){return s.isOpen!==false;});
   if(window.filterFlag_cheap){
@@ -5557,6 +5562,7 @@ function getFiltered(){
   }
   if(window.filterFlag_carwash) list=list.filter(function(s){return s.hasCarWash||s.amenities&&s.amenities.indexOf('carwash')>-1;});
   return list.sort(function(a,b){
+    if(currentSort==='favorites')return a.distanceMiles-b.distanceMiles; // favorites by distance
     if(currentSort==='value')return b.score-a.score;
     if(currentSort==='price')return getLatestPrice(a).price-getLatestPrice(b).price;
     if(currentSort==='wait')return(a.busy||30)-(b.busy||30);
@@ -5587,7 +5593,22 @@ function renderFilters(){
   var ribbon=document.getElementById('pge-ribbon');
   if(ribbon)ribbon.style.display=(currentFilter==='ev'||currentFilter==='all')?'block':'none';
 }
-function renderSorts(){var el=document.getElementById('sorts');el.innerHTML='';[['value','Value'],['price','Price'],['wait','Wait'],['distance','Near']].forEach(function(p){var c=document.createElement('div');c.className='sp sp-'+p[0]+(currentSort===p[0]?' on':'');c.textContent=p[1];c.onclick=function(){currentSort=p[0];autoFitMap=true;closeStationPreview();renderAll();};el.appendChild(c);});}
+function renderSorts(){
+  var el=document.getElementById('sorts');el.innerHTML='';
+  // Re-ordered: Price, Wait, Near come first; Favorites is last
+  [['price','Price'],['wait','Wait'],['distance','Near'],['favorites','⭐ Favorites']].forEach(function(p){
+    var c=document.createElement('div');
+    c.className='sp sp-'+p[0]+(currentSort===p[0]?' on':'');
+    c.textContent=p[1];
+    c.onclick=function(){
+      currentSort=p[0];
+      autoFitMap=true;
+      closeStationPreview();
+      renderAll();
+    };
+    el.appendChild(c);
+  });
+}
 function renderCards(){
   var el=document.getElementById('cards');el.innerHTML='';var filtered=getFiltered();
   document.getElementById('sheet-title').textContent=filtered.length+' stations nearby';
@@ -5716,9 +5737,10 @@ function renderAll(){
       if(fn)fn();
     }
   }
-  // Sync map pins with current filter
+  // Sync map pins with current filter — and favorites sort
   var mappable=allStations.filter(function(s){
     if(!s.latitude||!s.longitude)return false;
+    if(currentSort==='favorites'&&!isFavorite(s.id))return false;
     if(currentFilter==='gas')return s.type==='gas';
     if(currentFilter==='ev')return s.type==='ev';
     return true;
