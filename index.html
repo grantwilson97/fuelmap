@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1779227924</title>
+<title>FuelMap 1779228709</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -26,6 +26,61 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .pge-chip{background:#fff7e6;border:1px solid #fbbf24;border-radius:8px;padding:5px 10px;margin-bottom:8px;}
 .pge-chip-txt{font-size:9px;font-weight:700;color:#b45309;white-space:nowrap;}
 .filter-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.map-search-wrap{
+  padding:6px 14px 10px;
+  background:#fff;
+}
+.map-search-bar{
+  display:flex;
+  align-items:center;
+  background:#f5f5f7;
+  border-radius:24px;
+  padding:0 14px;
+  height:38px;
+  border:1.5px solid transparent;
+  transition:border-color 0.15s;
+}
+.map-search-bar:focus-within{
+  border-color:#DC2626;
+  background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,0.08);
+}
+.map-search-icon{
+  font-size:14px;
+  margin-right:8px;
+  flex-shrink:0;
+  opacity:0.5;
+}
+.map-search-input{
+  flex:1;
+  border:none;
+  background:transparent;
+  font-size:14px;
+  font-weight:500;
+  color:#1a1a2e;
+  outline:none;
+  padding:0;
+  min-width:0;
+}
+.map-search-input::placeholder{color:#999;font-weight:400;}
+.map-search-clear{
+  background:#ddd;
+  border:none;
+  color:#666;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  font-size:11px;
+  font-weight:700;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  margin-left:6px;
+}
+.map-search-clear:active{transform:scale(0.9);}
+
 .filter-row::-webkit-scrollbar{display:none;}
 .chip{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;font-size:12px;font-weight:600;color:#555;background:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .chip.on{background:#DC2626;border-color:#DC2626;color:#fff;}
@@ -701,6 +756,18 @@ if('serviceWorker' in navigator){
       </button>
     </div>
     <div class="filter-row" id="filters"></div>
+    <div class="map-search-wrap">
+      <div class="map-search-bar">
+        <span class="map-search-icon">🔍</span>
+        <input type="text" id="map-search-input" class="map-search-input"
+          placeholder="Search city, address, or place..."
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          oninput="handleMapSearchInput(this.value)"
+          onfocus="this.select();"
+          onkeydown="if(event.keyCode===13){event.preventDefault();selectFirstMapSearchResult();}"/>
+        <button class="map-search-clear" id="map-search-clear" onclick="clearMapSearch()" style="display:none;">✕</button>
+      </div>
+    </div>
   </div>
   <div class="map-box" id="map-box" style="position:relative;padding:0;">
     <div id="google-map" style="position:absolute;top:0;left:0;right:0;bottom:0;"></div>
@@ -7595,6 +7662,160 @@ function _initSearchAreaTracking(){
 }
 
 
+
+// ── Map location search ──────────────────────────────────────────────────────
+var _mapSearchTimer=null;
+var _mapSearchPredictions=[];
+
+function handleMapSearchInput(val){
+  clearTimeout(_mapSearchTimer);
+  var clearBtn=document.getElementById('map-search-clear');
+  if(clearBtn) clearBtn.style.display=val?'flex':'none';
+
+  if(val.length<2){hideMapSearchDropdown();return;}
+  _mapSearchTimer=setTimeout(function(){
+    if(typeof google!=='undefined'&&google.maps&&google.maps.places){
+      if(!window._mapAcService) window._mapAcService=new google.maps.places.AutocompleteService();
+      window._mapAcService.getPlacePredictions(
+        {input:val,componentRestrictions:{country:'us'},types:['geocode']},
+        function(preds,status){
+          if(status!==google.maps.places.PlacesServiceStatus.OK||!preds||!preds.length){
+            hideMapSearchDropdown();
+            _mapSearchPredictions=[];
+            return;
+          }
+          _mapSearchPredictions=preds;
+          showMapSearchDropdown(preds.map(function(p){
+            return{
+              main:p.structured_formatting?p.structured_formatting.main_text:p.description,
+              sec:p.structured_formatting?p.structured_formatting.secondary_text:'',
+              place_id:p.place_id,
+              desc:p.description
+            };
+          }));
+        }
+      );
+    }
+  },250);
+}
+
+function hideMapSearchDropdown(){
+  var existing=document.getElementById('map-search-float');
+  if(existing) existing.remove();
+}
+
+function showMapSearchDropdown(items){
+  hideMapSearchDropdown();
+  var inp=document.getElementById('map-search-input');
+  if(!inp||!items.length)return;
+  var rect=inp.getBoundingClientRect();
+  var vvOffset=window.visualViewport?window.visualViewport.offsetTop:0;
+
+  var dd=document.createElement('div');
+  dd.id='map-search-float';
+  dd.style.cssText='position:fixed;background:#fff;border:1.5px solid #e0e0e0;'
+    +'border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);'
+    +'z-index:999999;overflow:hidden;overflow-y:auto;max-height:280px;'
+    +'top:'+(rect.bottom+6+vvOffset)+'px;'
+    +'left:'+rect.left+'px;'
+    +'width:'+rect.width+'px;';
+
+  items.forEach(function(item,idx){
+    var row=document.createElement('div');
+    row.style.cssText='padding:13px 14px;font-size:14px;border-bottom:1px solid #f5f5f5;cursor:pointer;display:flex;align-items:center;gap:10px;';
+    row.innerHTML='<div style="font-size:16px;opacity:0.5;">📍</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.main+'</div>'
+      +(item.sec?'<div style="font-size:12px;color:#888;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.sec+'</div>':'')
+      +'</div>';
+    row.addEventListener('touchend',function(e){
+      e.preventDefault();
+      selectMapSearchPlace(item);
+    });
+    row.addEventListener('click',function(){selectMapSearchPlace(item);});
+    row.addEventListener('touchstart',function(){row.style.background='#f5f5f5';},{passive:true});
+    row.addEventListener('touchend',function(){row.style.background='';});
+    dd.appendChild(row);
+  });
+
+  document.body.appendChild(dd);
+
+  setTimeout(function(){
+    document.addEventListener('touchend',function handler(e){
+      if(!dd.contains(e.target)&&e.target!==inp){
+        hideMapSearchDropdown();
+        document.removeEventListener('touchend',handler);
+      }
+    });
+  },100);
+}
+
+function selectMapSearchPlace(item){
+  hideMapSearchDropdown();
+  var inp=document.getElementById('map-search-input');
+  if(inp){inp.value=item.main;inp.blur();}
+  var clearBtn=document.getElementById('map-search-clear');
+  if(clearBtn) clearBtn.style.display='flex';
+
+  // Geocode the selected place to get lat/lng
+  if(typeof google==='undefined'||!google.maps)return;
+  if(!window._geocoder) window._geocoder=new google.maps.Geocoder();
+  window._geocoder.geocode({placeId:item.place_id},function(results,status){
+    if(status!=='OK'||!results||!results.length)return;
+    var loc=results[0].geometry.location;
+    var lat=loc.lat(),lng=loc.lng();
+
+    // Pan map there and zoom appropriately
+    if(gMap){
+      gMap.panTo({lat:lat,lng:lng});
+      // Adjust zoom based on result type — cities get wider zoom, addresses closer
+      var types=results[0].types||[];
+      var zoom=13; // default city level
+      if(types.indexOf('street_address')>-1||types.indexOf('premise')>-1) zoom=15;
+      else if(types.indexOf('neighborhood')>-1) zoom=14;
+      else if(types.indexOf('locality')>-1) zoom=12;
+      else if(types.indexOf('administrative_area_level_2')>-1) zoom=10;
+      else if(types.indexOf('administrative_area_level_1')>-1) zoom=8;
+      gMap.setZoom(zoom);
+    }
+
+    // Snap sheet to peek so map is dominant
+    if(window._setSheetSnap&&window._SNAP_PEEK){
+      setTimeout(function(){window._setSheetSnap(window._SNAP_PEEK,true);},200);
+    }
+
+    // Trigger fetch for the new area
+    setTimeout(function(){
+      if(typeof fetchForMapViewport==='function')fetchForMapViewport();
+    },500);
+  });
+}
+
+function selectFirstMapSearchResult(){
+  if(_mapSearchPredictions.length>0){
+    var p=_mapSearchPredictions[0];
+    selectMapSearchPlace({
+      main:p.structured_formatting?p.structured_formatting.main_text:p.description,
+      place_id:p.place_id,
+      desc:p.description
+    });
+  }
+}
+
+function clearMapSearch(){
+  var inp=document.getElementById('map-search-input');
+  if(inp){inp.value='';inp.focus();}
+  var clearBtn=document.getElementById('map-search-clear');
+  if(clearBtn) clearBtn.style.display='none';
+  hideMapSearchDropdown();
+  // Return to user's location
+  if(gMap&&userLat&&userLng){
+    gMap.panTo({lat:userLat,lng:userLng});
+    gMap.setZoom(13);
+  }
+}
+
+
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
   var SNAP_PEEK=22;   // % screen height — compact preview (map dominant)
@@ -8053,6 +8274,160 @@ function _initSearchAreaTracking(){
   gMap.addListener('zoom_changed',function(){
     setTimeout(_checkPanDistance,500);
   });
+}
+
+
+
+// ── Map location search ──────────────────────────────────────────────────────
+var _mapSearchTimer=null;
+var _mapSearchPredictions=[];
+
+function handleMapSearchInput(val){
+  clearTimeout(_mapSearchTimer);
+  var clearBtn=document.getElementById('map-search-clear');
+  if(clearBtn) clearBtn.style.display=val?'flex':'none';
+
+  if(val.length<2){hideMapSearchDropdown();return;}
+  _mapSearchTimer=setTimeout(function(){
+    if(typeof google!=='undefined'&&google.maps&&google.maps.places){
+      if(!window._mapAcService) window._mapAcService=new google.maps.places.AutocompleteService();
+      window._mapAcService.getPlacePredictions(
+        {input:val,componentRestrictions:{country:'us'},types:['geocode']},
+        function(preds,status){
+          if(status!==google.maps.places.PlacesServiceStatus.OK||!preds||!preds.length){
+            hideMapSearchDropdown();
+            _mapSearchPredictions=[];
+            return;
+          }
+          _mapSearchPredictions=preds;
+          showMapSearchDropdown(preds.map(function(p){
+            return{
+              main:p.structured_formatting?p.structured_formatting.main_text:p.description,
+              sec:p.structured_formatting?p.structured_formatting.secondary_text:'',
+              place_id:p.place_id,
+              desc:p.description
+            };
+          }));
+        }
+      );
+    }
+  },250);
+}
+
+function hideMapSearchDropdown(){
+  var existing=document.getElementById('map-search-float');
+  if(existing) existing.remove();
+}
+
+function showMapSearchDropdown(items){
+  hideMapSearchDropdown();
+  var inp=document.getElementById('map-search-input');
+  if(!inp||!items.length)return;
+  var rect=inp.getBoundingClientRect();
+  var vvOffset=window.visualViewport?window.visualViewport.offsetTop:0;
+
+  var dd=document.createElement('div');
+  dd.id='map-search-float';
+  dd.style.cssText='position:fixed;background:#fff;border:1.5px solid #e0e0e0;'
+    +'border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);'
+    +'z-index:999999;overflow:hidden;overflow-y:auto;max-height:280px;'
+    +'top:'+(rect.bottom+6+vvOffset)+'px;'
+    +'left:'+rect.left+'px;'
+    +'width:'+rect.width+'px;';
+
+  items.forEach(function(item,idx){
+    var row=document.createElement('div');
+    row.style.cssText='padding:13px 14px;font-size:14px;border-bottom:1px solid #f5f5f5;cursor:pointer;display:flex;align-items:center;gap:10px;';
+    row.innerHTML='<div style="font-size:16px;opacity:0.5;">📍</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.main+'</div>'
+      +(item.sec?'<div style="font-size:12px;color:#888;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.sec+'</div>':'')
+      +'</div>';
+    row.addEventListener('touchend',function(e){
+      e.preventDefault();
+      selectMapSearchPlace(item);
+    });
+    row.addEventListener('click',function(){selectMapSearchPlace(item);});
+    row.addEventListener('touchstart',function(){row.style.background='#f5f5f5';},{passive:true});
+    row.addEventListener('touchend',function(){row.style.background='';});
+    dd.appendChild(row);
+  });
+
+  document.body.appendChild(dd);
+
+  setTimeout(function(){
+    document.addEventListener('touchend',function handler(e){
+      if(!dd.contains(e.target)&&e.target!==inp){
+        hideMapSearchDropdown();
+        document.removeEventListener('touchend',handler);
+      }
+    });
+  },100);
+}
+
+function selectMapSearchPlace(item){
+  hideMapSearchDropdown();
+  var inp=document.getElementById('map-search-input');
+  if(inp){inp.value=item.main;inp.blur();}
+  var clearBtn=document.getElementById('map-search-clear');
+  if(clearBtn) clearBtn.style.display='flex';
+
+  // Geocode the selected place to get lat/lng
+  if(typeof google==='undefined'||!google.maps)return;
+  if(!window._geocoder) window._geocoder=new google.maps.Geocoder();
+  window._geocoder.geocode({placeId:item.place_id},function(results,status){
+    if(status!=='OK'||!results||!results.length)return;
+    var loc=results[0].geometry.location;
+    var lat=loc.lat(),lng=loc.lng();
+
+    // Pan map there and zoom appropriately
+    if(gMap){
+      gMap.panTo({lat:lat,lng:lng});
+      // Adjust zoom based on result type — cities get wider zoom, addresses closer
+      var types=results[0].types||[];
+      var zoom=13; // default city level
+      if(types.indexOf('street_address')>-1||types.indexOf('premise')>-1) zoom=15;
+      else if(types.indexOf('neighborhood')>-1) zoom=14;
+      else if(types.indexOf('locality')>-1) zoom=12;
+      else if(types.indexOf('administrative_area_level_2')>-1) zoom=10;
+      else if(types.indexOf('administrative_area_level_1')>-1) zoom=8;
+      gMap.setZoom(zoom);
+    }
+
+    // Snap sheet to peek so map is dominant
+    if(window._setSheetSnap&&window._SNAP_PEEK){
+      setTimeout(function(){window._setSheetSnap(window._SNAP_PEEK,true);},200);
+    }
+
+    // Trigger fetch for the new area
+    setTimeout(function(){
+      if(typeof fetchForMapViewport==='function')fetchForMapViewport();
+    },500);
+  });
+}
+
+function selectFirstMapSearchResult(){
+  if(_mapSearchPredictions.length>0){
+    var p=_mapSearchPredictions[0];
+    selectMapSearchPlace({
+      main:p.structured_formatting?p.structured_formatting.main_text:p.description,
+      place_id:p.place_id,
+      desc:p.description
+    });
+  }
+}
+
+function clearMapSearch(){
+  var inp=document.getElementById('map-search-input');
+  if(inp){inp.value='';inp.focus();}
+  var clearBtn=document.getElementById('map-search-clear');
+  if(clearBtn) clearBtn.style.display='none';
+  hideMapSearchDropdown();
+  // Return to user's location
+  if(gMap&&userLat&&userLng){
+    gMap.panTo({lat:userLat,lng:userLng});
+    gMap.setZoom(13);
+  }
 }
 
 
