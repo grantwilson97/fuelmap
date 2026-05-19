@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1779227197</title>
+<title>FuelMap 1779227583</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -204,13 +204,31 @@ body{background:#fff;max-width:430px;margin:0 auto;height:100vh;display:flex;fle
 .sheet.peek-mode .sheet-scroll{display:none;}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:2px 14px 10px;flex-shrink:0;}
 .sheet-title{font-size:14px;font-weight:700;color:#1a1a2e;}
-.sort-row{display:flex;gap:5px;}
-.sp{padding:4px 10px;border-radius:20px;border:1.5px solid #e0e0e0;font-size:11px;font-weight:600;color:#888;cursor:pointer;background:#fff;}
-.sp.on{color:#555;}
-.sp-value.on{background:#dcfce7;border-color:#16a34a;color:#15803d;}
-.sp-price.on{background:#fee2e2;border-color:#DC2626;color:#b91c1c;}
-.sp-wait.on{background:#fef3c7;border-color:#f59e0b;color:#b45309;}
-.sp-distance.on{background:#dbeafe;border-color:#2563eb;color:#1d4ed8;}
+.sort-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.sort-row::-webkit-scrollbar{display:none;}
+.sp{
+  padding:6px 12px;
+  border-radius:20px;
+  border:1.5px solid #e0e0e0;
+  font-size:12px;
+  font-weight:700;
+  color:#888;
+  cursor:pointer;
+  background:#fff;
+  transition:all 0.15s;
+  white-space:nowrap;
+}
+.sp.on{
+  color:#fff;
+  background:#1a1a2e;
+  border-color:#1a1a2e;
+  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+}
+.sp-price.on{background:#DC2626;border-color:#DC2626;}
+.sp-wait.on{background:#f59e0b;border-color:#f59e0b;}
+.sp-distance.on{background:#2563eb;border-color:#2563eb;}
+.sp-favorites.on{background:#facc15;border-color:#facc15;color:#1a1a2e;}
+.sp:active{transform:scale(0.97);}
 .cards{display:flex;gap:10px;padding:4px 14px 14px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;}
 .card{scroll-snap-align:start;}
 .cards::-webkit-scrollbar{display:none;}
@@ -5643,7 +5661,7 @@ function renderFilters(){
 function renderSorts(){
   var el=document.getElementById('sorts');el.innerHTML='';
   // Re-ordered: Price, Wait, Near come first; Favorites is last
-  [['price','Price'],['wait','Wait'],['distance','Near'],['favorites','⭐ Favorites']].forEach(function(p){
+  [['price','Price'],['wait','Wait'],['distance','Near'],['favorites','⭐ Favs']].forEach(function(p){
     var c=document.createElement('div');
     c.className='sp sp-'+p[0]+(currentSort===p[0]?' on':'');
     c.textContent=p[1];
@@ -7627,28 +7645,48 @@ function _initSearchAreaTracking(){
       if(miniEl) miniEl.innerHTML='';
       return;
     }
-    countEl.textContent=allStations.length+' stations nearby';
-    // Find cheapest gas
-    var gasStations=allStations.filter(function(s){return (s.type==='gas'||!s.type);});
-    if(gasStations.length&&typeof getLatestPrice==='function'){
-      // Sort by price ascending
-      var sorted=gasStations.slice().sort(function(a,b){
-        return getLatestPrice(a).price-getLatestPrice(b).price;
-      });
-      var cheapest=sorted[0];
-      var pi=getLatestPrice(cheapest);
-      cheapEl.innerHTML='Cheapest: <span class="peek-price">$'+pi.price.toFixed(2)+'</span> at '+cheapest.name;
 
-      // Render mini cards (top 4 cheapest)
+    // Filter to LOCALLY RELEVANT gas stations (within reasonable distance)
+    // Use expanding radius: 3mi first, then 5mi, then 10mi if needed
+    var allGas=allStations.filter(function(s){
+      return (s.type==='gas'||!s.type)&&s.distanceMiles!=null&&s.distanceMiles<99;
+    });
+    var nearby=allGas.filter(function(s){return s.distanceMiles<=3;});
+    if(nearby.length<4) nearby=allGas.filter(function(s){return s.distanceMiles<=5;});
+    if(nearby.length<4) nearby=allGas.filter(function(s){return s.distanceMiles<=10;});
+    if(nearby.length<4) nearby=allGas.slice().sort(function(a,b){return a.distanceMiles-b.distanceMiles;}).slice(0,8);
+
+    var radius=nearby.length?(nearby[nearby.length-1]&&nearby[0].distanceMiles<=3?3:nearby[0].distanceMiles<=5?5:10):10;
+    countEl.textContent=allStations.length+' stations · '+nearby.length+' within '+radius+'mi';
+
+    if(nearby.length&&typeof getLatestPrice==='function'){
+      // Score-based: balance price AND distance (cheaper + closer = better)
+      // Penalty: $0.10/gal saved isn't worth 5mi extra drive
+      var scored=nearby.map(function(s){
+        var p=getLatestPrice(s).price;
+        var d=s.distanceMiles||0;
+        // Penalty: each mile beyond 1mi = $0.05 effective cost (round trip gas + time)
+        var effectiveCost=p+(Math.max(0,d-1)*0.05);
+        return{station:s,price:p,dist:d,score:effectiveCost};
+      }).sort(function(a,b){return a.score-b.score;});
+
+      var best=scored[0];
+      cheapEl.innerHTML='Best value: <span class="peek-price">$'+best.price.toFixed(2)+'</span> at '+best.station.name+
+                       ' <span style="color:#888;">('+best.dist.toFixed(1)+'mi)</span>';
+
+      // Render top 4 by combined score (price + distance)
       if(miniEl){
         var html='';
-        sorted.slice(0,4).forEach(function(st){
-          var p=getLatestPrice(st);
-          var dist=st.distanceMiles!=null&&st.distanceMiles<99?st.distanceMiles.toFixed(1)+'mi':'';
+        scored.slice(0,4).forEach(function(item){
+          var st=item.station;
+          var p=item.price;
+          var d=item.dist;
+          var distStr=d.toFixed(1)+'mi';
+          var brand=st.brand||(st.name?st.name.split(' ')[0]:'GAS');
           html+='<div class="peek-mini-card" onclick="event.stopPropagation();showDetail('+JSON.stringify(st)+');">'
-            +'<div class="peek-mini-row"><div class="peek-mini-price">$'+p.price.toFixed(2)+'</div></div>'
+            +'<div class="peek-mini-row"><div class="peek-mini-price">$'+p.toFixed(2)+'</div></div>'
             +'<div class="peek-mini-name">'+st.name+'</div>'
-            +'<div class="peek-mini-meta">'+dist+(dist?' · ':'')+(st.brand||'GAS')+'</div>'
+            +'<div class="peek-mini-meta">'+distStr+' · '+brand+'</div>'
             +'</div>';
         });
         miniEl.innerHTML=html;
@@ -8068,28 +8106,48 @@ function _initSearchAreaTracking(){
       if(miniEl) miniEl.innerHTML='';
       return;
     }
-    countEl.textContent=allStations.length+' stations nearby';
-    // Find cheapest gas
-    var gasStations=allStations.filter(function(s){return (s.type==='gas'||!s.type);});
-    if(gasStations.length&&typeof getLatestPrice==='function'){
-      // Sort by price ascending
-      var sorted=gasStations.slice().sort(function(a,b){
-        return getLatestPrice(a).price-getLatestPrice(b).price;
-      });
-      var cheapest=sorted[0];
-      var pi=getLatestPrice(cheapest);
-      cheapEl.innerHTML='Cheapest: <span class="peek-price">$'+pi.price.toFixed(2)+'</span> at '+cheapest.name;
 
-      // Render mini cards (top 4 cheapest)
+    // Filter to LOCALLY RELEVANT gas stations (within reasonable distance)
+    // Use expanding radius: 3mi first, then 5mi, then 10mi if needed
+    var allGas=allStations.filter(function(s){
+      return (s.type==='gas'||!s.type)&&s.distanceMiles!=null&&s.distanceMiles<99;
+    });
+    var nearby=allGas.filter(function(s){return s.distanceMiles<=3;});
+    if(nearby.length<4) nearby=allGas.filter(function(s){return s.distanceMiles<=5;});
+    if(nearby.length<4) nearby=allGas.filter(function(s){return s.distanceMiles<=10;});
+    if(nearby.length<4) nearby=allGas.slice().sort(function(a,b){return a.distanceMiles-b.distanceMiles;}).slice(0,8);
+
+    var radius=nearby.length?(nearby[nearby.length-1]&&nearby[0].distanceMiles<=3?3:nearby[0].distanceMiles<=5?5:10):10;
+    countEl.textContent=allStations.length+' stations · '+nearby.length+' within '+radius+'mi';
+
+    if(nearby.length&&typeof getLatestPrice==='function'){
+      // Score-based: balance price AND distance (cheaper + closer = better)
+      // Penalty: $0.10/gal saved isn't worth 5mi extra drive
+      var scored=nearby.map(function(s){
+        var p=getLatestPrice(s).price;
+        var d=s.distanceMiles||0;
+        // Penalty: each mile beyond 1mi = $0.05 effective cost (round trip gas + time)
+        var effectiveCost=p+(Math.max(0,d-1)*0.05);
+        return{station:s,price:p,dist:d,score:effectiveCost};
+      }).sort(function(a,b){return a.score-b.score;});
+
+      var best=scored[0];
+      cheapEl.innerHTML='Best value: <span class="peek-price">$'+best.price.toFixed(2)+'</span> at '+best.station.name+
+                       ' <span style="color:#888;">('+best.dist.toFixed(1)+'mi)</span>';
+
+      // Render top 4 by combined score (price + distance)
       if(miniEl){
         var html='';
-        sorted.slice(0,4).forEach(function(st){
-          var p=getLatestPrice(st);
-          var dist=st.distanceMiles!=null&&st.distanceMiles<99?st.distanceMiles.toFixed(1)+'mi':'';
+        scored.slice(0,4).forEach(function(item){
+          var st=item.station;
+          var p=item.price;
+          var d=item.dist;
+          var distStr=d.toFixed(1)+'mi';
+          var brand=st.brand||(st.name?st.name.split(' ')[0]:'GAS');
           html+='<div class="peek-mini-card" onclick="event.stopPropagation();showDetail('+JSON.stringify(st)+');">'
-            +'<div class="peek-mini-row"><div class="peek-mini-price">$'+p.price.toFixed(2)+'</div></div>'
+            +'<div class="peek-mini-row"><div class="peek-mini-price">$'+p.toFixed(2)+'</div></div>'
             +'<div class="peek-mini-name">'+st.name+'</div>'
-            +'<div class="peek-mini-meta">'+dist+(dist?' · ':'')+(st.brand||'GAS')+'</div>'
+            +'<div class="peek-mini-meta">'+distStr+' · '+brand+'</div>'
             +'</div>';
         });
         miniEl.innerHTML=html;
