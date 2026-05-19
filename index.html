@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1779230303</title>
+<title>FuelMap 1779230757</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -3571,7 +3571,7 @@ var SEEDED_DEMO_STATIONS=[
   {id:'mva_9',name:'Chevron',address:'2300 Homestead Rd, Los Altos, CA',type:'gas',basePrice:5.79,latitude:37.337604,longitude:-122.0679638,busy:35,isLive:true,brand:'Chevron',priceLevel:1,priceEstimated:true,open24h:false},
   {id:'mva_10',name:'ARCO',address:'988 N San Antonio Rd, Los Altos, CA',type:'gas',basePrice:5.79,latitude:37.3998509,longitude:-122.1145725,busy:35,isLive:true,brand:'ARCO',priceLevel:-1,priceEstimated:true,open24h:false},
   {id:'sb_001',name:'Chevron',address:'2900 State St, Santa Barbara, CA',type:'gas',basePrice:5.49,latitude:34.4361,longitude:-119.7212,busy:45,isLive:true,brand:'Chevron',priceEstimated:false,open24h:false},
-  {id:'sb_002',name:'Shell',address:'3805 State St, Santa Barbara, CA',type:'gas',basePrice:5.55,latitude:34.4430,longitude:-119.7376,busy:40,isLive:true,brand:'Shell',priceEstimated:false,open24h:false},
+  {id:'sb_002',name:'Shell',address:'3805 State St, Santa Barbara, CA',type:'gas',basePrice:5.55,latitude:34.4395,longitude:-119.7368,busy:40,isLive:true,brand:'Shell',priceEstimated:false,open24h:false},
   {id:'sb_003',name:'76',address:'2920 De La Vina St, Santa Barbara, CA',type:'gas',basePrice:5.45,latitude:34.4380,longitude:-119.7240,busy:35,isLive:true,brand:'76',priceEstimated:false,open24h:false},
   {id:'sb_004',name:'Mobil',address:'5 W Carrillo St, Santa Barbara, CA',type:'gas',basePrice:5.59,latitude:34.4198,longitude:-119.7008,busy:50,isLive:true,brand:'Mobil',priceEstimated:false,open24h:false},
   {id:'sb_005',name:'Chevron',address:'190 S Milpas St, Santa Barbara, CA',type:'gas',basePrice:5.35,latitude:34.4192,longitude:-119.6840,busy:60,isLive:true,brand:'Chevron',priceEstimated:false,open24h:false},
@@ -3605,6 +3605,11 @@ var SEEDED_DEMO_STATIONS=[
   {id:'sb_033',name:'EVgo',address:'6885 Marketplace Dr, Goleta, CA',type:'ev',basePrice:0.49,latitude:34.4300,longitude:-119.8680,busy:25,isLive:true,brand:'EVgo',priceEstimated:false,open24h:true,network:'EVgo'},
   {id:'sb_034',name:'ChargePoint',address:'1 Garden St, Santa Barbara, CA',type:'ev',basePrice:0.35,latitude:34.4172,longitude:-119.6928,busy:20,isLive:true,brand:'ChargePoint',priceEstimated:false,open24h:true,network:'ChargePoint'},
   {id:'sb_035',name:'Electrify America',address:'1 State St, Santa Barbara, CA',type:'ev',basePrice:0.45,latitude:34.4148,longitude:-119.6920,busy:30,isLive:true,brand:'Electrify America',priceEstimated:false,open24h:true,network:'Electrify America'},
+  {id:'sb_036',name:'Conserv Fuel',address:'401 S La Cumbre Rd, Santa Barbara, CA',type:'gas',basePrice:5.65,latitude:34.4322,longitude:-119.7440,busy:30,isLive:true,brand:'Conserv Fuel',priceEstimated:false,open24h:false},
+  {id:'sb_037',name:'Speedway Express',address:'30 N La Cumbre Rd, Santa Barbara, CA',type:'gas',basePrice:5.39,latitude:34.4368,longitude:-119.7440,busy:50,isLive:true,brand:'Speedway',priceEstimated:false,open24h:false},
+  {id:'sb_038',name:'76',address:'3810 State St, Santa Barbara, CA',type:'gas',basePrice:5.45,latitude:34.4400,longitude:-119.7363,busy:45,isLive:true,brand:'76',priceEstimated:false,open24h:false},
+  {id:'sb_039',name:'ARCO',address:'3820 State St, Santa Barbara, CA',type:'gas',basePrice:5.19,latitude:34.4402,longitude:-119.7360,busy:65,isLive:true,brand:'ARCO',priceEstimated:false,open24h:true},
+  {id:'sb_040',name:'Mobil',address:'3700 State St, Santa Barbara, CA',type:'gas',basePrice:5.55,latitude:34.4380,longitude:-119.7355,busy:40,isLive:true,brand:'Mobil',priceEstimated:false,open24h:false},
   {id:'la_001',name:'Chevron',address:'2929 Wilshire Blvd, Santa Monica, CA',type:'gas',basePrice:5.49,latitude:34.0367,longitude:-118.4729,busy:50,isLive:true,brand:'Chevron',priceEstimated:false,open24h:false},
   {id:'la_002',name:'76',address:'1855 14th St, Santa Monica, CA',type:'gas',basePrice:5.45,latitude:34.0335,longitude:-118.4855,busy:45,isLive:true,brand:'76',priceEstimated:false,open24h:false},
   {id:'la_003',name:'Mobil',address:'1601 Cloverfield Blvd, Santa Monica, CA',type:'gas',basePrice:5.55,latitude:34.0238,longitude:-118.4720,busy:40,isLive:true,brand:'Mobil',priceEstimated:false,open24h:false},
@@ -5766,6 +5771,10 @@ function buildStationList(lat,lng,liveEV,liveGas){
         if(matched>0){
           allStations.forEach(function(s){s.score=calcScore(s);});
           if(typeof renderAll==='function')renderAll();
+  // Kick off background coordinate correction (runs once per session)
+  if(typeof queueGeocodeCorrections==='function'){
+    setTimeout(queueGeocodeCorrections, 3000); // wait 3s for app to settle
+  }
         }
         console.log('Used cached Apify prices:',matched,'matched');
       }
@@ -8064,6 +8073,134 @@ function clearMapSearch(){
 }
 
 
+
+// ── Background coordinate correction via Google Places ───────────────────────
+// Runs ONCE per station, then caches corrections in localStorage forever
+// This silently fixes seeded coordinates that were generated without geocoding
+var GEOCODE_CACHE_KEY='fm_geocode_corrections_v1';
+var _geocodeCache=null;
+var _geocodeQueue=[];
+var _geocodingActive=false;
+
+function _loadGeocodeCache(){
+  if(_geocodeCache!==null)return _geocodeCache;
+  try{
+    _geocodeCache=JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY)||'{}');
+  }catch(e){_geocodeCache={};}
+  return _geocodeCache;
+}
+
+function _saveGeocodeCache(){
+  if(!_geocodeCache)return;
+  try{localStorage.setItem(GEOCODE_CACHE_KEY,JSON.stringify(_geocodeCache));}catch(e){}
+}
+
+function applyGeocodeCorrections(){
+  // Apply any cached corrections to seeded stations
+  var cache=_loadGeocodeCache();
+  var applied=0;
+  allStations.forEach(function(s){
+    // Only correct seeded stations (id starts with 'seed_', 'sb_', 'la_', etc - any non 'gpl_')
+    if(!s.id||s.id.indexOf('gpl_')===0||s.id.indexOf('ocm_')===0)return;
+    if(!s.address)return;
+    var key='addr:'+s.address.toLowerCase().trim();
+    var c=cache[key];
+    if(c&&c.lat&&c.lng){
+      s.latitude=c.lat;
+      s.longitude=c.lng;
+      applied++;
+    }
+  });
+  if(applied>0){
+    console.log('Applied',applied,'geocoded coordinate corrections');
+    if(typeof renderAll==='function')renderAll();
+  }
+}
+
+function _geocodeOneStation(station){
+  return new Promise(function(resolve){
+    if(typeof google==='undefined'||!google.maps||!google.maps.places){
+      resolve(null);return;
+    }
+    if(!window._geocodePlaces){
+      var d=document.createElement('div');
+      window._geocodePlaces=new google.maps.places.PlacesService(d);
+    }
+    // Search for "<brand> <address>" to get most accurate match
+    var query=(station.brand||station.name||'gas')+' '+station.address;
+    window._geocodePlaces.textSearch({query:query, location:new google.maps.LatLng(station.latitude||37,station.longitude||-122), radius:5000},function(results,status){
+      if(status!==google.maps.places.PlacesServiceStatus.OK||!results||!results.length){
+        resolve(null);return;
+      }
+      var best=results[0];
+      if(!best.geometry||!best.geometry.location){resolve(null);return;}
+      // Sanity check: must be within 5km of the original seed coordinate
+      var dLat=best.geometry.location.lat()-(station.latitude||0);
+      var dLng=best.geometry.location.lng()-(station.longitude||0);
+      var roughDist=Math.sqrt(dLat*dLat+dLng*dLng)*69; // rough miles
+      if(roughDist>5){resolve(null);return;} // Too far — probably wrong match
+      resolve({lat:best.geometry.location.lat(),lng:best.geometry.location.lng()});
+    });
+  });
+}
+
+function _processGeocodeQueue(){
+  if(_geocodingActive||!_geocodeQueue.length)return;
+  _geocodingActive=true;
+  var station=_geocodeQueue.shift();
+  _geocodeOneStation(station).then(function(coords){
+    if(coords){
+      var cache=_loadGeocodeCache();
+      cache['addr:'+station.address.toLowerCase().trim()]={lat:coords.lat,lng:coords.lng,ts:Date.now()};
+      _geocodeCache=cache;
+      // Update the actual station
+      station.latitude=coords.lat;
+      station.longitude=coords.lng;
+      // Save cache every 10 corrections
+      if(Object.keys(cache).length%10===0)_saveGeocodeCache();
+    }
+    _geocodingActive=false;
+    // Throttle: 1 request per 300ms (Google Places allows ~3/sec)
+    setTimeout(_processGeocodeQueue, 300);
+  }).catch(function(){
+    _geocodingActive=false;
+    setTimeout(_processGeocodeQueue, 500);
+  });
+}
+
+function queueGeocodeCorrections(){
+  // Apply cached corrections first
+  applyGeocodeCorrections();
+  // Find stations that haven't been geocoded yet
+  var cache=_loadGeocodeCache();
+  var toGeocode=[];
+  allStations.forEach(function(s){
+    if(!s.id||s.id.indexOf('gpl_')===0||s.id.indexOf('ocm_')===0)return; // skip dynamic
+    if(!s.address)return;
+    var key='addr:'+s.address.toLowerCase().trim();
+    if(!cache[key]){
+      toGeocode.push(s);
+    }
+  });
+  if(toGeocode.length===0)return;
+  console.log('Queueing',toGeocode.length,'stations for background geocoding');
+  // Prioritize: stations near the user first
+  if(userLat&&userLng){
+    toGeocode.sort(function(a,b){
+      var da=Math.abs(a.latitude-userLat)+Math.abs(a.longitude-userLng);
+      var db=Math.abs(b.latitude-userLat)+Math.abs(b.longitude-userLng);
+      return da-db;
+    });
+  }
+  // Cap at 100 per session to avoid hammering the API
+  _geocodeQueue=toGeocode.slice(0,100);
+  // Persist cache on unload
+  window.addEventListener('beforeunload',_saveGeocodeCache);
+  // Start processing
+  _processGeocodeQueue();
+}
+
+
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
   var SNAP_PEEK=22;   // % screen height — compact preview (map dominant)
@@ -8712,6 +8849,134 @@ function clearMapSearch(){
     gMap.panTo({lat:userLat,lng:userLng});
     gMap.setZoom(13);
   }
+}
+
+
+
+// ── Background coordinate correction via Google Places ───────────────────────
+// Runs ONCE per station, then caches corrections in localStorage forever
+// This silently fixes seeded coordinates that were generated without geocoding
+var GEOCODE_CACHE_KEY='fm_geocode_corrections_v1';
+var _geocodeCache=null;
+var _geocodeQueue=[];
+var _geocodingActive=false;
+
+function _loadGeocodeCache(){
+  if(_geocodeCache!==null)return _geocodeCache;
+  try{
+    _geocodeCache=JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY)||'{}');
+  }catch(e){_geocodeCache={};}
+  return _geocodeCache;
+}
+
+function _saveGeocodeCache(){
+  if(!_geocodeCache)return;
+  try{localStorage.setItem(GEOCODE_CACHE_KEY,JSON.stringify(_geocodeCache));}catch(e){}
+}
+
+function applyGeocodeCorrections(){
+  // Apply any cached corrections to seeded stations
+  var cache=_loadGeocodeCache();
+  var applied=0;
+  allStations.forEach(function(s){
+    // Only correct seeded stations (id starts with 'seed_', 'sb_', 'la_', etc - any non 'gpl_')
+    if(!s.id||s.id.indexOf('gpl_')===0||s.id.indexOf('ocm_')===0)return;
+    if(!s.address)return;
+    var key='addr:'+s.address.toLowerCase().trim();
+    var c=cache[key];
+    if(c&&c.lat&&c.lng){
+      s.latitude=c.lat;
+      s.longitude=c.lng;
+      applied++;
+    }
+  });
+  if(applied>0){
+    console.log('Applied',applied,'geocoded coordinate corrections');
+    if(typeof renderAll==='function')renderAll();
+  }
+}
+
+function _geocodeOneStation(station){
+  return new Promise(function(resolve){
+    if(typeof google==='undefined'||!google.maps||!google.maps.places){
+      resolve(null);return;
+    }
+    if(!window._geocodePlaces){
+      var d=document.createElement('div');
+      window._geocodePlaces=new google.maps.places.PlacesService(d);
+    }
+    // Search for "<brand> <address>" to get most accurate match
+    var query=(station.brand||station.name||'gas')+' '+station.address;
+    window._geocodePlaces.textSearch({query:query, location:new google.maps.LatLng(station.latitude||37,station.longitude||-122), radius:5000},function(results,status){
+      if(status!==google.maps.places.PlacesServiceStatus.OK||!results||!results.length){
+        resolve(null);return;
+      }
+      var best=results[0];
+      if(!best.geometry||!best.geometry.location){resolve(null);return;}
+      // Sanity check: must be within 5km of the original seed coordinate
+      var dLat=best.geometry.location.lat()-(station.latitude||0);
+      var dLng=best.geometry.location.lng()-(station.longitude||0);
+      var roughDist=Math.sqrt(dLat*dLat+dLng*dLng)*69; // rough miles
+      if(roughDist>5){resolve(null);return;} // Too far — probably wrong match
+      resolve({lat:best.geometry.location.lat(),lng:best.geometry.location.lng()});
+    });
+  });
+}
+
+function _processGeocodeQueue(){
+  if(_geocodingActive||!_geocodeQueue.length)return;
+  _geocodingActive=true;
+  var station=_geocodeQueue.shift();
+  _geocodeOneStation(station).then(function(coords){
+    if(coords){
+      var cache=_loadGeocodeCache();
+      cache['addr:'+station.address.toLowerCase().trim()]={lat:coords.lat,lng:coords.lng,ts:Date.now()};
+      _geocodeCache=cache;
+      // Update the actual station
+      station.latitude=coords.lat;
+      station.longitude=coords.lng;
+      // Save cache every 10 corrections
+      if(Object.keys(cache).length%10===0)_saveGeocodeCache();
+    }
+    _geocodingActive=false;
+    // Throttle: 1 request per 300ms (Google Places allows ~3/sec)
+    setTimeout(_processGeocodeQueue, 300);
+  }).catch(function(){
+    _geocodingActive=false;
+    setTimeout(_processGeocodeQueue, 500);
+  });
+}
+
+function queueGeocodeCorrections(){
+  // Apply cached corrections first
+  applyGeocodeCorrections();
+  // Find stations that haven't been geocoded yet
+  var cache=_loadGeocodeCache();
+  var toGeocode=[];
+  allStations.forEach(function(s){
+    if(!s.id||s.id.indexOf('gpl_')===0||s.id.indexOf('ocm_')===0)return; // skip dynamic
+    if(!s.address)return;
+    var key='addr:'+s.address.toLowerCase().trim();
+    if(!cache[key]){
+      toGeocode.push(s);
+    }
+  });
+  if(toGeocode.length===0)return;
+  console.log('Queueing',toGeocode.length,'stations for background geocoding');
+  // Prioritize: stations near the user first
+  if(userLat&&userLng){
+    toGeocode.sort(function(a,b){
+      var da=Math.abs(a.latitude-userLat)+Math.abs(a.longitude-userLng);
+      var db=Math.abs(b.latitude-userLat)+Math.abs(b.longitude-userLng);
+      return da-db;
+    });
+  }
+  // Cap at 100 per session to avoid hammering the API
+  _geocodeQueue=toGeocode.slice(0,100);
+  // Persist cache on unload
+  window.addEventListener('beforeunload',_saveGeocodeCache);
+  // Start processing
+  _processGeocodeQueue();
 }
 
 
