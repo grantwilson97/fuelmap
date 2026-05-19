@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1779230757</title>
+<title>FuelMap 1779231117</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -6824,48 +6824,63 @@ function processTripRoute(totalMiles,durationMin,destInput,destName,destLat,dest
     allCandidates.sort(function(a,b){return b.tripScore-a.tripScore;});
 
     var favIds=loadFavorites().map(function(f){return f.id;});
-    var usedIds={};
+    // usedIds removed — picks now independent
 
     // Helper: pick best station NOT already used in another slot
-    function pickUnique(sortFn){
+    // Each pick finds the TRUE best in its category from the full candidate list.
+    // Deduplication happens at the display layer (one card can have multiple badges).
+    function pickBest(sortFn){
       var sorted=allCandidates.slice().sort(sortFn);
-      for(var i=0;i<sorted.length;i++){
-        if(!usedIds[sorted[i].id])return sorted[i];
-      }
-      // If all used, allow repeats so slots are always filled
       return sorted[0]||null;
     }
 
     // 1. Urgent — closest when fuel ≤25%
     var urgentStop=null;
     if(fuelLevel<=0.25){
-      urgentStop=pickUnique(function(a,b){return (a.distanceMiles||99)-(b.distanceMiles||99);});
-      if(urgentStop)usedIds[urgentStop.id]=true;
+      urgentStop=pickBest(function(a,b){return (a.distanceMiles||99)-(b.distanceMiles||99);});
     }
 
-    // 2. Favorite on route
+    // 2. Favorite on route — first favorite found
     var favOnRoute=null;
-    var favCandidates=allCandidates.filter(function(s){return favIds.indexOf(s.id)>-1&&!usedIds[s.id];});
-    if(favCandidates.length>0){favOnRoute=favCandidates[0];usedIds[favOnRoute.id]=true;}
+    var favCandidates=allCandidates.filter(function(s){return favIds.indexOf(s.id)>-1;});
+    if(favCandidates.length>0){
+      // Pick the cheapest favorite for consistency
+      favCandidates.sort(function(a,b){return getLatestPrice(a).price-getLatestPrice(b).price;});
+      favOnRoute=favCandidates[0];
+    }
 
     // 3. Best overall value (trip score)
-    var best=pickUnique(function(a,b){return b.tripScore-a.tripScore;});
-    if(best)usedIds[best.id]=true;
+    var best=pickBest(function(a,b){return b.tripScore-a.tripScore;});
 
-    // 4. Cheapest price
-    var cheapest=pickUnique(function(a,b){return getLatestPrice(a).price-getLatestPrice(b).price;});
-    if(cheapest)usedIds[cheapest.id]=true;
+    // 4. ACTUAL cheapest price (no exclusions)
+    var cheapest=pickBest(function(a,b){return getLatestPrice(a).price-getLatestPrice(b).price;});
 
     // 5. Least detour / most convenient
-    var nearest=pickUnique(function(a,b){return (a.detourFromRoute||0)-(b.detourFromRoute||0);});
-    if(nearest)usedIds[nearest.id]=true;
+    var nearest=pickBest(function(a,b){return (a.detourFromRoute||0)-(b.detourFromRoute||0);});
 
     // 6. Highest rated (by Google rating)
-    var topRated=pickUnique(function(a,b){return (b.rating||0)-(a.rating||0);});
-    if(topRated)usedIds[topRated.id]=true;
+    var topRated=pickBest(function(a,b){return (b.rating||0)-(a.rating||0);});
 
     // 7. Fastest in/out (shortest wait time)
-    var fastestStop=pickUnique(function(a,b){return waitMin(a.busy||30)-waitMin(b.busy||30);});
+    var fastestStop=pickBest(function(a,b){return waitMin(a.busy||30)-waitMin(b.busy||30);});
+
+    // ── Deduplicate at display layer ──
+    // If the same station appears as multiple categories, we keep the higher-priority slot
+    // and clear duplicates. Priority order: urgent > favorite > best > cheapest > nearest > rated > fastest
+    var seen={};
+    function dedupe(stop){
+      if(!stop)return null;
+      if(seen[stop.id])return null;
+      seen[stop.id]=true;
+      return stop;
+    }
+    urgentStop=dedupe(urgentStop);
+    favOnRoute=dedupe(favOnRoute);
+    best=dedupe(best);
+    cheapest=dedupe(cheapest);
+    nearest=dedupe(nearest);
+    topRated=dedupe(topRated);
+    fastestStop=dedupe(fastestStop);
 
     var stopPointMiles=best?(best.milesFromStart||Math.round(totalMiles*0.5)):Math.round(totalMiles*0.5);
     var stopMinFromStart=Math.round(durationMin*(stopPointMiles/totalMiles));
