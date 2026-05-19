@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1779226241</title>
+<title>FuelMap 1779226908</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -693,6 +693,7 @@ if('serviceWorker' in navigator){
         </div>
       </div>
     </div>
+    <button id="search-area-btn" onclick="searchThisArea()" style="display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);background:#fff;color:#1a1a2e;border:1.5px solid #ddd;border-radius:24px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:55;">🔄 Search this area</button>
     <div class="station-preview" id="station-preview">
       <div class="preview-drag" onclick="closeStationPreview()"></div>
       <div id="station-preview-content"></div>
@@ -5255,10 +5256,11 @@ function fetchForMapViewport(){
   var centerLng=(ne.lng()+sw.lng())/2;
 
   // Cover the entire visible bounds with a grid
-  // Grid cell size: 1.5mi radius = 0.022 lat x 0.030 lng spacing
-  var fetchRadius=1.5;
-  var stepLat=0.030; // ~2mi spacing between cells
-  var stepLng=0.042;
+  // Tighter spacing for dense urban areas — more thorough coverage
+  // Grid cell size: 1.2mi radius = 0.017 lat x 0.024 lng spacing
+  var fetchRadius=2.0;  // Slightly overlaps cells to eliminate gaps
+  var stepLat=0.018; // ~1.2mi spacing between cells (was 2mi)
+  var stepLng=0.025;
 
   var seenGasIds={};
   allStations.forEach(function(s){
@@ -5282,9 +5284,18 @@ function fetchForMapViewport(){
   }
 
   if(newPoints.length===0)return;
+  // Cap total fetches per pan to avoid hammering API
+  // For very wide zoom-outs, sample a subset
+  if(newPoints.length>40){
+    // Sample evenly across the bounds — keep first, every Nth
+    var step=Math.ceil(newPoints.length/40);
+    var sampled=[];
+    for(var i=0;i<newPoints.length;i+=step) sampled.push(newPoints[i]);
+    newPoints=sampled;
+  }
   // Limit concurrent requests to avoid rate limits
   var batches=[];
-  var batchSize=6;
+  var batchSize=10;  // More parallel requests for faster coverage
   for(var b=0;b<newPoints.length;b+=batchSize){
     batches.push(newPoints.slice(b,b+batchSize));
   }
@@ -7393,6 +7404,54 @@ function clearPinHighlight(){
 }
 
 
+
+// ── "Search this area" button (Zillow-style) ─────────────────────────────────
+var _lastSearchCenter=null;
+
+function showSearchAreaBtn(){
+  var btn=document.getElementById('search-area-btn');
+  if(btn)btn.style.display='block';
+}
+
+function hideSearchAreaBtn(){
+  var btn=document.getElementById('search-area-btn');
+  if(btn)btn.style.display='none';
+}
+
+function searchThisArea(){
+  if(!gMap)return;
+  var center=gMap.getCenter();
+  _lastSearchCenter={lat:center.lat(),lng:center.lng()};
+  hideSearchAreaBtn();
+  // Force fresh fetch by clearing the cache for this area
+  fetchForMapViewport();
+  // Visual feedback
+  var btn=document.getElementById('search-area-btn');
+  if(btn)btn.textContent='🔄 Searching...';
+  setTimeout(function(){if(btn)btn.textContent='🔄 Search this area';},2000);
+}
+
+// Hook into map drag — show button when user pans significantly
+function _checkPanDistance(){
+  if(!gMap||!_lastSearchCenter)return;
+  var center=gMap.getCenter();
+  var dist=distMiles(_lastSearchCenter.lat,_lastSearchCenter.lng,center.lat(),center.lng());
+  if(dist>3){ // 3+ miles from last search center
+    showSearchAreaBtn();
+  }
+}
+
+// Initial search center is user's location
+function _initSearchAreaTracking(){
+  if(!gMap||!userLat)return;
+  _lastSearchCenter={lat:userLat,lng:userLng};
+  gMap.addListener('dragend',_checkPanDistance);
+  gMap.addListener('zoom_changed',function(){
+    setTimeout(_checkPanDistance,500);
+  });
+}
+
+
 // ── Bottom sheet swipe gestures ──────────────────────────────────────────────
 (function(){
   var SNAP_PEEK=22;   // % screen height — compact preview (map dominant)
@@ -7706,6 +7765,54 @@ function clearPinHighlight(){
     ov.div.style.transform='translate(-50%,-100%) scale(1)';
     ov.div.style.zIndex='100';
     ov.div.style.filter='drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+  });
+}
+
+
+
+// ── "Search this area" button (Zillow-style) ─────────────────────────────────
+var _lastSearchCenter=null;
+
+function showSearchAreaBtn(){
+  var btn=document.getElementById('search-area-btn');
+  if(btn)btn.style.display='block';
+}
+
+function hideSearchAreaBtn(){
+  var btn=document.getElementById('search-area-btn');
+  if(btn)btn.style.display='none';
+}
+
+function searchThisArea(){
+  if(!gMap)return;
+  var center=gMap.getCenter();
+  _lastSearchCenter={lat:center.lat(),lng:center.lng()};
+  hideSearchAreaBtn();
+  // Force fresh fetch by clearing the cache for this area
+  fetchForMapViewport();
+  // Visual feedback
+  var btn=document.getElementById('search-area-btn');
+  if(btn)btn.textContent='🔄 Searching...';
+  setTimeout(function(){if(btn)btn.textContent='🔄 Search this area';},2000);
+}
+
+// Hook into map drag — show button when user pans significantly
+function _checkPanDistance(){
+  if(!gMap||!_lastSearchCenter)return;
+  var center=gMap.getCenter();
+  var dist=distMiles(_lastSearchCenter.lat,_lastSearchCenter.lng,center.lat(),center.lng());
+  if(dist>3){ // 3+ miles from last search center
+    showSearchAreaBtn();
+  }
+}
+
+// Initial search center is user's location
+function _initSearchAreaTracking(){
+  if(!gMap||!userLat)return;
+  _lastSearchCenter={lat:userLat,lng:userLng};
+  gMap.addListener('dragend',_checkPanDistance);
+  gMap.addListener('zoom_changed',function(){
+    setTimeout(_checkPanDistance,500);
   });
 }
 
