@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="FuelMap">
-<title>FuelMap 1779228709</title>
+<title>FuelMap 1779229188</title>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBy_2_ROpLX-f9T5q9X3nJVnc2I1QOOAW8&libraries=places&callback=initMapCallback" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
@@ -7751,44 +7751,80 @@ function showMapSearchDropdown(items){
 }
 
 function selectMapSearchPlace(item){
+  console.log('selectMapSearchPlace called with:',item);
   hideMapSearchDropdown();
   var inp=document.getElementById('map-search-input');
   if(inp){inp.value=item.main;inp.blur();}
   var clearBtn=document.getElementById('map-search-clear');
   if(clearBtn) clearBtn.style.display='flex';
 
-  // Geocode the selected place to get lat/lng
-  if(typeof google==='undefined'||!google.maps)return;
-  if(!window._geocoder) window._geocoder=new google.maps.Geocoder();
-  window._geocoder.geocode({placeId:item.place_id},function(results,status){
-    if(status!=='OK'||!results||!results.length)return;
-    var loc=results[0].geometry.location;
-    var lat=loc.lat(),lng=loc.lng();
+  if(typeof google==='undefined'||!google.maps||!google.maps.places){
+    console.error('Google Maps Places not loaded');
+    if(typeof showToast==='function')showToast('Maps not ready — try again in a moment');
+    return;
+  }
 
-    // Pan map there and zoom appropriately
-    if(gMap){
-      gMap.panTo({lat:lat,lng:lng});
-      // Adjust zoom based on result type — cities get wider zoom, addresses closer
-      var types=results[0].types||[];
-      var zoom=13; // default city level
-      if(types.indexOf('street_address')>-1||types.indexOf('premise')>-1) zoom=15;
-      else if(types.indexOf('neighborhood')>-1) zoom=14;
-      else if(types.indexOf('locality')>-1) zoom=12;
-      else if(types.indexOf('administrative_area_level_2')>-1) zoom=10;
-      else if(types.indexOf('administrative_area_level_1')>-1) zoom=8;
-      gMap.setZoom(zoom);
+  if(!item.place_id){
+    console.error('No place_id provided');
+    if(typeof showToast==='function')showToast('Search error: no location ID');
+    return;
+  }
+
+  // Use PlacesService.getDetails (free for fields:geometry, doesn't need Geocoding API)
+  if(!window._placesService){
+    var dummyDiv=document.createElement('div');
+    window._placesService=new google.maps.places.PlacesService(dummyDiv);
+  }
+
+  window._placesService.getDetails(
+    {placeId:item.place_id, fields:['geometry','types','name']},
+    function(place,status){
+      console.log('getDetails response:',status,place);
+      if(status!==google.maps.places.PlacesServiceStatus.OK){
+        console.error('Places getDetails failed:',status);
+        if(typeof showToast==='function')showToast('Could not find location ('+status+')');
+        return;
+      }
+      if(!place||!place.geometry||!place.geometry.location){
+        console.error('Place has no geometry:',place);
+        if(typeof showToast==='function')showToast('Location has no coordinates');
+        return;
+      }
+
+      var lat=place.geometry.location.lat();
+      var lng=place.geometry.location.lng();
+      console.log('Navigating to:',lat,lng);
+
+      // Pan map there and zoom appropriately
+      if(gMap){
+        gMap.panTo({lat:lat,lng:lng});
+        var types=place.types||[];
+        var zoom=13; // default city level
+        if(types.indexOf('street_address')>-1||types.indexOf('premise')>-1) zoom=15;
+        else if(types.indexOf('neighborhood')>-1) zoom=14;
+        else if(types.indexOf('locality')>-1) zoom=12;
+        else if(types.indexOf('administrative_area_level_2')>-1) zoom=10;
+        else if(types.indexOf('administrative_area_level_1')>-1) zoom=8;
+        gMap.setZoom(zoom);
+        // Show success toast
+        if(typeof showToast==='function')showToast('📍 '+(place.name||item.main));
+      } else {
+        console.error('gMap not available');
+        if(typeof showToast==='function')showToast('Map not loaded yet');
+        return;
+      }
+
+      // Snap sheet to peek so map is dominant
+      if(window._setSheetSnap&&window._SNAP_PEEK){
+        setTimeout(function(){window._setSheetSnap(window._SNAP_PEEK,true);},200);
+      }
+
+      // Trigger fetch for the new area
+      setTimeout(function(){
+        if(typeof fetchForMapViewport==='function')fetchForMapViewport();
+      },500);
     }
-
-    // Snap sheet to peek so map is dominant
-    if(window._setSheetSnap&&window._SNAP_PEEK){
-      setTimeout(function(){window._setSheetSnap(window._SNAP_PEEK,true);},200);
-    }
-
-    // Trigger fetch for the new area
-    setTimeout(function(){
-      if(typeof fetchForMapViewport==='function')fetchForMapViewport();
-    },500);
-  });
+  );
 }
 
 function selectFirstMapSearchResult(){
@@ -8366,44 +8402,80 @@ function showMapSearchDropdown(items){
 }
 
 function selectMapSearchPlace(item){
+  console.log('selectMapSearchPlace called with:',item);
   hideMapSearchDropdown();
   var inp=document.getElementById('map-search-input');
   if(inp){inp.value=item.main;inp.blur();}
   var clearBtn=document.getElementById('map-search-clear');
   if(clearBtn) clearBtn.style.display='flex';
 
-  // Geocode the selected place to get lat/lng
-  if(typeof google==='undefined'||!google.maps)return;
-  if(!window._geocoder) window._geocoder=new google.maps.Geocoder();
-  window._geocoder.geocode({placeId:item.place_id},function(results,status){
-    if(status!=='OK'||!results||!results.length)return;
-    var loc=results[0].geometry.location;
-    var lat=loc.lat(),lng=loc.lng();
+  if(typeof google==='undefined'||!google.maps||!google.maps.places){
+    console.error('Google Maps Places not loaded');
+    if(typeof showToast==='function')showToast('Maps not ready — try again in a moment');
+    return;
+  }
 
-    // Pan map there and zoom appropriately
-    if(gMap){
-      gMap.panTo({lat:lat,lng:lng});
-      // Adjust zoom based on result type — cities get wider zoom, addresses closer
-      var types=results[0].types||[];
-      var zoom=13; // default city level
-      if(types.indexOf('street_address')>-1||types.indexOf('premise')>-1) zoom=15;
-      else if(types.indexOf('neighborhood')>-1) zoom=14;
-      else if(types.indexOf('locality')>-1) zoom=12;
-      else if(types.indexOf('administrative_area_level_2')>-1) zoom=10;
-      else if(types.indexOf('administrative_area_level_1')>-1) zoom=8;
-      gMap.setZoom(zoom);
+  if(!item.place_id){
+    console.error('No place_id provided');
+    if(typeof showToast==='function')showToast('Search error: no location ID');
+    return;
+  }
+
+  // Use PlacesService.getDetails (free for fields:geometry, doesn't need Geocoding API)
+  if(!window._placesService){
+    var dummyDiv=document.createElement('div');
+    window._placesService=new google.maps.places.PlacesService(dummyDiv);
+  }
+
+  window._placesService.getDetails(
+    {placeId:item.place_id, fields:['geometry','types','name']},
+    function(place,status){
+      console.log('getDetails response:',status,place);
+      if(status!==google.maps.places.PlacesServiceStatus.OK){
+        console.error('Places getDetails failed:',status);
+        if(typeof showToast==='function')showToast('Could not find location ('+status+')');
+        return;
+      }
+      if(!place||!place.geometry||!place.geometry.location){
+        console.error('Place has no geometry:',place);
+        if(typeof showToast==='function')showToast('Location has no coordinates');
+        return;
+      }
+
+      var lat=place.geometry.location.lat();
+      var lng=place.geometry.location.lng();
+      console.log('Navigating to:',lat,lng);
+
+      // Pan map there and zoom appropriately
+      if(gMap){
+        gMap.panTo({lat:lat,lng:lng});
+        var types=place.types||[];
+        var zoom=13; // default city level
+        if(types.indexOf('street_address')>-1||types.indexOf('premise')>-1) zoom=15;
+        else if(types.indexOf('neighborhood')>-1) zoom=14;
+        else if(types.indexOf('locality')>-1) zoom=12;
+        else if(types.indexOf('administrative_area_level_2')>-1) zoom=10;
+        else if(types.indexOf('administrative_area_level_1')>-1) zoom=8;
+        gMap.setZoom(zoom);
+        // Show success toast
+        if(typeof showToast==='function')showToast('📍 '+(place.name||item.main));
+      } else {
+        console.error('gMap not available');
+        if(typeof showToast==='function')showToast('Map not loaded yet');
+        return;
+      }
+
+      // Snap sheet to peek so map is dominant
+      if(window._setSheetSnap&&window._SNAP_PEEK){
+        setTimeout(function(){window._setSheetSnap(window._SNAP_PEEK,true);},200);
+      }
+
+      // Trigger fetch for the new area
+      setTimeout(function(){
+        if(typeof fetchForMapViewport==='function')fetchForMapViewport();
+      },500);
     }
-
-    // Snap sheet to peek so map is dominant
-    if(window._setSheetSnap&&window._SNAP_PEEK){
-      setTimeout(function(){window._setSheetSnap(window._SNAP_PEEK,true);},200);
-    }
-
-    // Trigger fetch for the new area
-    setTimeout(function(){
-      if(typeof fetchForMapViewport==='function')fetchForMapViewport();
-    },500);
-  });
+  );
 }
 
 function selectFirstMapSearchResult(){
